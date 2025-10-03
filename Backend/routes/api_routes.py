@@ -129,7 +129,7 @@ def routes_list():
 @api_bp.route("/get-api-key", methods=["POST", "OPTIONS"])
 def get_api_key():
     if request.method == "OPTIONS":
-        return jsonify({}), 200
+        return '', 204
         
     try:
         payload = request.get_json(force=True) or {}
@@ -153,7 +153,7 @@ def get_api_key():
 def ask():
     # Handle CORS preflight request
     if request.method == "OPTIONS":
-        return jsonify({}), 200
+        return '', 204
     try:
         if not ANTHROPIC_API_KEY:
             return jsonify({

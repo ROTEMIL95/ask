@@ -38,11 +38,23 @@ def create_app() -> Flask:
     app.logger.info("Booting TalkAPI backend...")
 
     # CORS - Comprehensive configuration for all routes
-    # Allow all origins for development (you can restrict this in production)
+    # Allow specific origins including production domain
+    allowed_origins = [
+        "https://talkapi.ai",
+        "https://talkapi.netlify.app", 
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080"
+    ]
+    
+    # Add any additional origins from config
+    if Config.ALLOWED_ORIGINS:
+        allowed_origins.extend(Config.ALLOWED_ORIGINS)
+    
     CORS(app, 
          resources={
              r"/*": {
-                 "origins": ["*"],  # Allow all origins for now
+                 "origins": allowed_origins,
                  "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
                  "allow_headers": [
                      "Content-Type", 
@@ -68,7 +80,7 @@ def create_app() -> Flask:
              }
          })
     
-    app.logger.info("CORS configured to allow all origins and methods")
+    app.logger.info(f"CORS configured to allow origins: {allowed_origins}")
 
     # Rate limiter
     if USE_LIMITER:
