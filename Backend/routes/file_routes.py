@@ -364,11 +364,16 @@ def process_text_file(file_data, filename):
         return {"error": f"Failed to process text file: {str(e)}"}
 
 @file_bp.route('/file-to-text', methods=['POST', 'OPTIONS'])
-@limiter.limit("10 per minute")
 def file_to_text_endpoint():
     # Handle CORS preflight request
     if request.method == 'OPTIONS':
-        return jsonify({}), 200
+        return '', 204
+    
+    # For POST requests, call the rate-limited function
+    return file_to_text_post()
+
+@limiter.limit("10 per minute")
+def file_to_text_post():
     """
     Process uploaded files and extract text (PDF, images, etc.)
     """

@@ -171,11 +171,16 @@ def process_ocr_image(image_data):
         }
 
 @ocr_bp.route('/ocr', methods=['POST', 'OPTIONS'])
-@limiter.limit("10 per minute")
 def ocr_endpoint():
     # Handle CORS preflight request
     if request.method == 'OPTIONS':
-        return jsonify({}), 200
+        return '', 204
+    
+    # For POST requests, call the rate-limited function
+    return ocr_post()
+
+@limiter.limit("10 per minute")
+def ocr_post():
     """Process uploaded images with OCR"""
     try:
         if 'image' not in request.files:

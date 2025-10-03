@@ -123,7 +123,18 @@ def health():
 @api_bp.route("/routes", methods=["GET"])
 def routes_list():
     return jsonify({
-        "routes": ["/health", "/routes", "/ask"]
+        "routes": ["/health", "/routes", "/ask", "/cors-test"]
+    })
+
+@api_bp.route("/cors-test", methods=["GET", "POST", "OPTIONS"])
+def cors_test():
+    """Simple endpoint to test CORS configuration"""
+    if request.method == "OPTIONS":
+        return '', 204
+    return jsonify({
+        "message": "CORS test successful",
+        "method": request.method,
+        "origin": request.headers.get("Origin", "unknown")
     })
 
 @api_bp.route("/get-api-key", methods=["POST", "OPTIONS"])
@@ -149,11 +160,16 @@ def get_api_key():
         return jsonify({"error": "GET_API_KEY_FAILED", "details": str(e)}), 500
 
 @api_bp.route("/ask", methods=["POST", "OPTIONS"])
-@limiter.limit("100 per minute")
 def ask():
     # Handle CORS preflight request
     if request.method == "OPTIONS":
         return '', 204
+    
+    # For POST requests, call the rate-limited function
+    return ask_post()
+
+@limiter.limit("100 per minute")
+def ask_post():
     try:
         if not ANTHROPIC_API_KEY:
             return jsonify({
