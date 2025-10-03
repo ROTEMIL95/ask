@@ -1,0 +1,331 @@
+"""
+API Routes - Core API functionality (TalkAPI)
+"""
+from utils.monthly_quota import check_and_decrement
+from supabase_client import supabase_manager
+from flask import Blueprint, request, jsonify
+from datetime import datetime
+from limiter_config import get_limiter
+from dotenv import load_dotenv
+from anthropic import Anthropic
+import os, sys, io, json, re
+
+# --- Env & stdout ---
+load_dotenv()
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
+# --- LLM client ---
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+if not ANTHROPIC_API_KEY:
+    print("⚠️ ANTHROPIC_API_KEY missing – /ask will return 500 until set.")
+
+# Initialize Anthropic client using the template
+client = Anthropic(
+    # defaults to os.environ.get("ANTHROPIC_API_KEY")
+    api_key=ANTHROPIC_API_KEY,
+)
+MODEL_NAME = "claude-3-5-sonnet-20241022"  # Use the model from template
+
+# --- Blueprint & limiter (app will init later) ---
+api_bp = Blueprint("api", __name__)
+limiter = get_limiter(None)
+
+# --- System prompt (for backward compatibility) ---
+system_prompt = """
+You are TalkAPI's API-integration planner & code generator.
+Return ONE valid JSON object ONLY (no markdown/prose).
+"""
+
+# --- Helpers ---
+def _collect_text(msg):
+    out = []
+    for part in getattr(msg, "content", []) or []:
+        if getattr(part, "type", "") == "text":
+            out.append(part.text)
+    return "".join(out).strip()
+
+def _strip_fences(s: str) -> str:
+    if "```" in s:
+        m = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", s)
+        if m:
+            return m.group(1)
+        m = re.search(r"(\{[\s\S]*?\})", s)
+        if m:
+            return m.group(1)
+    else:
+        m = re.search(r"(\{[\s\S]*?\})", s)
+        if m:
+            return m.group(1)
+    return s
+
+def _validate_plan(plan: dict) -> dict:
+    plan.setdefault("description", "API integration approach")
+    plan.setdefault("endpoints", [])
+    plan.setdefault("method", "GET")
+    if isinstance(plan["method"], str):
+        plan["method"] = plan["method"].upper()
+        if plan["method"] not in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
+            plan["method"] = "GET"
+    if not isinstance(plan["endpoints"], list):
+        plan["endpoints"] = []
+    return plan
+
+def _ensure_six_snippets(snips: dict) -> dict:
+    keys = ["javascript", "python", "curl", "csharp", "java", "go"]
+    snips = snips or {}
+    for k in keys:
+        snips.setdefault(k, "")
+    return snips
+
+# --- NEW: detect and parse OpenAPI/Swagger ---
+def _is_openapi_spec(doc: str) -> bool:
+    try:
+        data = json.loads(doc)
+        return "openapi" in data or "swagger" in data
+    except Exception:
+        return False
+
+def _parse_openapi_spec(doc: str) -> dict:
+    try:
+        spec = json.loads(doc)
+        return {
+            "plan": {
+                "description": f"Parsed OpenAPI spec: {spec.get('info', {}).get('title', 'Untitled')}",
+                "endpoints": list(spec.get("paths", {}).keys()),
+                "method": "GET"
+            },
+            "snippets": {
+                "javascript": "// TODO: Generate JS code for these endpoints",
+                "python": "# TODO: Generate Python requests code",
+                "curl": "# TODO: Generate curl commands",
+                "csharp": "// TODO: Generate C# HttpClient code",
+                "java": "// TODO: Generate Java HttpClient code",
+                "go": "// TODO: Generate Go HTTP client code"
+            }
+        }
+    except Exception as e:
+        return {
+            "plan": {"description": f"Failed to parse spec: {e}", "endpoints": [], "method": "GET"},
+            "snippets": {}
+        }
+
+# --- Routes ---
+@api_bp.route("/health", methods=["GET"])
+def health():
+    return jsonify({
+        "status": "healthy",
+        "message": "Flask server is running",
+        "timestamp": datetime.now().isoformat()
+    })
+
+@api_bp.route("/routes", methods=["GET"])
+def routes_list():
+    return jsonify({
+        "routes": ["/health", "/routes", "/ask"]
+    })
+
+@api_bp.route("/get-api-key", methods=["POST", "OPTIONS"])
+def get_api_key():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+        
+    try:
+        payload = request.get_json(force=True) or {}
+        service = payload.get("service", "").strip()
+        if not service:
+            return jsonify({"error": "Missing 'service' parameter"}), 400
+        if service == "anthropic":
+            api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        elif service == "openweathermap":
+            api_key = os.getenv("OPENWEATHERMAP_API_KEY", "")
+        else:
+            return jsonify({"error": f"Unsupported service: {service}"}), 400
+        if not api_key:
+            return jsonify({"error": f"API key not configured for {service}"}), 404
+        return jsonify({"api_key": api_key}), 200
+    except Exception as e:
+        return jsonify({"error": "GET_API_KEY_FAILED", "details": str(e)}), 500
+
+@api_bp.route("/ask", methods=["POST", "OPTIONS"])
+@limiter.limit("100 per minute")
+def ask():
+    # Handle CORS preflight request
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        if not ANTHROPIC_API_KEY:
+            return jsonify({
+                "error": "ASK_FAILED",
+                "details": "Anthropic API key is not configured."
+            }), 500
+
+        payload = request.get_json(force=True) or {}
+        doc = (payload.get("doc") or "").strip()
+        question = (payload.get("question") or "").strip()
+        hint = payload.get("provider_hint")
+        base_url = None
+        if isinstance(hint, dict):
+            base_url = hint.get("baseUrl")
+            hint = hint.get("apiName", "").strip()
+        else:
+            hint = (hint or "").strip()
+
+        print(f"🔍 Debug: Question: {question[:100]}... | Doc length: {len(doc)} | Hint: {hint}")
+
+        if not question:
+            return jsonify({"error": "Missing 'question'"}), 400
+
+        # --- NEW: direct parse for OpenAPI specs ---
+        if doc and _is_openapi_spec(doc):
+            print("✅ Detected OpenAPI/Swagger JSON")
+            return jsonify(_parse_openapi_spec(doc)), 200
+
+        # quota checks (same as before)
+        user_id = request.headers.get("X-User-Id", "")
+        try:
+            check_and_decrement(supabase_manager, user_id or "anonymous", usage="convert")
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 402
+
+        # Get current date and time for context
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        print(f"DEBUG: Current date/time: {current_datetime}")
+
+        # System prompt for consistent behavior
+        system_prompt = (
+    "You are a world-class API expert and senior software engineer, specializing in designing, "
+    "debugging, and optimizing API requests and integrations. "
+    "Always generate exactly three complete, production-ready, and runnable code examples for the same request: "
+    "1. JavaScript (fetch), 2. Python (requests), 3. cURL. "
+    "Ensure 1:1 alignment across all three examples: HTTP method, URL, headers, query parameters, path variables, "
+    "and JSON body must be identical. "
+    "Follow Postman-style request structure exactly, including HTTP method, URL, headers, and body formatting. "
+    "Include all required parameters, headers, and authentication fields as specified in the provided API documentation. "
+    "Always include 'Content-Type': 'application/json' in all examples when applicable. "
+    "Use placeholders like YOUR_API_KEY with a comment to replace them. "
+    "For POST/PUT/PATCH requests, include a sample JSON body based on the documentation. "
+    "In JavaScript, always define variables for any parameters, keys, or payload fields at the top, "
+    "and always use fetch with an explicit configuration object, never omitting the headers block, "
+    "and without adding 'if (!response.ok)' checks that throw before parsing JSON. "
+    "Always parse .json() first and use .catch() for error handling. "
+    "In Python, always use the requests library with the same headers and JSON payload if applicable. "
+    "In cURL, always include the correct -H headers and -d payload when needed. "
+    f"Current date: {current_date}. Current date and time: {current_datetime}. "
+    "When users reference relative dates such as 'today', 'tomorrow', or 'yesterday', "
+    "use the provided current date as the reference. "
+    "Always follow best practices for API authentication, security, and efficiency. "
+    "Output must be in the following format with no extra explanations: "
+    "```javascript\n// JavaScript code here\n```\n"
+    "```python\n# Python code here\n```\n"
+    "```bash\n# cURL command here\n```"
+        )
+
+
+        
+        # Call Anthropic Claude API using the template structure
+        model_name = os.getenv("LLM_MODEL", "claude-3-5-sonnet-20241022")
+        print(f"DEBUG: Calling Anthropic API with model: {model_name}")
+        print(f"DEBUG: System prompt length: {len(system_prompt)} chars")
+        print(f"DEBUG: User question length: {len(question)} chars")
+        
+        # Use the template structure from user's request
+        message = client.messages.create(
+            model=model_name,
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[
+                {"role": "user", "content": question}
+            ]
+        )
+        
+        # Keep OpenAI code commented for easy revert
+        # response = openai_client.chat.completions.create(
+        #     model="gpt-4o-mini",
+        #     messages=[
+        #         {"role": "system", "content": system_prompt},
+        #         {"role": "user", "content": question}
+        #     ],
+        #     max_completion_tokens=2000,  
+        # )
+        
+        print(f"DEBUG: Anthropic API call successful")
+        print(f"DEBUG: Response model: {message.model}")
+        # Use safe printing for debug output
+        try:
+            print(f"DEBUG: Message object: {message}")
+        except UnicodeEncodeError:
+            print("DEBUG: Message object: [Unicode encoding error - response received successfully]")
+        
+        # Extract answer from Anthropic response using template structure
+        answer = ""
+        if hasattr(message, 'content') and message.content:
+            # Anthropic returns content as a list of message blocks
+            if isinstance(message.content, list) and len(message.content) > 0:
+                # Get the text from the first content block
+                answer = message.content[0].text
+                print(f"DEBUG: Extracted answer from content block")
+            else:
+                print("DEBUG: No content blocks in response!")
+        else:
+            print("DEBUG: No content in response!")
+            
+        if answer is None:
+            print("DEBUG: Answer is None!")
+            answer = ""
+        elif answer == "":
+            print("DEBUG: Answer is empty string!")
+            
+        # Check stop reason (Anthropic's equivalent to finish_reason)
+        stop_reason = getattr(message, 'stop_reason', 'unknown')
+        print(f"DEBUG: Stop reason: {stop_reason}")
+            
+        print(f"DEBUG: Answer length: {len(answer)} chars")
+        
+        # Keep OpenAI response handling commented for easy revert
+        # if not response.choices or len(response.choices) == 0:
+        #     print("DEBUG: No choices in response!")
+        #     answer = ""
+        # else:
+        #     answer = response.choices[0].message.content
+        #     finish_reason = getattr(response.choices[0], 'finish_reason', 'unknown')
+        #     print(f"DEBUG: Finish reason: {finish_reason}")
+        if len(answer) > 0:
+            try:
+                print(f"DEBUG: First 100 chars of answer: {answer[:100]}...")
+            except UnicodeEncodeError:
+                print("DEBUG: Answer contains Unicode characters that cannot be printed")
+        
+        # Extract usage information for Anthropic using template structure
+        usage_info = {}
+        if hasattr(message, 'usage') and message.usage:
+            usage_info = {
+                'prompt_tokens': getattr(message.usage, 'input_tokens', 0),
+                'completion_tokens': getattr(message.usage, 'output_tokens', 0),
+                'total_tokens': getattr(message.usage, 'input_tokens', 0) + getattr(message.usage, 'output_tokens', 0)
+            }
+        
+        return jsonify({
+            'answer': answer,
+            'model': message.model if hasattr(message, 'model') else model_name,
+            'usage': usage_info
+        })
+        
+        # Keep OpenAI usage extraction commented for easy revert
+        # usage_info = {}
+        # if hasattr(response, 'usage') and response.usage:
+        #     usage_info = {
+        #         'prompt_tokens': getattr(response.usage, 'prompt_tokens', 0),
+        #         'completion_tokens': getattr(response.usage, 'completion_tokens', 0),
+        #         'total_tokens': getattr(response.usage, 'total_tokens', 0)
+        #     }
+        
+    except Exception as e:
+        print(f"Error in /ask endpoint: {e}")
+        # Log more details for debugging
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Failed to process request: {str(e)}'}), 500
+

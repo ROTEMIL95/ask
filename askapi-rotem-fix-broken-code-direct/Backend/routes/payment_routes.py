@@ -1,0 +1,337 @@
+# Backend/routes/payment_routes.py
+# ---------------------------------------------------------------------------
+# Payment routes for TalkAPI
+# - /payment/pay:    initial charge + create recurring (STO) + upgrade to Pro
+# - /payment/cancel: cancel recurring (STO) + downgrade to Free
+# - /payment/callback: synchronous callback handler (optional)
+#
+# Plans:
+#   Pro  -> 500 code generations (convert) + 2000 API runs (execute) per month
+#   Free -> 50 total (convert + run combined) per month
+#
+# This module relies on supabase_manager helpers that must exist:
+#   - verify_token(token) -> {sub, email, ...} | None
+#   - update_subscription_after_payment(user_id, sto_id, plan_type, user_email, user_token, limits: dict) -> bool
+#   - update_user_profile(user_id, dict) -> bool
+#   - get_user_sto_id(user_id) -> str|int|None
+#   - save_api_history(user_id, user_query, generated_code, endpoint, status, execution_result: dict)
+#
+# Tranzila helpers:
+#   - services.tranzila_service.generate_tranzila_headers(public_key, secret_key) -> dict
+#   - services.payment_service.create_recurring_payment(...) -> {"sto_id": <int>} | {}
+#   - services.payment_service.format_payload_initial(params) -> dict
+# ---------------------------------------------------------------------------
+
+from flask import Blueprint, request, jsonify
+import os
+import logging
+from datetime import datetime
+import requests
+
+from services.payment_service import create_recurring_payment, format_payload_initial
+from services.tranzila_service import generate_tranzila_headers
+from supabase_client import supabase_manager
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+payment_bp = Blueprint("payment", __name__)
+
+# --- Environment (Tranzila credentials) ---
+TRANZILA_SUPPLIER = os.getenv("TRANZILA_SUPPLIER")
+TRANZILA_PUBLIC_API_KEY = os.getenv("TRANZILA_PUBLIC_API_KEY")
+TRANZILA_SECRET_API_KEY = os.getenv("TRANZILA_SECRET_API_KEY")
+
+# --- Plan definitions ---
+PRO_LIMITS = {"convert_limit": 500, "run_limit": 2000}  # monthly quotas
+FREE_LIMITS = {"total_limit": 50}                       # combined monthly quota
+
+
+@payment_bp.route("/payment/pay", methods=["POST", "OPTIONS"])
+def make_initial_payment():
+    """
+    Initial payment flow:
+      1) Validate Authorization (JWT).
+      2) Charge the card once via Tranzila.
+      3) Create recurring payment (STO) in Tranzila.
+      4) Update the user's subscription to Pro (500/2000) in Supabase.
+      5) Log to API history.
+    """
+    logger.info("💳 /payment/pay called")
+
+    # Handle CORS preflight
+    if request.method == "OPTIONS":
+        return "", 200
+
+    # 1) Authorization
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning("Missing/invalid Authorization header")
+        return jsonify({"status": "error", "message": "Authentication required"}), 401
+
+    auth_token = auth_header.split(" ")[1]
+    user_data = supabase_manager.verify_token(auth_token)
+    user_id = user_data.get("sub") if user_data else None
+    user_email = user_data.get("email") if user_data else None
+
+    if not user_id:
+        return jsonify({"status": "error", "message": "Invalid user token"}), 401
+
+    # 2) Validate client payload
+    params = request.get_json(silent=True) or {}
+    for field in ["card_number", "expire_month", "expire_year"]:
+        if not params.get(field):
+            return jsonify({"status": "error", "message": f"Missing field: {field}"}), 400
+
+    # 3) One-time charge
+    try:
+        url = "https://api.tranzila.com/v1/transaction/credit_card/create"
+        payload = format_payload_initial(params)
+        headers = generate_tranzila_headers(TRANZILA_PUBLIC_API_KEY, TRANZILA_SECRET_API_KEY)
+
+        logger.info(f"[Charge] URL: {url}")
+        logger.info(f"[Charge] Payload: {payload}")
+
+        resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        trx = data.get("transaction_result") or {}
+        if trx.get("processor_response_code") != "000":
+            logger.error(f"Charge failed: {data}")
+            return jsonify({"status": "error", "message": "Payment failed"}), 400
+
+    except Exception as e:
+        logger.exception("Error in initial payment")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    # 4) Create recurring (STO)
+    try:
+        recurring_result = create_recurring_payment(
+            token=trx.get("token"),
+            expire_month=params.get("expire_month"),
+            expire_year=params.get("expire_year"),
+            full_name=params.get("full_name"),
+            user_email=user_email,
+            user_id=user_id,
+        )
+        sto_id = (recurring_result or {}).get("sto_id")
+        if not sto_id:
+            logger.warning("Recurring created without STO ID; proceeding")
+
+    except Exception as e:
+        logger.exception("Error creating recurring (STO)")
+        sto_id = None  # proceed with subscription upgrade even if STO failed
+
+    # 5) Update subscription in Supabase
+    try:
+        updated = supabase_manager.update_subscription_after_payment(
+            user_id=user_id,
+            sto_id=sto_id,
+            plan_type="pro",
+            user_email=user_email,
+            user_token=auth_token,
+            limits=PRO_LIMITS,  # 500/2000 monthly
+        )
+
+        # Log history
+        supabase_manager.save_api_history(
+            user_id=user_id,
+            user_query="Payment: upgrade to Pro",
+            generated_code=None,
+            endpoint="/payment/pay",
+            status="Success" if updated else "Partial",
+            execution_result={"sto_id": sto_id, "plan": "pro", "limits": PRO_LIMITS},
+        )
+
+        if not updated:
+            return jsonify({
+                "status": "success",
+                "message": "Payment successful, but failed to update subscription. Please contact support.",
+                "sto_id": sto_id,
+            }), 200
+
+        return jsonify({
+            "status": "success",
+            "message": "Payment successful! Your account has been upgraded to Pro.",
+            "sto_id": sto_id,
+        }), 200
+
+    except Exception as e:
+        logger.exception("Error updating subscription after payment")
+        return jsonify({
+            "status": "success",
+            "message": "Payment successful, but account update failed. Please contact support.",
+        }), 200
+
+
+@payment_bp.route("/payment/cancel", methods=["POST", "OPTIONS"])
+def cancel_payment():
+    """
+    Cancellation flow:
+      1) Validate Authorization (JWT).
+      2) Deactivate the user's STO in Tranzila (if exists).
+      3) Downgrade user to Free (50 total/month) in Supabase.
+      4) Log to API history.
+    """
+    logger.info("🚫 /payment/cancel called")
+
+    if request.method == "OPTIONS":
+        return "", 200
+
+    # 1) Authorization
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"status": "error", "message": "Authentication required"}), 401
+
+    token = auth_header.split(" ")[1]
+    user_data = supabase_manager.verify_token(token)
+    if not user_data or not user_data.get("sub"):
+        return jsonify({"status": "error", "message": "Invalid authentication"}), 401
+
+    user_id = user_data["sub"]
+    user_email = user_data.get("email", "Unknown User")
+
+    # 2) Find STO
+    sto_id = supabase_manager.get_user_sto_id(user_id)
+    if not sto_id:
+        logger.warning(f"User {user_id} has no STO; skipping remote cancel")
+        sto_cancelled = True
+    else:
+        # Deactivate STO in Tranzila
+        try:
+            url = "https://api.tranzila.com/v1/sto/update"
+            payload = {
+                "terminal_name": TRANZILA_SUPPLIER,
+                "sto_id": int(sto_id),
+                "sto_status": "inactive",
+                "response_language": "english",
+                "updated_by_user": user_email,
+            }
+            headers = generate_tranzila_headers(TRANZILA_PUBLIC_API_KEY, TRANZILA_SECRET_API_KEY)
+
+            resp = requests.post(url, json=payload, headers=headers, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            sto_cancelled = (resp.status_code == 200 and data.get("error_code") == 0)
+
+            if not sto_cancelled:
+                logger.error(f"Tranzila cancellation failed: {data}")
+
+        except Exception as e:
+            logger.exception("HTTP error cancelling STO")
+            return jsonify({"status": "error", "message": f"Cancel failed: {str(e)}"}), 500
+
+    # 3) Downgrade to Free in Supabase
+    try:
+        downgraded = supabase_manager.update_subscription_after_payment(
+            user_id=user_id,
+            sto_id=None,
+            plan_type="free",
+            user_email=user_email,
+            user_token=token,
+            limits=FREE_LIMITS,  # 50 total/month
+        )
+
+        # Log history
+        supabase_manager.save_api_history(
+            user_id=user_id,
+            user_query="Cancel subscription (to Free)",
+            generated_code=None,
+            endpoint="/payment/cancel",
+            status="Success" if downgraded else "Partial",
+            execution_result={"sto_cancelled": sto_cancelled, "plan": "free", "limits": FREE_LIMITS},
+        )
+
+        if not downgraded:
+            return jsonify({
+                "status": "success",
+                "message": "Subscription cancelled, but account update failed. Please contact support.",
+            }), 200
+
+        return jsonify({
+            "status": "success",
+            "message": "Subscription cancelled. Your account was reverted to the Free plan.",
+        }), 200
+
+    except Exception as e:
+        logger.exception("Error updating subscription after cancellation")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@payment_bp.route("/payment/callback", methods=["POST", "GET", "OPTIONS"])
+def payment_callback():
+    """
+    Synchronous callback (if configured at Tranzila).
+    On success (Response == '000'), we mark the user as paid (Pro).
+    On failure, we just log it to history.
+    """
+    if request.method == "OPTIONS":
+        return "", 204
+
+    try:
+        transaction_id = request.values.get("transaction_id")
+        status_code = request.values.get("Response")
+        user_id = request.values.get("user_id") or request.values.get("u1")
+        plan = (request.values.get("plan") or request.values.get("u2") or "pro").lower()
+        amount = request.values.get("sum")
+
+        logger.info(f"🔔 Callback trx={transaction_id} status={status_code} user={user_id} plan={plan}")
+
+        if status_code == "000":
+            # Mark as Pro (note: quotas are handled elsewhere or on next /pay)
+            if user_id:
+                try:
+                    supabase_manager.update_user_profile(
+                        user_id,
+                        {
+                            "plan_type": "pro",
+                            "last_payment_date": datetime.now().isoformat(),
+                            "payment_status": "active",
+                        },
+                    )
+                    supabase_manager.save_api_history(
+                        user_id=user_id,
+                        user_query="Payment callback: upgrade to Pro",
+                        generated_code=None,
+                        endpoint="/payment/callback",
+                        status="Success",
+                        execution_result={
+                            "transaction_id": transaction_id,
+                            "amount": amount,
+                            "plan": "pro",
+                            "limits": PRO_LIMITS,
+                        },
+                    )
+                except Exception as e:
+                    logger.error(f"Callback profile update error: {e}")
+
+            return jsonify({
+                "status": "success",
+                "message": "Payment successful! Plan upgraded to Pro.",
+                "transaction_id": transaction_id,
+            }), 200
+
+        # Failure case
+        if user_id:
+            try:
+                supabase_manager.save_api_history(
+                    user_id=user_id,
+                    user_query=f"Failed payment for {plan} plan",
+                    generated_code=None,
+                    endpoint="/payment/callback",
+                    status="Failed",
+                    execution_result={
+                        "transaction_id": transaction_id,
+                        "error_code": status_code,
+                        "plan": plan,
+                    },
+                )
+            except Exception as e:
+                logger.error(f"Callback failure log error: {e}")
+
+        return jsonify({"status": "error", "message": "Payment failed", "error_code": status_code}), 400
+
+    except Exception as e:
+        logger.exception("Error in payment_callback")
+        return jsonify({"status": "error", "message": "Internal server error processing payment"}), 500

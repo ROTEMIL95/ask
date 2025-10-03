@@ -1,0 +1,137 @@
+# Environment variables - NEVER commit these!
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+*.env
+Backend/.env
+Frontend/.env
+**/.env
+
+# API Keys and Secrets
+**/gcloud-key.json
+**/talkapi-*.json
+**/*-key.json
+**/*-credentials.json
+*.pem
+*.key
+*.cert
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+ENV/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+.npm
+.yarn-integrity
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+.history/
+
+# IDE - JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - Claude
+.claude/
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Testing
+coverage/
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+.hypothesis/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+*_backup/
+backup/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Local configuration
+config.local.js
+settings.local.json
+*.local.*
+
+# Supabase
+**/supabase/.branches
+**/supabase/.temp
+
+# Netlify
+.netlify/
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Other
+.env.example.filled
+debug_*.html
+test_*.html
+.claude/.*
+
+CLAUDE.md
+Tasks.md

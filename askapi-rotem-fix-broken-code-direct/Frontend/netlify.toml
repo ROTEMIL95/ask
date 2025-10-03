@@ -1,0 +1,14 @@
+[build]
+  base = "Frontend"
+  command = "npm run build"
+  publish = "dist"
+
+# Disable default functions
+[functions]
+  directory = ""
+
+# SPA routing (to prevent 404 on refresh)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

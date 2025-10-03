@@ -1,0 +1,10 @@
+# Netlify redirects
+# Uncomment the line below if you want to proxy API calls through Netlify
+# /api/*  https://talkapi-tuir.onrender.com/:splat  200
+
+# Optional: Force HTTPS (recommended for production)
+# /  https://talkapi.ai  301!
+
+# SPA fallback - This MUST be at the end
+# This rule catches all routes and serves index.html for client-side routing
+/*    /index.html   200
