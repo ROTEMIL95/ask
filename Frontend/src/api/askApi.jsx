@@ -182,7 +182,9 @@ export const useAskApi = () => {
                     'Content-Type': 'application/json',
                     // Send user ID in header if available, otherwise send empty string for anonymous
                     'X-User-Id': userId || '',
+                    'Origin': 'https://talkapi.ai'
                 },
+                credentials: 'include',
                 body: JSON.stringify(requestBody),
             });
 

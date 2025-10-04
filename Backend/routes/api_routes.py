@@ -167,8 +167,9 @@ def ask():
     if request.method == "OPTIONS":
         response = make_response()
         response.headers.add("Access-Control-Allow-Origin", "https://talkapi.ai")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
-        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, X-User-Id, Origin")
+        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+        response.headers.add("Access-Control-Allow-Credentials", "true")
         response.headers.add("Access-Control-Max-Age", "3600")
         return response, 204
     try:

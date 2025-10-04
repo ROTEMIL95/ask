@@ -37,17 +37,25 @@ def create_app() -> Flask:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     app.logger.info("Booting TalkAPI backend...")
 
-    # CORS - Simplified configuration focused on talkapi.ai
+    # CORS - Configuration for talkapi.ai with all necessary headers
     CORS(app, 
          resources={
              r"/*": {
                  "origins": ["https://talkapi.ai"],
                  "methods": ["GET", "POST", "OPTIONS"],
-                 "allow_headers": ["Content-Type", "Authorization", "X-API-Key"],
+                 "allow_headers": [
+                     "Content-Type",
+                     "Authorization",
+                     "X-API-Key",
+                     "X-User-Id",
+                     "Origin"
+                 ],
+                 "expose_headers": ["Content-Type"],
+                 "supports_credentials": True,
+                 "send_wildcard": False,
                  "max_age": 3600
              }
-         },
-         supports_credentials=True)
+         })
     
     app.logger.info("CORS configured to allow origin: https://talkapi.ai")
 
