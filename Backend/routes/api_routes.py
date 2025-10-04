@@ -3,7 +3,7 @@ API Routes - Core API functionality (TalkAPI)
 """
 from utils.monthly_quota import check_and_decrement
 from supabase_client import supabase_manager
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
 from datetime import datetime
 from limiter_config import get_limiter
 from dotenv import load_dotenv
@@ -160,16 +160,17 @@ def get_api_key():
         return jsonify({"error": "GET_API_KEY_FAILED", "details": str(e)}), 500
 
 @api_bp.route("/ask", methods=["POST", "OPTIONS"])
+@limiter.limit("100 per minute", methods=["POST"])  # Only apply rate limit to POST
 def ask():
+    """Handle /ask endpoint for both OPTIONS and POST requests"""
     # Handle CORS preflight request
     if request.method == "OPTIONS":
-        return '', 204
-    
-    # For POST requests, call the rate-limited function
-    return ask_post()
-
-@limiter.limit("100 per minute")
-def ask_post():
+        response = make_response()
+        response.headers.add("Access-Control-Allow-Origin", "https://talkapi.ai")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
+        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+        response.headers.add("Access-Control-Max-Age", "3600")
+        return response, 204
     try:
         if not ANTHROPIC_API_KEY:
             return jsonify({

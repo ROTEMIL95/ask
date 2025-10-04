@@ -37,50 +37,19 @@ def create_app() -> Flask:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     app.logger.info("Booting TalkAPI backend...")
 
-    # CORS - Comprehensive configuration for all routes
-    # Allow specific origins including production domain
-    allowed_origins = [
-        "https://talkapi.ai",
-        "https://talkapi.netlify.app", 
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8080"
-    ]
-    
-    # Add any additional origins from config
-    if Config.ALLOWED_ORIGINS:
-        allowed_origins.extend(Config.ALLOWED_ORIGINS)
-    
+    # CORS - Simplified configuration focused on talkapi.ai
     CORS(app, 
          resources={
              r"/*": {
-                 "origins": allowed_origins,
-                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-                 "allow_headers": [
-                     "Content-Type", 
-                     "Authorization", 
-                     "X-Requested-With", 
-                     "Accept", 
-                     "Origin", 
-                     "X-API-Key",
-                     "X-User-Id",
-                     "Access-Control-Allow-Origin",
-                     "Access-Control-Allow-Headers",
-                     "Access-Control-Allow-Methods"
-                 ],
-                 "expose_headers": [
-                     "Content-Type", 
-                     "Authorization",
-                     "Access-Control-Allow-Origin",
-                     "Access-Control-Allow-Headers",
-                     "Access-Control-Allow-Methods"
-                 ],
-                 "supports_credentials": True,
-                 "max_age": 86400
+                 "origins": ["https://talkapi.ai"],
+                 "methods": ["GET", "POST", "OPTIONS"],
+                 "allow_headers": ["Content-Type", "Authorization", "X-API-Key"],
+                 "max_age": 3600
              }
-         })
+         },
+         supports_credentials=True)
     
-    app.logger.info(f"CORS configured to allow origins: {allowed_origins}")
+    app.logger.info("CORS configured to allow origin: https://talkapi.ai")
 
     # Rate limiter
     if USE_LIMITER:
