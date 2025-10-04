@@ -33,10 +33,82 @@ api_bp = Blueprint("api", __name__)
 limiter = get_limiter(None)
 
 # --- System prompt (for backward compatibility) ---
-system_prompt = """
-You are TalkAPI's API-integration planner & code generator.
-Return ONE valid JSON object ONLY (no markdown/prose).
+def generate_system_prompt(api_config):
+    """Generate a dynamic system prompt based on API configuration"""
+    base_prompt = """You are TalkAPI's API-integration planner & code generator.
+You MUST ALWAYS provide code examples in three languages: JavaScript (fetch), Python (requests), and cURL.
+Each code example MUST be wrapped in triple backticks with the language specified.
 """
+
+    # Add API-specific details if available
+    if api_config:
+        base_prompt += f"""
+API Details:
+- Name: {api_config.get('apiName', 'default')}
+- Base URL: {api_config.get('baseUrl', '')}
+- Authentication: {'Required' if api_config.get('hasApiKey') else 'Not Required'}
+- Documentation: {api_config.get('docsUrl', '')}
+- Available Methods: {', '.join(api_config.get('methods', ['GET', 'POST']))}
+- Auth Type: {api_config.get('authType', 'none')}
+- API Version: {api_config.get('version', 'latest')}
+
+Use these details to generate accurate code examples. Include proper:
+1. Base URL and endpoints
+2. Authentication headers (if required)
+3. Request parameters and body format
+4. Error handling
+5. Response parsing
+"""
+
+    # Add code block requirements
+    base_prompt += """
+Your response MUST include these three code blocks:
+
+```javascript
+// JavaScript example using fetch
+const response = await fetch('${BASE_URL}/endpoint', {
+    method: '${METHOD}',
+    headers: {
+        'Content-Type': 'application/json',
+        ${AUTH_HEADERS}
+    },
+    body: JSON.stringify({
+        ${REQUEST_BODY}
+    })
+});
+```
+
+```python
+# Python example using requests
+response = requests.${METHOD.lower()}(
+    '${BASE_URL}/endpoint',
+    headers={
+        'Content-Type': 'application/json',
+        ${AUTH_HEADERS}
+    },
+    json={
+        ${REQUEST_BODY}
+    }
+)
+```
+
+```bash
+# cURL example
+curl -X ${METHOD} '${BASE_URL}/endpoint' \\
+    -H 'Content-Type: application/json' \\
+    ${AUTH_HEADERS} \\
+    -d '{
+        ${REQUEST_BODY}
+    }'
+```
+
+Replace ${BASE_URL}, ${METHOD}, ${AUTH_HEADERS}, and ${REQUEST_BODY} with actual values from the API configuration.
+Include proper error handling and response parsing in each example.
+"""
+    return base_prompt
+
+# Initialize as empty, will be set per request
+system_prompt = ""
 
 # --- Helpers ---
 def _collect_text(msg):
@@ -249,11 +321,19 @@ def ask():
         print(f"DEBUG: System prompt length: {len(system_prompt)} chars")
         print(f"DEBUG: User question length: {len(question)} chars")
         
-        # Use the template structure from user's request
+        # Get API configuration from request
+        api_config = None
+        if isinstance(payload.get('provider_hint'), dict):
+            api_config = payload['provider_hint']
+        
+        # Generate dynamic system prompt based on API config
+        dynamic_prompt = generate_system_prompt(api_config)
+        
+        # Use dynamic prompt in the request
         message = client.messages.create(
             model=model_name,
             max_tokens=1024,
-            system=system_prompt,
+            system=dynamic_prompt,
             messages=[
                 {"role": "user", "content": question}
             ]

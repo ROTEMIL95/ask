@@ -161,10 +161,25 @@ export const useAskApi = () => {
         setError(null);
 
         try {
-            // Production backend expects field "question" (temporary fix until backend is updated)
+            // Prepare dynamic API configuration based on selected API
+            const apiConfig = {
+                apiName: selectedApi?.apiName?.toLowerCase() || 'default',
+                baseUrl: selectedApi?.baseUrl || '',
+                hasApiKey: Boolean(selectedApi?.demoKey || selectedApi?.apiKey),
+                docsUrl: selectedApi?.docsUrl || '',
+                // Include additional API details if available
+                endpoints: selectedApi?.endpoints || [],
+                methods: selectedApi?.methods || ['GET', 'POST'],
+                headers: selectedApi?.headers || {},
+                authType: selectedApi?.authType || 'none',
+                parameters: selectedApi?.parameters || {},
+                version: selectedApi?.version || 'latest'
+            };
+
+            // Production backend expects field "question" and complete API config
             const requestBody = { 
                 question: question,
-                provider_hint: selectedApi?.apiName?.toLowerCase() || null
+                provider_hint: apiConfig
             };
 
             // Debug logging to see what's being sent (without sensitive data)
@@ -194,6 +209,39 @@ export const useAskApi = () => {
             }
 
             const data = await response.json();
+            
+            // Validate response format
+            if (!data.answer) {
+                console.warn('Response missing answer field:', data);
+                throw new Error('Invalid response format: missing answer field');
+            }
+
+            // Extract code snippets using regex
+            const codeBlocks = data.answer.match(/```(\w+)[\s\S]*?```/g) || [];
+            
+            // If no code blocks found, try to extract from text
+            if (codeBlocks.length === 0) {
+                console.warn('No code blocks found in response, attempting to extract from text');
+                // Create a basic response structure
+                data.snippets = {
+                    javascript: "// Example code will be generated once API configuration is complete",
+                    python: "# Example code will be generated once API configuration is complete",
+                    curl: "# Example code will be generated once API configuration is complete"
+                };
+            } else {
+                // Parse code blocks into snippets
+                data.snippets = {};
+                codeBlocks.forEach(block => {
+                    const lang = block.match(/```(\w+)/)[1].toLowerCase();
+                    const code = block.replace(/```\w+\n/, '').replace(/```$/, '').trim();
+                    if (lang === 'bash') {
+                        data.snippets.curl = code;
+                    } else {
+                        data.snippets[lang] = code;
+                    }
+                });
+            }
+
             return data;
         } catch (err) {
             setError(err.message);
