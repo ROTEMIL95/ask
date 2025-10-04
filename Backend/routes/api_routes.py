@@ -33,14 +33,14 @@ api_bp = Blueprint("api", __name__)
 limiter = get_limiter(None)
 
 # --- System prompt (for backward compatibility) ---
-def generate_system_prompt(api_config):
+def generate_system_prompt(api_config, user_question):
     """Generate a dynamic system prompt based on API configuration"""
     base_prompt = """You are TalkAPI's API-integration planner & code generator.
 You MUST ALWAYS provide code examples in three languages: JavaScript (fetch), Python (requests), and cURL.
 Each code example MUST be wrapped in triple backticks with the language specified.
 """
 
-    # Add API-specific details if available
+    # Add API-specific details and user's question
     if api_config:
         base_prompt += f"""
 API Details:
@@ -52,6 +52,8 @@ API Details:
 - Auth Type: {api_config.get('authType', 'none')}
 - API Version: {api_config.get('version', 'latest')}
 
+User's Question: "{user_question}"
+
 Use these details to generate accurate code examples. Include proper:
 1. Base URL and endpoints
 2. Authentication headers (if required)
@@ -62,7 +64,7 @@ Use these details to generate accurate code examples. Include proper:
 
     # Add code block requirements
     base_prompt += """
-Your response MUST include these three code blocks:
+Your response MUST include these three code blocks. Replace the content parameter with the actual user's question:
 
 ```javascript
 // JavaScript example using fetch
@@ -73,9 +75,16 @@ const response = await fetch('${BASE_URL}/endpoint', {
         ${AUTH_HEADERS}
     },
     body: JSON.stringify({
-        ${REQUEST_BODY}
+        content: "${USER_QUESTION}",  // The actual question to ask the API
+        model: "${MODEL}",            // If API requires model specification
+        max_tokens: 1024,            // Optional parameters based on API
+        temperature: 0.7             // Optional parameters based on API
     })
 });
+
+// Handle the response
+const data = await response.json();
+console.log('API Response:', data.answer);
 ```
 
 ```python
@@ -87,9 +96,16 @@ response = requests.${METHOD.lower()}(
         ${AUTH_HEADERS}
     },
     json={
-        ${REQUEST_BODY}
+        'content': "${USER_QUESTION}",  # The actual question to ask the API
+        'model': "${MODEL}",            # If API requires model specification
+        'max_tokens': 1024,            # Optional parameters based on API
+        'temperature': 0.7             # Optional parameters based on API
     }
 )
+
+# Handle the response
+data = response.json()
+print('API Response:', data['answer'])
 ```
 
 ```bash
@@ -98,7 +114,10 @@ curl -X ${METHOD} '${BASE_URL}/endpoint' \\
     -H 'Content-Type: application/json' \\
     ${AUTH_HEADERS} \\
     -d '{
-        ${REQUEST_BODY}
+        "content": "${USER_QUESTION}",
+        "model": "${MODEL}",
+        "max_tokens": 1024,
+        "temperature": 0.7
     }'
 ```
 
@@ -321,13 +340,16 @@ def ask():
         print(f"DEBUG: System prompt length: {len(system_prompt)} chars")
         print(f"DEBUG: User question length: {len(question)} chars")
         
-        # Get API configuration from request
+        # Get API configuration and user's question from request
         api_config = None
         if isinstance(payload.get('provider_hint'), dict):
             api_config = payload['provider_hint']
         
-        # Generate dynamic system prompt based on API config
-        dynamic_prompt = generate_system_prompt(api_config)
+        # Clean and escape the user's question for use in code examples
+        cleaned_question = question.replace('"', '\\"').replace('\n', ' ').strip()
+        
+        # Generate dynamic system prompt based on API config and user's question
+        dynamic_prompt = generate_system_prompt(api_config, cleaned_question)
         
         # Use dynamic prompt in the request
         message = client.messages.create(
