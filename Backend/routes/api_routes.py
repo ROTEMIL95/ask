@@ -78,68 +78,78 @@ Use these details to generate accurate code examples. Include proper:
         else:
             auth_headers = "'Authorization': 'Bearer YOUR_API_KEY'"
     
-    # Add code block requirements
-    base_prompt += f"""
-Your response MUST include these three code blocks. Replace the content parameter with the actual user's question:
-
+    # Prepare code examples as separate strings to avoid nested f-strings
+    code_intro = "\nYour response MUST include these three code blocks with the actual API configuration:\n"
+    
+    # JavaScript code
+    js_headers = f"'Content-Type': 'application/json', {auth_headers}" if auth_headers else "'Content-Type': 'application/json'"
+    js_code = f"""
 ```javascript
 // JavaScript example using fetch
-const response = await fetch('{base_url}{endpoint}', {
+const response = await fetch('{base_url}{endpoint}', {{
     method: '{method}',
-    headers: {
-        'Content-Type': 'application/json',
-        {auth_headers}
-    },
-    body: JSON.stringify({
-        content: "{user_question}",  // The actual question to ask the API
-        model: "{model}",            // If API requires model specification
-        max_tokens: 1024,            // Optional parameters based on API
-        temperature: 0.7             // Optional parameters based on API
-    })
-});
+    headers: {{
+        {js_headers}
+    }},
+    body: JSON.stringify({{
+        content: "{user_question}",
+        model: "{model}",
+        max_tokens: 1024,
+        temperature: 0.7
+    }})
+}});
 
-// Handle the response
 const data = await response.json();
-console.log('API Response:', data.answer);
-```
+console.log('API Response:', data);
+```"""
 
+    # Add the code blocks to the prompt
+    base_prompt += code_intro
+    base_prompt += js_code
+
+    # Python code
+    py_headers = f"'Content-Type': 'application/json', {auth_headers}" if auth_headers else "'Content-Type': 'application/json'"
+    py_code = f"""
 ```python
 # Python example using requests
 response = requests.{method.lower()}(
-    f'{base_url}{endpoint}',
-    headers={
-        'Content-Type': 'application/json',
-        {auth_headers}
-    },
-    json={
-        'content': "{user_question}",  # The actual question to ask the API
-        'model': "{model}",            # If API requires model specification
-        'max_tokens': 1024,            # Optional parameters based on API
-        'temperature': 0.7             # Optional parameters based on API
-    }
+    '{base_url}{endpoint}',
+    headers={{
+        {py_headers}
+    }},
+    json={{
+        'content': "{user_question}",
+        'model': "{model}",
+        'max_tokens': 1024,
+        'temperature': 0.7
+    }}
 )
 
-# Handle the response
 data = response.json()
-print('API Response:', data['answer'])
-```
+print('API Response:', data)
+```"""
 
+    base_prompt += py_code
+
+    # cURL code
+    curl_headers = f"-H 'Content-Type: application/json' -H {auth_headers}" if auth_headers else "-H 'Content-Type: application/json'"
+    curl_code = f"""
 ```bash
 # cURL example
 curl -X {method} '{base_url}{endpoint}' \\
-    -H 'Content-Type: application/json' \\
-    -H {auth_headers} \\
-    -d '{
+    {curl_headers} \\
+    -d '{{
         "content": "{user_question}",
         "model": "{model}",
         "max_tokens": 1024,
         "temperature": 0.7
-    }'
-```
+    }}'
+```"""
 
-The code examples above use the actual values from your API configuration.
-Include proper error handling and response parsing in each example.
-"""
+    base_prompt += curl_code
+    base_prompt += "\n\nThe code examples above use the actual values from your API configuration."
+    base_prompt += "\nInclude proper error handling and response parsing in each example."
+    
     return base_prompt
 
 # Initialize as empty, will be set per request
