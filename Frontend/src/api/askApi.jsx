@@ -161,10 +161,14 @@ export const useAskApi = () => {
         setError(null);
 
         try {
+            // Get environment variables
+            const defaultBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.anthropic.com';
+            const defaultApiName = import.meta.env.VITE_API_NAME || 'anthropic';
+            
             // Prepare dynamic API configuration based on selected API
             const apiConfig = {
-                apiName: selectedApi?.apiName?.toLowerCase() || 'default',
-                baseUrl: selectedApi?.baseUrl || '',
+                apiName: selectedApi?.apiName?.toLowerCase() || defaultApiName,
+                baseUrl: selectedApi?.baseUrl || defaultBaseUrl,
                 hasApiKey: Boolean(selectedApi?.demoKey || selectedApi?.apiKey),
                 docsUrl: selectedApi?.docsUrl || '',
                 // Include additional API details if available

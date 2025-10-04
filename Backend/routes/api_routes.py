@@ -62,21 +62,37 @@ Use these details to generate accurate code examples. Include proper:
 5. Response parsing
 """
 
+    # Format the base URL and endpoint
+    base_url = api_config.get('baseUrl', 'https://api.anthropic.com').rstrip('/')
+    endpoint = '/v1/messages'  # Default endpoint for Anthropic
+    method = api_config.get('methods', ['POST'])[0]  # Get first available method or POST
+    model = api_config.get('version', 'claude-3-5-sonnet-20241022')
+    
+    # Prepare auth headers based on API config
+    auth_headers = ''
+    if api_config.get('hasApiKey'):
+        if api_config.get('authType') == 'bearer':
+            auth_headers = "'Authorization': 'Bearer YOUR_API_KEY'"
+        elif api_config.get('authType') == 'x-api-key':
+            auth_headers = "'X-API-Key': 'YOUR_API_KEY'"
+        else:
+            auth_headers = "'Authorization': 'Bearer YOUR_API_KEY'"
+    
     # Add code block requirements
-    base_prompt += """
+    base_prompt += f"""
 Your response MUST include these three code blocks. Replace the content parameter with the actual user's question:
 
 ```javascript
 // JavaScript example using fetch
-const response = await fetch('${BASE_URL}/endpoint', {
-    method: '${METHOD}',
+const response = await fetch('{base_url}{endpoint}', {
+    method: '{method}',
     headers: {
         'Content-Type': 'application/json',
-        ${AUTH_HEADERS}
+        {auth_headers}
     },
     body: JSON.stringify({
-        content: "${USER_QUESTION}",  // The actual question to ask the API
-        model: "${MODEL}",            // If API requires model specification
+        content: "{user_question}",  // The actual question to ask the API
+        model: "{model}",            // If API requires model specification
         max_tokens: 1024,            // Optional parameters based on API
         temperature: 0.7             // Optional parameters based on API
     })
@@ -89,15 +105,15 @@ console.log('API Response:', data.answer);
 
 ```python
 # Python example using requests
-response = requests.${METHOD.lower()}(
-    '${BASE_URL}/endpoint',
+response = requests.{method.lower()}(
+    f'{base_url}{endpoint}',
     headers={
         'Content-Type': 'application/json',
-        ${AUTH_HEADERS}
+        {auth_headers}
     },
     json={
-        'content': "${USER_QUESTION}",  # The actual question to ask the API
-        'model': "${MODEL}",            # If API requires model specification
+        'content': "{user_question}",  # The actual question to ask the API
+        'model': "{model}",            # If API requires model specification
         'max_tokens': 1024,            # Optional parameters based on API
         'temperature': 0.7             # Optional parameters based on API
     }
@@ -110,18 +126,18 @@ print('API Response:', data['answer'])
 
 ```bash
 # cURL example
-curl -X ${METHOD} '${BASE_URL}/endpoint' \\
+curl -X {method} '{base_url}{endpoint}' \\
     -H 'Content-Type: application/json' \\
-    ${AUTH_HEADERS} \\
+    -H {auth_headers} \\
     -d '{
-        "content": "${USER_QUESTION}",
-        "model": "${MODEL}",
+        "content": "{user_question}",
+        "model": "{model}",
         "max_tokens": 1024,
         "temperature": 0.7
     }'
 ```
 
-Replace ${BASE_URL}, ${METHOD}, ${AUTH_HEADERS}, and ${REQUEST_BODY} with actual values from the API configuration.
+The code examples above use the actual values from your API configuration.
 Include proper error handling and response parsing in each example.
 """
     return base_prompt
