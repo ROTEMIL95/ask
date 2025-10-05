@@ -15,6 +15,31 @@ const getBackendUrl = () => {
 
 
 // Function to get API keys from the backend
+export const analyzeApiDoc = async (doc) => {
+    try {
+        const response = await fetch(`${getBackendUrl()}/analyze-api`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Origin': 'https://talkapi.ai'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ doc })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to analyze API documentation`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error(`Error analyzing API documentation:`, error);
+        throw new Error(`Failed to analyze API documentation: ${error.message}`);
+    }
+};
+
 export const getApiKey = async (service) => {
     try {
         const response = await fetch(`${getBackendUrl()}/get-api-key`, {

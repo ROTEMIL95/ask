@@ -207,28 +207,144 @@ def _is_openapi_spec(doc: str) -> bool:
 def _parse_openapi_spec(doc: str) -> dict:
     try:
         spec = json.loads(doc)
+        paths = spec.get("paths", {})
+        
+        # Extract all endpoints and their methods
+        endpoints = []
+        for path, methods in paths.items():
+            for method, details in methods.items():
+                endpoint = {
+                    "path": path,
+                    "method": method.upper(),
+                    "summary": details.get("summary", ""),
+                    "parameters": details.get("parameters", []),
+                    "security": details.get("security", [])
+                }
+                endpoints.append(endpoint)
+
+        # Extract security schemes
+        security_schemes = spec.get("components", {}).get("securitySchemes", {})
+        auth_types = []
+        for scheme_name, scheme in security_schemes.items():
+            scheme_type = scheme.get("type", "").lower()
+            if scheme_type == "apikey":
+                auth_types.append({
+                    "type": "api_key",
+                    "name": scheme.get("name"),
+                    "in": scheme.get("in")  # header, query, or cookie
+                })
+            elif scheme_type == "http":
+                auth_types.append({
+                    "type": scheme.get("scheme", "").lower(),  # bearer or basic
+                    "format": scheme.get("bearerFormat")  # JWT, etc.
+                })
+            elif scheme_type == "oauth2":
+                auth_types.append({
+                    "type": "oauth2",
+                    "flows": scheme.get("flows", {})
+                })
+
         return {
-            "plan": {
-                "description": f"Parsed OpenAPI spec: {spec.get('info', {}).get('title', 'Untitled')}",
-                "endpoints": list(spec.get("paths", {}).keys()),
-                "method": "GET"
+            "info": {
+                "title": spec.get("info", {}).get("title", "Untitled"),
+                "version": spec.get("info", {}).get("version", "unknown"),
+                "description": spec.get("info", {}).get("description", "")
             },
-            "snippets": {
-                "javascript": "// TODO: Generate JS code for these endpoints",
-                "python": "# TODO: Generate Python requests code",
-                "curl": "# TODO: Generate curl commands",
-                "csharp": "// TODO: Generate C# HttpClient code",
-                "java": "// TODO: Generate Java HttpClient code",
-                "go": "// TODO: Generate Go HTTP client code"
-            }
+            "servers": spec.get("servers", []),
+            "endpoints": endpoints,
+            "auth_types": auth_types,
+            "openapi_version": spec.get("openapi") or spec.get("swagger")
         }
     except Exception as e:
         return {
-            "plan": {"description": f"Failed to parse spec: {e}", "endpoints": [], "method": "GET"},
-            "snippets": {}
+            "error": f"Failed to parse OpenAPI spec: {e}",
+            "endpoints": [],
+            "auth_types": []
         }
 
+# --- API Analysis Functions ---
+def analyze_api_doc(text: str) -> dict:
+    """Analyze API documentation text for URLs, endpoints, auth requirements, etc."""
+    # Regular expressions for different patterns
+    url_pattern = r'https?://[^\s<>"\']+[a-zA-Z0-9]'
+    endpoint_pattern = r'["\']/([\w\/_-]+)(?:\{[\w-]+\})*["\']'
+    auth_pattern = r'(api[_-]?key|auth[_-]?token|bearer|x-api-key)'
+    method_pattern = r'(GET|POST|PUT|DELETE|PATCH)\s+[\'"]/?[\w\/_-]+[\'"]'
+    param_pattern = r'["\'](\{[\w-]+\})["\']'
+
+    # Extract patterns
+    urls = list(set(re.findall(url_pattern, text, re.IGNORECASE)))
+    endpoints = list(set(re.findall(endpoint_pattern, text, re.IGNORECASE)))
+    auth_types = list(set(re.findall(auth_pattern, text, re.IGNORECASE)))
+    methods = list(set(m.group(1) for m in re.finditer(method_pattern, text, re.IGNORECASE)))
+    path_params = list(set(re.findall(param_pattern, text, re.IGNORECASE)))
+
+    # Check if it's OpenAPI/Swagger format
+    is_openapi = False
+    openapi_data = None
+    try:
+        data = json.loads(text)
+        if "swagger" in data or "openapi" in data:
+            is_openapi = True
+            openapi_data = _parse_openapi_spec(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Analyze security requirements
+    security_requirements = []
+    for auth in auth_types:
+        auth = auth.lower()
+        if "api" in auth and "key" in auth:
+            security_requirements.append({
+                "type": "api_key",
+                "location": "header",
+                "name": "x-api-key"
+            })
+        elif "bearer" in auth:
+            security_requirements.append({
+                "type": "bearer",
+                "location": "header",
+                "name": "Authorization"
+            })
+
+    # Build response
+    analysis = {
+        "urls": urls,
+        "endpoints": [e.strip('"\'"') for e in endpoints],
+        "auth_types": auth_types,
+        "methods": methods,
+        "path_params": [p.strip('"\'"') for p in path_params],
+        "security_requirements": security_requirements,
+        "is_openapi": is_openapi,
+        "openapi_data": openapi_data if is_openapi else None,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+    return analysis
+
 # --- Routes ---
+@api_bp.route("/analyze-api", methods=["POST", "OPTIONS"])
+def analyze_api():
+    """Analyze API documentation for URLs, endpoints, auth requirements, etc."""
+    if request.method == "OPTIONS":
+        return '', 204
+
+    try:
+        payload = request.get_json(force=True)
+        doc = payload.get("doc", "").strip()
+        
+        if not doc:
+            return jsonify({"error": "Missing API documentation"}), 400
+
+        analysis = analyze_api_doc(doc)
+        return jsonify(analysis), 200
+
+    except Exception as e:
+        print(f"Error in /analyze-api endpoint: {e}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Failed to analyze API documentation: {str(e)}'}), 500
+
 @api_bp.route("/health", methods=["GET"])
 def health():
     return jsonify({
