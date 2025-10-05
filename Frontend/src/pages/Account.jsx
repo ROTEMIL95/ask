@@ -19,7 +19,8 @@ import {
 import { format } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { UsageDisplay, useUsageTracking } from '@/components/UsageTracker';
+import { UsageDisplay } from '@/components/UsageTracker';
+import { useUsageTracking } from '@/hooks/useUsageTracking';
 import { auth, userProfile } from '@/lib/supabase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 
