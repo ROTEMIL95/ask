@@ -104,21 +104,44 @@ Use these details to generate accurate code examples. Include proper:
     method = api_config.get('methods', ['POST'])[0]  # Get first available method or POST
     model = api_config.get('version', 'claude-3-5-sonnet-20241022')
     
-    # Prepare auth headers based on API config
-    auth_headers = ''
-    if api_config.get('hasApiKey'):
-        if api_config.get('authType') == 'bearer':
-            auth_headers = "'Authorization': 'Bearer YOUR_API_KEY'"
-        elif api_config.get('authType') == 'x-api-key':
-            auth_headers = "'X-API-Key': 'YOUR_API_KEY'"
-        else:
-            auth_headers = "'Authorization': 'Bearer YOUR_API_KEY'"
+    # Prepare auth headers based on API config and analysis
+    auth_headers = []
+    
+    # Add headers from API config
+    if api_config:
+        api_key = api_config.get('apiKey', 'YOUR_API_KEY')  # Get API key from user input
+        if api_config.get('hasApiKey'):
+            if api_config.get('authType') == 'bearer':
+                auth_headers.append(f"'Authorization': 'Bearer {api_key}'")
+            elif api_config.get('authType') == 'x-api-key':
+                auth_headers.append(f"'X-API-Key': '{api_key}'")
+            elif api_config.get('authType') == 'api_key':
+                auth_headers.append(f"'X-API-Key': '{api_key}'")
+            else:
+                auth_headers.append(f"'Authorization': 'Bearer {api_key}'")
+    
+    # Add headers from API analysis
+    if api_analysis and api_analysis.get('security_requirements'):
+        for req in api_analysis['security_requirements']:
+            if req['type'] == 'api_key':
+                auth_headers.append(f"'{req['name']}': '{api_key}'")
+            elif req['type'] == 'bearer':
+                auth_headers.append(f"'Authorization': 'Bearer {api_key}'")
+    
+    # Ensure we have at least one auth header if auth is required
+    if (api_config and api_config.get('hasApiKey')) or (api_analysis and api_analysis.get('security_requirements')):
+        if not auth_headers:
+            auth_headers.append(f"'X-API-Key': '{api_key}'")
+    
+    # Join all unique headers
+    auth_headers = list(set(auth_headers))  # Remove duplicates
+    auth_headers_str = ', '.join(auth_headers) if auth_headers else ''
     
     # Prepare code examples as separate strings to avoid nested f-strings
     code_intro = "\nYour response MUST include these three code blocks with the actual API configuration:\n"
     
     # JavaScript code
-    js_headers = f"'Content-Type': 'application/json', {auth_headers}" if auth_headers else "'Content-Type': 'application/json'"
+    js_headers = f"'Content-Type': 'application/json', {auth_headers_str}" if auth_headers_str else "'Content-Type': 'application/json'"
     js_code = f"""
 ```javascript
 // JavaScript example using fetch
@@ -144,10 +167,12 @@ console.log('API Response:', data);
     base_prompt += js_code
 
     # Python code
-    py_headers = f"'Content-Type': 'application/json', {auth_headers}" if auth_headers else "'Content-Type': 'application/json'"
+    py_headers = f"'Content-Type': 'application/json', {auth_headers_str}" if auth_headers_str else "'Content-Type': 'application/json'"
     py_code = f"""
 ```python
 # Python example using requests
+import requests
+
 response = requests.{method.lower()}(
     '{base_url}{endpoint}',
     headers={{
@@ -168,12 +193,21 @@ print('API Response:', data)
     base_prompt += py_code
 
     # cURL code
-    curl_headers = f"-H 'Content-Type: application/json' -H {auth_headers}" if auth_headers else "-H 'Content-Type: application/json'"
+    # Convert auth headers to cURL format
+    curl_headers = ["-H 'Content-Type: application/json'"]
+    if auth_headers:
+        for header in auth_headers:
+            # Convert 'Header': 'value' to -H 'Header: value'
+            header = header.replace("'", "")
+            curl_headers.append(f"-H '{header}'")
+    curl_headers_str = " \\\n    ".join(curl_headers)
+    
     curl_code = f"""
 ```bash
 # cURL example
+
 curl -X {method} '{base_url}{endpoint}' \\
-    {curl_headers} \\
+    {curl_headers_str} \\
     -d '{{
         "content": "{user_question}",
         "model": "{model}",
