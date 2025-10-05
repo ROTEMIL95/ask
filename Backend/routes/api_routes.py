@@ -141,21 +141,29 @@ Use these details to generate accurate code examples. Include proper:
     code_intro = "\nYour response MUST include these three code blocks with the actual API configuration:\n"
     
     # JavaScript code
-    js_headers = f"'Content-Type': 'application/json', {auth_headers_str}" if auth_headers_str else "'Content-Type': 'application/json'"
+    # Convert headers to proper JSON format
+    js_headers_list = []
+    if auth_headers_str:
+        js_headers_list.extend([h.strip() for h in auth_headers_str.split(',')])
+    js_headers_list.append("'Content-Type': 'application/json'")
+    js_headers_formatted = ',\n        '.join(js_headers_list)
+    
     js_code = f"""
 ```javascript
 // JavaScript example using fetch
+const requestData = {{
+    content: {json.dumps(user_question)},
+    model: {json.dumps(model)},
+    max_tokens: 1024,
+    temperature: 0.7
+}};
+
 const response = await fetch('{base_url}{endpoint}', {{
     method: '{method}',
     headers: {{
-        {js_headers}
+        {js_headers_formatted}
     }},
-    body: JSON.stringify({{
-        content: "{user_question}",
-        model: "{model}",
-        max_tokens: 1024,
-        temperature: 0.7
-    }})
+    body: JSON.stringify(requestData)
 }});
 
 const data = await response.json();
@@ -167,23 +175,31 @@ console.log('API Response:', data);
     base_prompt += js_code
 
     # Python code
-    py_headers = f"'Content-Type': 'application/json', {auth_headers_str}" if auth_headers_str else "'Content-Type': 'application/json'"
+    # Convert headers to proper Python dict format
+    py_headers_list = []
+    if auth_headers_str:
+        py_headers_list.extend([h.strip() for h in auth_headers_str.split(',')])
+    py_headers_list.append("'Content-Type': 'application/json'")
+    py_headers_formatted = ',\n        '.join(py_headers_list)
+    
     py_code = f"""
 ```python
 # Python example using requests
 import requests
 
+request_data = {{
+    'content': {json.dumps(user_question)},
+    'model': {json.dumps(model)},
+    'max_tokens': 1024,
+    'temperature': 0.7
+}}
+
 response = requests.{method.lower()}(
     '{base_url}{endpoint}',
     headers={{
-        {py_headers}
+        {py_headers_formatted}
     }},
-    json={{
-        'content': "{user_question}",
-        'model': "{model}",
-        'max_tokens': 1024,
-        'temperature': 0.7
-    }}
+    json=request_data
 )
 
 data = response.json()
@@ -202,18 +218,21 @@ print('API Response:', data)
             curl_headers.append(f"-H '{header}'")
     curl_headers_str = " \\\n    ".join(curl_headers)
     
+    # Prepare request data as proper JSON
+    request_data = {
+        "content": user_question,
+        "model": model,
+        "max_tokens": 1024,
+        "temperature": 0.7
+    }
+    
     curl_code = f"""
 ```bash
 # cURL example
 
 curl -X {method} '{base_url}{endpoint}' \\
     {curl_headers_str} \\
-    -d '{{
-        "content": "{user_question}",
-        "model": "{model}",
-        "max_tokens": 1024,
-        "temperature": 0.7
-    }}'
+    -d '{json.dumps(request_data, indent=2)}'
 ```"""
 
     base_prompt += curl_code

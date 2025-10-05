@@ -214,16 +214,20 @@ export const useAskApi = () => {
             const defaultApiName = import.meta.env.VITE_API_NAME || 'anthropic';
             
             // Prepare dynamic API configuration based on selected API
+            // Get the API key from either demo key or user input
+            const apiKey = selectedApi?.demoKey || selectedApi?.apiKey || '';
+            
             const apiConfig = {
                 apiName: selectedApi?.apiName?.toLowerCase() || defaultApiName,
                 baseUrl: selectedApi?.baseUrl || defaultBaseUrl,
-                hasApiKey: Boolean(selectedApi?.demoKey || selectedApi?.apiKey),
+                hasApiKey: Boolean(apiKey),
+                apiKey: apiKey, // Include the actual API key
                 docsUrl: selectedApi?.docsUrl || '',
                 // Include additional API details if available
                 endpoints: selectedApi?.endpoints || [],
                 methods: selectedApi?.methods || ['GET', 'POST'],
                 headers: selectedApi?.headers || {},
-                authType: selectedApi?.authType || 'none',
+                authType: selectedApi?.authType || (apiKey ? 'x-api-key' : 'none'),
                 parameters: selectedApi?.parameters || {},
                 version: selectedApi?.version || 'latest'
             };
@@ -235,13 +239,24 @@ export const useAskApi = () => {
             };
 
             // Debug logging to see what's being sent (without sensitive data)
-            console.log('🔍 Debug: selectedApi:', selectedApi ? {
-                apiName: selectedApi.apiName,
-                docsUrl: selectedApi.docsUrl,
-                baseUrl: selectedApi.baseUrl,
-                hasApiKey: !!selectedApi.demoKey
-            } : null);
-            console.log('🔍 Debug: provider_hint:', requestBody.provider_hint);
+            console.log('🔍 Debug: API Configuration:', {
+                apiName: apiConfig.apiName,
+                baseUrl: apiConfig.baseUrl,
+                hasApiKey: apiConfig.hasApiKey,
+                docsUrl: apiConfig.docsUrl,
+                authType: apiConfig.authType,
+                methods: apiConfig.methods,
+                version: apiConfig.version
+            });
+            
+            // Log request structure (without sensitive data)
+            console.log('📝 Debug: Request Structure:', {
+                endpoint: '/ask',
+                method: 'POST',
+                questionLength: question.length,
+                hasApiConfig: !!apiConfig,
+                timestamp: new Date().toISOString()
+            });
 
             const response = await fetch(`${getBackendUrl()}/ask`, {
                 method: 'POST',
