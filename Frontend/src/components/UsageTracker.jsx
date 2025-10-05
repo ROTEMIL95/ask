@@ -229,7 +229,7 @@ export function useUsageTracking() {
                 count = 0;
             }
             
-            setUsage({ count, limit: 10, plan: 'free' });
+            setUsage({ count, limit: 50, plan: 'free' });
             sessionStorage.setItem('anonUsage', JSON.stringify({ count, date: today }));
             // Anonymous usage does not involve backend persistence, so no ref updates for them
         }
