@@ -854,11 +854,21 @@ ${result.text}
     };
 
     const executeApiCall = async (parsedCode) => {
+        console.group('🚀 API Request Debug');
+        console.log('📝 Starting API Request Execution...');
+        
         const { url, method, headers, body, originalCode } = parsedCode;
-
-        console.log('🔍 API EXECUTION DEBUG - Starting executeApiCall');
-        console.log('🔍 Parsed code data:', { url, method, headers, body });
-        console.log('🔍 Original code:', originalCode);
+        
+        console.group('📋 Request Details');
+        console.log('🔗 URL:', url);
+        console.log('📮 Method:', method);
+        console.log('📑 Headers:', { ...headers, Authorization: headers.Authorization ? '***' : undefined });
+        console.log('📦 Body:', typeof body === 'string' ? JSON.parse(body) : body);
+        console.log('💻 Original Code:', originalCode);
+        console.groupEnd();
+        
+        // Track timing
+        const startTime = performance.now();
 
         if (!url) {
             throw new Error('Could not extract URL from generated code.');
@@ -1123,10 +1133,12 @@ ${result.text}
         
         // Use the proxy API to avoid CORS issues
         try {
-            console.log('🔍 Preparing proxy request with final URL:', finalUrl);
-            console.log('🔍 Method:', fetchOptions.method);
-            console.log('🔍 Headers:', fetchOptions.headers);
-            console.log('🔍 Body:', fetchOptions.body);
+            console.group('🔄 Proxy Request Details');
+            console.log('🌐 Final URL:', finalUrl);
+            console.log('📮 Method:', fetchOptions.method);
+            console.log('📑 Headers:', { ...fetchOptions.headers, Authorization: fetchOptions.headers.Authorization ? '***' : undefined });
+            console.log('📦 Body:', fetchOptions.body ? (typeof fetchOptions.body === 'string' ? JSON.parse(fetchOptions.body) : fetchOptions.body) : null);
+            console.groupEnd();
             
             // Prepare the request data for the proxy
             const requestData = {
@@ -1155,9 +1167,20 @@ ${result.text}
             console.log('🔍 Final request data being sent to proxy:', requestData);
 
             // Call the proxy API
-            console.log('🔍 Calling proxy API...');
+            console.log('🚀 Sending request to proxy API...');
             const proxyResponse = await proxyApiCall(requestData);
-            console.log('✅ Proxy API response received:', proxyResponse);
+            
+            // Calculate request duration
+            const endTime = performance.now();
+            const duration = (endTime - startTime).toFixed(2);
+            
+            console.group('✨ Response Details');
+            console.log('⏱️ Request Duration:', duration + 'ms');
+            console.log('📊 Status:', proxyResponse.status);
+            console.log('📝 Status Text:', proxyResponse.statusText);
+            console.log('📑 Response Headers:', proxyResponse.headers);
+            console.log('📦 Response Data:', proxyResponse.data);
+            console.groupEnd();
             
             // Format the response to match the expected structure
             const responseData = {
@@ -1170,22 +1193,45 @@ ${result.text}
 
             // Check if the response indicates an error
             if (proxyResponse.status >= 400) {
+                console.group('❌ Error Response');
+                console.log('📊 Status:', proxyResponse.status);
+                console.log('📝 Status Text:', proxyResponse.statusText);
+                
                 let errorBody = responseData.data;
                 if (typeof errorBody === 'object') {
+                    console.log('📦 Error Details:', errorBody);
                     errorBody = JSON.stringify(errorBody, null, 2);
+                } else {
+                    console.log('📦 Error Body:', errorBody);
                 }
+                console.groupEnd();
+                
                 throw new Error(`API call failed with status ${proxyResponse.status}. Response: ${errorBody}`);
             }
 
+            console.log('✅ Request completed successfully!');
+            console.groupEnd(); // Close main API Request Debug group
             return responseData;
         } catch (error) {
+            console.group('❌ Error Details');
+            console.log('🔴 Error Type:', error.name);
+            console.log('❗ Error Message:', error.message);
+            console.log('📍 Stack Trace:', error.stack);
+            
             // Check if it's a proxy-specific error
             if (error.message.includes('Missing or invalid API key')) {
+                console.log('🔑 Error Type: Missing/Invalid API Key');
+                console.groupEnd();
                 throw new Error('The proxy requires an API key. Please configure the backend with a valid API key in the ALLOWED_API_KEYS environment variable.');
             }
             if (error.message.includes('Target URL not allowed')) {
+                console.log('🌐 Error Type: Domain Not Allowed');
+                console.groupEnd();
                 throw new Error(`The target domain is not allowed by the proxy. Please add the domain to ALLOWED_PROXY_DOMAINS in your backend configuration.`);
             }
+            
+            console.groupEnd();
+            console.groupEnd(); // Close main API Request Debug group
             throw error;
         }
 
