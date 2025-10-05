@@ -81,23 +81,18 @@ Use these details to generate accurate code examples. Include proper:
     # Prepare code examples as separate strings to avoid nested f-strings
     code_intro = "\nYour response MUST include these three code blocks with the actual API configuration:\n"
     
-    # Get the user's question from the config
-    user_question = api_config.get('user_question', 'What would you like to ask?')
-    
     # JavaScript code
     js_headers = f"'Content-Type': 'application/json', {auth_headers}" if auth_headers else "'Content-Type': 'application/json'"
     js_code = f"""
 ```javascript
 // JavaScript example using fetch
-const question = "{user_question}";  // The actual user's question
-
 const response = await fetch('{base_url}{endpoint}', {{
     method: '{method}',
     headers: {{
         {js_headers}
     }},
     body: JSON.stringify({{
-        content: question,  // Using the user's question
+        content: "{user_question}",
         model: "{model}",
         max_tokens: 1024,
         temperature: 0.7
@@ -111,21 +106,25 @@ console.log('API Response:', data);
     # Add the code blocks to the prompt
     base_prompt += code_intro
     base_prompt += js_code
+});
+
+// Handle the response
+const data = await response.json();
+console.log('API Response:', data.answer);
+```
 
     # Python code
     py_headers = f"'Content-Type': 'application/json', {auth_headers}" if auth_headers else "'Content-Type': 'application/json'"
     py_code = f"""
 ```python
 # Python example using requests
-question = "{user_question}"  # The actual user's question
-
 response = requests.{method.lower()}(
     '{base_url}{endpoint}',
     headers={{
         {py_headers}
     }},
     json={{
-        'content': question,  # Using the user's question
+        'content': "{user_question}",
         'model': "{model}",
         'max_tokens': 1024,
         'temperature': 0.7
@@ -140,28 +139,24 @@ print('API Response:', data)
 
     # cURL code
     curl_headers = f"-H 'Content-Type: application/json' -H {auth_headers}" if auth_headers else "-H 'Content-Type: application/json'"
-    # Escape the question for shell
-    shell_escaped_question = user_question.replace("'", "'\\''")
     curl_code = f"""
 ```bash
 # cURL example
-# Store the question in a variable
-QUESTION='{shell_escaped_question}'
-
 curl -X {method} '{base_url}{endpoint}' \\
     {curl_headers} \\
-    -d "{{
-        \\"content\\": \\"$QUESTION\\",
-        \\"model\\": \\"{model}\\",
-        \\"max_tokens\\": 1024,
-        \\"temperature\\": 0.7
-    }}"
+    -d '{{
+        "content": "{user_question}",
+        "model": "{model}",
+        "max_tokens": 1024,
+        "temperature": 0.7
+    }}'
 ```"""
 
     base_prompt += curl_code
     base_prompt += "\n\nThe code examples above use the actual values from your API configuration."
     base_prompt += "\nInclude proper error handling and response parsing in each example."
     
+    return base_prompt
     return base_prompt
 
 # Initialize as empty, will be set per request
@@ -386,15 +381,8 @@ def ask():
         # Clean and escape the user's question for use in code examples
         cleaned_question = question.replace('"', '\\"').replace('\n', ' ').strip()
         
-        # Add the user's question to the API config
-        if api_config is None:
-            api_config = {}
-        api_config['user_question'] = cleaned_question
-        
         # Generate dynamic system prompt based on API config and user's question
         dynamic_prompt = generate_system_prompt(api_config, cleaned_question)
-        
-        print(f"🔍 Debug: Using cleaned question in prompt: {cleaned_question}")
         
         # Use dynamic prompt in the request
         message = client.messages.create(
