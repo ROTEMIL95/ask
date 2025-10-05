@@ -108,30 +108,32 @@ Use these details to generate accurate code examples. Include proper:
     auth_headers = []
     
     # Add headers from API config
+    # Always use placeholder for generated code examples
+    api_key_placeholder = 'YOUR_API_KEY'
+    
     if api_config:
-        api_key = api_config.get('apiKey', 'YOUR_API_KEY')  # Get API key from user input
         if api_config.get('hasApiKey'):
             if api_config.get('authType') == 'bearer':
-                auth_headers.append(f"'Authorization': 'Bearer {api_key}'")
+                auth_headers.append(f"'Authorization': 'Bearer {api_key_placeholder}'")
             elif api_config.get('authType') == 'x-api-key':
-                auth_headers.append(f"'X-API-Key': '{api_key}'")
+                auth_headers.append(f"'X-API-Key': '{api_key_placeholder}'")
             elif api_config.get('authType') == 'api_key':
-                auth_headers.append(f"'X-API-Key': '{api_key}'")
+                auth_headers.append(f"'X-API-Key': '{api_key_placeholder}'")
             else:
-                auth_headers.append(f"'Authorization': 'Bearer {api_key}'")
+                auth_headers.append(f"'Authorization': 'Bearer {api_key_placeholder}'")
     
     # Add headers from API analysis
     if api_analysis and api_analysis.get('security_requirements'):
         for req in api_analysis['security_requirements']:
             if req['type'] == 'api_key':
-                auth_headers.append(f"'{req['name']}': '{api_key}'")
+                auth_headers.append(f"'{req['name']}': '{api_key_placeholder}'")
             elif req['type'] == 'bearer':
-                auth_headers.append(f"'Authorization': 'Bearer {api_key}'")
+                auth_headers.append(f"'Authorization': 'Bearer {api_key_placeholder}'")
     
     # Ensure we have at least one auth header if auth is required
     if (api_config and api_config.get('hasApiKey')) or (api_analysis and api_analysis.get('security_requirements')):
         if not auth_headers:
-            auth_headers.append(f"'X-API-Key': '{api_key}'")
+            auth_headers.append(f"'X-API-Key': '{api_key_placeholder}'")
     
     # Join all unique headers
     auth_headers = list(set(auth_headers))  # Remove duplicates
