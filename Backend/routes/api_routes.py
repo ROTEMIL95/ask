@@ -69,12 +69,14 @@ Use these details to generate accurate code examples. Include proper:
     model = api_config.get('version', 'claude-3-5-sonnet-20241022')
     
     # Prepare auth headers based on API config
-    auth_headers = "'X-API-Key': 'YOUR_API_KEY'"  # Always include X-API-Key
+    auth_headers = ''
     if api_config.get('hasApiKey'):
         if api_config.get('authType') == 'bearer':
-            auth_headers = f"{auth_headers}, 'Authorization': 'Bearer YOUR_API_KEY'"
+            auth_headers = "'Authorization': 'Bearer YOUR_API_KEY'"
         elif api_config.get('authType') == 'x-api-key':
-            auth_headers = "'X-API-Key': 'YOUR_API_KEY'"  # Already included
+            auth_headers = "'X-API-Key': 'YOUR_API_KEY'"
+        else:
+            auth_headers = "'Authorization': 'Bearer YOUR_API_KEY'"
     
     # Prepare code examples as separate strings to avoid nested f-strings
     code_intro = "\nYour response MUST include these three code blocks with the actual API configuration:\n"
@@ -130,13 +132,7 @@ print('API Response:', data)
     base_prompt += py_code
 
     # cURL code
-    # Convert JavaScript-style headers to cURL format
-    curl_headers = "-H 'Content-Type: application/json'"
-    for header in auth_headers.split(', '):
-        if header:
-            # Convert 'Header': 'Value' to -H 'Header: Value'
-            header = header.replace("'", "").replace(": ", ": ")
-            curl_headers += f" \\\n    -H '{header}'"
+    curl_headers = f"-H 'Content-Type: application/json' -H {auth_headers}" if auth_headers else "-H 'Content-Type: application/json'"
     curl_code = f"""
 ```bash
 # cURL example
