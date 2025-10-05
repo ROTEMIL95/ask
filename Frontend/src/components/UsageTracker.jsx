@@ -11,24 +11,24 @@ import { createPageUrl } from '@/utils';
 import { auth, userProfile, supabase } from '@/lib/supabase';
 
 const PLAN_LIMITS = {
-    free: 10,
-    starter: 25,
-    pro: 25
+    free: 50,
+    starter: 100,
+    pro: 100
 };
 
 const MONTHLY_LIMITS = {
-    free: 50,
-    starter: 200,
-    pro: 200
+    free: 1000,
+    starter: 2000,
+    pro: 2000
 };
 
 export function useUsageTracking() {
     const [usage, setUsage] = useState({ 
         count: 0, 
-        limit: 10, 
+        limit: 50, 
         plan: 'free',
         monthlyCount: 0,
-        monthlyLimit: 50
+        monthlyLimit: 1000
     });
     const [user, setUser] = useState(null);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -105,7 +105,7 @@ export function useUsageTracking() {
                     count = 0;
                 }
                 
-                setUsage({ count, limit: 10, plan: 'free' });
+                setUsage({ count, limit: 50, plan: 'free', monthlyCount: 0, monthlyLimit: 1000 });
                 sessionStorage.setItem('anonUsage', JSON.stringify({ count, date: today }));
                 return;
             }
@@ -121,7 +121,7 @@ export function useUsageTracking() {
                     count = 0;
                 }
                 
-                setUsage({ count, limit: 10, plan: 'free' });
+                setUsage({ count, limit: 50, plan: 'free', monthlyCount: 0, monthlyLimit: 1000 });
                 sessionStorage.setItem('anonUsage', JSON.stringify({ count, date: today }));
                 return;
             }
@@ -139,7 +139,7 @@ export function useUsageTracking() {
                     count = 0;
                 }
                 
-                setUsage({ count, limit: 10, plan: 'free' });
+                setUsage({ count, limit: 50, plan: 'free', monthlyCount: 0, monthlyLimit: 1000 });
                 sessionStorage.setItem('anonUsage', JSON.stringify({ count, date: today }));
                 return;
             }
