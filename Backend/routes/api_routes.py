@@ -33,12 +33,48 @@ api_bp = Blueprint("api", __name__)
 limiter = get_limiter(None)
 
 # --- System prompt (for backward compatibility) ---
-def generate_system_prompt(api_config, user_question):
-    """Generate a dynamic system prompt based on API configuration"""
+def generate_system_prompt(api_config, user_question, api_analysis=None):
+    """Generate a dynamic system prompt based on API configuration and analysis"""
     base_prompt = """You are TalkAPI's API-integration planner & code generator.
 You MUST ALWAYS provide code examples in three languages: JavaScript (fetch), Python (requests), and cURL.
 Each code example MUST be wrapped in triple backticks with the language specified.
+
+Before generating code, I will analyze the API requirements and provide guidance:
 """
+
+    # Add API analysis results if available
+    if api_analysis:
+        base_prompt += "\nAPI Analysis Results:"
+        
+        # Add base URLs
+        if api_analysis.get('urls'):
+            base_prompt += "\nBase URLs detected:"
+            for url in api_analysis['urls']:
+                base_prompt += f"\n- {url}"
+        
+        # Add endpoints
+        if api_analysis.get('endpoints'):
+            base_prompt += "\nEndpoints available:"
+            for endpoint in api_analysis['endpoints']:
+                base_prompt += f"\n- {endpoint}"
+        
+        # Add authentication requirements
+        if api_analysis.get('security_requirements'):
+            base_prompt += "\nAuthentication Required:"
+            for req in api_analysis['security_requirements']:
+                base_prompt += f"\n- Type: {req['type']}"
+                if req.get('name'):
+                    base_prompt += f"\n  Header: {req['name']}"
+        
+        # Add OpenAPI info if available
+        if api_analysis.get('is_openapi'):
+            base_prompt += "\nOpenAPI/Swagger Format Detected:"
+            if api_analysis.get('openapi_data'):
+                info = api_analysis['openapi_data'].get('info', {})
+                base_prompt += f"\n- Title: {info.get('title', 'Untitled')}"
+                base_prompt += f"\n- Version: {info.get('version', 'unknown')}"
+                if info.get('description'):
+                    base_prompt += f"\n- Description: {info['description']}"
 
     # Add API-specific details and user's question
     if api_config:
@@ -487,13 +523,18 @@ def ask():
         if isinstance(payload.get('provider_hint'), dict):
             api_config = payload['provider_hint']
         
+        # First analyze the API documentation
+        api_analysis = analyze_api_doc(doc)
+        print(f"🔍 API Analysis Results:", api_analysis)
+
         # Clean and escape the user's question for use in code examples
         cleaned_question = question.replace('"', '\\"').replace('\n', ' ').strip()
         
-        # Generate dynamic system prompt based on API config and user's question
-        dynamic_prompt = generate_system_prompt(api_config, cleaned_question)
+        # Generate dynamic system prompt with API analysis results
+        dynamic_prompt = generate_system_prompt(api_config, cleaned_question, api_analysis)
+        print(f"📝 Generated System Prompt:", dynamic_prompt)
         
-        # Use dynamic prompt in the request
+        # Use enhanced prompt in the request
         message = client.messages.create(
             model=model_name,
             max_tokens=1024,
