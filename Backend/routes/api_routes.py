@@ -66,26 +66,22 @@ Use these details to generate accurate code examples. Include proper:
     base_url = api_config.get('baseUrl', 'https://api.anthropic.com').rstrip('/')
     endpoint = '/v1/messages'  # Default endpoint for Anthropic
     method = api_config.get('methods', ['POST'])[0]  # Get first available method or POST
-    model = api_config.get('version', 'claude-3-5-sonnet-20241022')
+    model = api_config.get('version', 'claude-3-5-haiku-20241022')
     
-    # Prepare auth headers based on API config
-    auth_headers = ''
-    if api_config.get('hasApiKey'):
-        if api_config.get('authType') == 'bearer':
-            auth_headers = "'Authorization': 'Bearer YOUR_API_KEY'"
-        elif api_config.get('authType') == 'x-api-key':
-            auth_headers = "'X-API-Key': 'YOUR_API_KEY'"
-        else:
-            auth_headers = "'Authorization': 'Bearer YOUR_API_KEY'"
+    # Prepare auth headers for Anthropic API
+    auth_headers = "'x-api-key': `${ANTHROPIC_API_KEY}`, 'anthropic-version': '2023-06-01'"
     
     # Prepare code examples as separate strings to avoid nested f-strings
     code_intro = "\nYour response MUST include these three code blocks with the actual API configuration:\n"
     
     # JavaScript code
-    js_headers = f"'Content-Type': 'application/json', {auth_headers}" if auth_headers else "'Content-Type': 'application/json'"
+    js_headers = f"'Content-Type': 'application/json', {auth_headers}"
     js_code = f"""
 ```javascript
 // JavaScript example using fetch
+// Get your API key from environment or configuration
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || 'your-api-key';
+
 const response = await fetch('{base_url}{endpoint}', {{
     method: '{method}',
     headers: {{
@@ -108,10 +104,15 @@ console.log('API Response:', data);
     base_prompt += js_code
 
     # Python code
-    py_headers = f"'Content-Type': 'application/json', {auth_headers}" if auth_headers else "'Content-Type': 'application/json'"
+    py_headers = f"'Content-Type': 'application/json', {auth_headers}"
     py_code = f"""
 ```python
 # Python example using requests
+import os
+
+# Get your API key from environment
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', 'your-api-key')
+
 response = requests.{method.lower()}(
     '{base_url}{endpoint}',
     headers={{
@@ -132,10 +133,12 @@ print('API Response:', data)
     base_prompt += py_code
 
     # cURL code
-    curl_headers = f"-H 'Content-Type: application/json' -H {auth_headers}" if auth_headers else "-H 'Content-Type: application/json'"
+    curl_headers = "-H 'Content-Type: application/json' -H 'x-api-key: $ANTHROPIC_API_KEY' -H 'anthropic-version: 2023-06-01'"
     curl_code = f"""
 ```bash
 # cURL example
+# First, set your API key in the environment
+# export ANTHROPIC_API_KEY='your-api-key'
 curl -X {method} '{base_url}{endpoint}' \\
     {curl_headers} \\
     -d '{{
@@ -189,8 +192,8 @@ def _validate_plan(plan: dict) -> dict:
         plan["endpoints"] = []
     return plan
 
-def _ensure_six_snippets(snips: dict) -> dict:
-    keys = ["javascript", "python", "curl", "csharp", "java", "go"]
+def _ensure_snippets(snips: dict) -> dict:
+    keys = ["javascript", "python", "curl", "java"]  # Removed csharp and go
     snips = snips or {}
     for k in keys:
         snips.setdefault(k, "")
@@ -217,9 +220,7 @@ def _parse_openapi_spec(doc: str) -> dict:
                 "javascript": "// TODO: Generate JS code for these endpoints",
                 "python": "# TODO: Generate Python requests code",
                 "curl": "# TODO: Generate curl commands",
-                "csharp": "// TODO: Generate C# HttpClient code",
-                "java": "// TODO: Generate Java HttpClient code",
-                "go": "// TODO: Generate Go HTTP client code"
+                "java": "// TODO: Generate Java HttpClient code"
             }
         }
     except Exception as e:
