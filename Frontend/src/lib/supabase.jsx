@@ -324,7 +324,7 @@ export const userProfile = {
         username,
         full_name: fullName,
         plan_type: 'free',
-        daily_limit: 5,
+        daily_limit: 50,
         api_calls_today: 0,
         ...initialUpdates // Apply any initial updates
       }
@@ -511,7 +511,7 @@ export const usageTracking = {
       if (profileError) return { error: profileError }
 
       const totalToday = usageData.reduce((sum, item) => sum + item.request_count, 0)
-      const dailyLimit = profile?.daily_limit || 5
+      const dailyLimit = profile?.daily_limit || 50
 
       return {
         data: {

@@ -120,7 +120,7 @@ def create_user_profiles_table():
             full_name VARCHAR(255),
             email VARCHAR(255),
             plan_type VARCHAR(50) DEFAULT 'free',
-            daily_limit INTEGER DEFAULT 5,
+            daily_limit INTEGER DEFAULT 50,
             api_calls_today INTEGER DEFAULT 0,
             last_api_call_date DATE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

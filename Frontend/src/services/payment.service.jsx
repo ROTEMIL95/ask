@@ -1,4 +1,4 @@
-import authProxy from '../lib/authProxy';
+import authProxy from '../lib/authProxy.jsx';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 

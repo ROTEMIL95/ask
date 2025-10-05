@@ -1,4 +1,4 @@
-import { supabase, auth } from './supabase'
+import { supabase, auth } from './supabase.jsx'
 
 const authProxy = {
   getSession: () => {

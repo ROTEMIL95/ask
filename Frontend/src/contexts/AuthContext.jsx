@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { auth, supabase } from '../lib/supabase'
-import authProxy from '../lib/authProxy'
-import {sanitizeErrorMessage} from '../services/auth.service'
+import { auth, supabase } from '../lib/supabase.jsx'
+import authProxy from '../lib/authProxy.jsx'
+import {sanitizeErrorMessage} from '../services/auth.service.jsx'
 
 const AuthContext = createContext()
 

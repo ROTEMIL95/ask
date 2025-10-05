@@ -67,7 +67,7 @@ class SupabaseManager:
                 'username': username,
                 'full_name': full_name,
                 'plan_type': 'free',
-                'daily_limit': 10,
+                'daily_limit': 50,
                 'api_calls_today': 0,
                 'last_api_call_date': date.today().isoformat()
             }
@@ -171,7 +171,7 @@ class SupabaseManager:
                 'subscription_start_date': datetime.now(timezone.utc).isoformat(),
                 'last_payment_date': datetime.now(timezone.utc).isoformat(),
                 'payment_method': 'credit_card',
-                'daily_limit': 100 if plan_type == 'pro' else 10  # Pro gets 100/day
+                'daily_limit': 100 if plan_type == 'pro' else 50  # Pro gets 100/day
             }
             
             # Use admin client (SERVICE_KEY) to bypass RLS
@@ -227,7 +227,7 @@ class SupabaseManager:
                 'plan_type': 'free',
                 'subscription_status': 'cancelled',
                 'subscription_end_date': datetime.now(timezone.utc).isoformat(),
-                'daily_limit': 10,  # Reset to free tier limits
+                'daily_limit': 50,  # Reset to free tier limits
                 'sto_id': None  # Clear the STO ID
             }
             
@@ -267,7 +267,7 @@ class SupabaseManager:
             print(f"Error getting usage stats: {e}")
             return {
                 'calls_today': 0,
-                'daily_limit': 10,
+                'daily_limit': 50,
                 'remaining_calls': 10,
                 'plan_type': 'free'
             }

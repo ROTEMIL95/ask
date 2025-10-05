@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { userProfile, auth, supabase } from '../lib/supabase'
+import { userProfile, auth, supabase } from '../lib/supabase.jsx'
 
 // Function to sanitize error messages for user display
 const sanitizeErrorMessage = (errorMessage) => {
@@ -243,9 +243,9 @@ export const useUserProfile = () => {
     
     return {
       planType: profile.plan_type || 'free',
-      dailyLimit: profile.daily_limit || 5,
+      dailyLimit: profile.daily_limit || 50,
       apiCallsToday: profile.api_calls_today || 0,
-      remainingCalls: Math.max(0, (profile.daily_limit || 5) - (profile.api_calls_today || 0)),
+      remainingCalls: Math.max(0, (profile.daily_limit || 50) - (profile.api_calls_today || 0)),
       lastApiCallDate: profile.last_api_call_date
     }
   }
@@ -300,7 +300,7 @@ export const useUserProfile = () => {
     fullName: profile?.full_name,
     email: profile?.email,
     planType: profile?.plan_type || 'free',
-    dailyLimit: profile?.daily_limit || 5,
+    dailyLimit: profile?.daily_limit || 50,
     apiCallsToday: profile?.api_calls_today || 0
   }
 } 

@@ -3,7 +3,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Copy, CheckCheck, Loader2 } from 'lucide-react';
-import { validateApiUrl } from '../utils/testApiUrl';
+import { validateApiUrl } from '../utils/testApiUrl.jsx';
 
 /**
  * @typedef {Object} CodeSnippet
