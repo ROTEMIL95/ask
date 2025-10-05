@@ -106,12 +106,6 @@ console.log('API Response:', data);
     # Add the code blocks to the prompt
     base_prompt += code_intro
     base_prompt += js_code
-});
-
-// Handle the response
-const data = await response.json();
-console.log('API Response:', data.answer);
-```
 
     # Python code
     py_headers = f"'Content-Type': 'application/json', {auth_headers}" if auth_headers else "'Content-Type': 'application/json'"
@@ -156,7 +150,6 @@ curl -X {method} '{base_url}{endpoint}' \\
     base_prompt += "\n\nThe code examples above use the actual values from your API configuration."
     base_prompt += "\nInclude proper error handling and response parsing in each example."
     
-    return base_prompt
     return base_prompt
 
 # Initialize as empty, will be set per request
