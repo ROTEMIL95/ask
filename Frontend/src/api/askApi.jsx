@@ -14,8 +14,31 @@ const getBackendUrl = () => {
 };
 
 
-// Note: API keys should never be fetched to the frontend for security reasons
-// The backend handles API keys internally when processing requests
+// Function to get API keys from the backend
+export const getApiKey = async (service) => {
+    try {
+        const response = await fetch(`${getBackendUrl()}/get-api-key`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Origin': 'https://talkapi.ai'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ service })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to get ${service} API key`);
+        }
+
+        const data = await response.json();
+        return data.api_key;
+    } catch (error) {
+        console.error(`Error getting ${service} API key:`, error);
+        throw new Error(`Failed to get ${service} API key: ${error.message}`);
+    }
+};
 
 // OCR function to process uploaded images (kept for separate OCR functionality)
 export const processImageOCR = async (imageFile) => {
