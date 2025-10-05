@@ -13,7 +13,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import PublicApiSelector from '../components/PublicApiSelector';
-import { useAskApi, processImageOCR, processFileToText } from '@/api/askApi';
+import { useAskApi, processImageOCR, processFileToText, getApiKey } from '@/api/askApi';
 import { proxyApiCall } from '@/api/proxyApi';
 import { fixApiUrl, validateApiUrl } from '@/utils/testApiUrl';
 
