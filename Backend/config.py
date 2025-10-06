@@ -4,7 +4,7 @@ class Config:
     # --- AI Models ---
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-    LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-5")
+    LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-5-20250929")
 
     # --- Supabase ---
     SUPABASE_URL = os.getenv("SUPABASE_URL")

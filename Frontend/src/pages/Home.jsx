@@ -17,6 +17,80 @@ import { useAskApi, processImageOCR, processFileToText } from '@/api/askApi';
 import { proxyApiCall } from '@/api/proxyApi';
 import { fixApiUrl, validateApiUrl } from '@/utils/testApiUrl';
 
+// Constants
+const INITIAL_CODE_STATE = {
+    javascript: '',
+    python: '',
+    curl: '',
+    csharp: '',
+    java: '',
+    go: ''
+};
+
+const createClaudeApiPrompt = (text) => `Use this fixed JSON schema and output ONLY a JSON object (no prose, no markdown):
+
+{
+  "has_api": boolean,
+  "base_urls": [ "string" ],
+  "endpoints": [
+    { "method": "GET|POST|PUT|DELETE|null", "path": "string", "summary": "string|null" }
+  ],
+  "api_type": "REST|GraphQL|SOAP|Unknown",
+  "parameters": [
+    { "name": "string", "in": "path|query|header|body", "type": "string|number|boolean|object|array|Unknown", "required": true|false, "applies_to": "string" }
+  ],
+  "auth": { "type": "Bearer|API Key|OAuth2|Basic|Unknown", "headers": ["string"] },
+  "responses": { "format": "JSON|XML|Other|Unknown", "status_codes": [ { "code": 200, "meaning": "OK" } ] },
+  "notes": [ "string" ]
+}
+
+Rules:
+- Only API facts (endpoints, methods, params, auth, response format, status codes).
+- If the text doesn't specify an item, set it to null/[].
+- Do not invent, infer conservatively.
+- Output must be valid JSON. No explanations.
+
+TEXT:
+<<<
+${text}
+>>>`;
+
+const SUPPORTED_FILE_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'json', 'xml', 'csv', 'md', 'rtf', 'odt', 'ods', 'odp', 'ppt', 'pptx'];
+
+// Utility functions
+const createCopyToClipboard = (setText, timeout = 2000) => {
+    return async (content) => {
+        if (!content) return;
+        try {
+            await navigator.clipboard.writeText(content);
+            setText(true);
+            setTimeout(() => setText(false), timeout);
+        } catch (err) {
+            console.error('Failed to copy to clipboard:', err);
+        }
+    };
+};
+
+const hasAnyGeneratedCode = (codeObj) => {
+    return Object.values(codeObj).some(code => Boolean(code));
+};
+
+const validateApiKey = (key) => {
+    return key && key.trim() !== '' && key !== 'YOUR_API_KEY';
+};
+
+const isFileSupported = (filename) => {
+    const extension = filename.toLowerCase().split('.').pop();
+    return SUPPORTED_FILE_EXTENSIONS.includes(extension);
+};
+
+const handleError = (context, error, showAlert = false) => {
+    console.error(`❌ ${context}:`, error);
+    if (showAlert) {
+        alert(`${context}: ${error.message || error}`);
+    }
+};
+
 const SAMPLE_API_DOC = `{
   "openapi": "3.0.0",
   "info": {
@@ -82,14 +156,7 @@ function HeroSection() {
 function ApiToolSection() {
     const [apiDoc, setApiDoc] = useState('');
     const [userQuery, setUserQuery] = useState('');
-    const [generatedCode, setGeneratedCode] = useState({ 
-        javascript: '', 
-        python: '', 
-        curl: '', 
-        csharp: '', 
-        java: '', 
-        go: '' 
-    });
+    const [generatedCode, setGeneratedCode] = useState(INITIAL_CODE_STATE);
     const [selectedLanguage, setSelectedLanguage] = useState('javascript');
     const [isLoading, setIsLoading] = useState(false);
     const [isFileProcessing, setIsFileProcessing] = useState(false);
@@ -122,6 +189,11 @@ function ApiToolSection() {
         loading: apiLoading,
         error: hookError
     } = useAskApi();
+
+    // Copy utilities
+    const copyToClipboard = createCopyToClipboard(setCopied);
+    const copyApiDocToClipboard = createCopyToClipboard(setCopiedApiDoc);
+    const copyUserQueryToClipboard = createCopyToClipboard(setCopiedUserQuery);
 
     // Helper function to format API facts response
     const formatApiFactsResponse = (apiData) => {
@@ -219,9 +291,8 @@ function ApiToolSection() {
             });
             
             // Check if it's a supported file type
-            const supportedExtensions = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'json', 'xml', 'csv', 'md', 'rtf', 'odt', 'ods', 'odp', 'ppt', 'pptx'];
+            const isSupported = isFileSupported(file.name);
             const fileExtension = file.name.toLowerCase().split('.').pop();
-            const isSupported = supportedExtensions.includes(fileExtension);
             console.log('🔍 File Upload Debug: File extension:', fileExtension);
             console.log('🔍 File Upload Debug: Is supported file:', isSupported);
             
@@ -249,33 +320,7 @@ function ApiToolSection() {
                     setOcrText(result.text);
                     
                             // Compose the custom prompt for Claude - API Facts Extractor
-                    const claudePrompt = `Use this fixed JSON schema and output ONLY a JSON object (no prose, no markdown):
-
-{
-  "has_api": boolean,
-  "base_urls": [ "string" ],
-  "endpoints": [
-    { "method": "GET|POST|PUT|DELETE|null", "path": "string", "summary": "string|null" }
-  ],
-  "api_type": "REST|GraphQL|SOAP|Unknown",
-  "parameters": [
-    { "name": "string", "in": "path|query|header|body", "type": "string|number|boolean|object|array|Unknown", "required": true|false, "applies_to": "string" }
-  ],
-  "auth": { "type": "Bearer|API Key|OAuth2|Basic|Unknown", "headers": ["string"] },
-  "responses": { "format": "JSON|XML|Other|Unknown", "status_codes": [ { "code": 200, "meaning": "OK" } ] },
-  "notes": [ "string" ]
-}
-
-Rules:
-- Only API facts (endpoints, methods, params, auth, response format, status codes).
-- If the text doesn't specify an item, set it to null/[].
-- Do not invent, infer conservatively.
-- Output must be valid JSON. No explanations.
-
-TEXT:
-<<<
-${result.text}
->>>`;
+                    const claudePrompt = createClaudeApiPrompt(result.text);
 
                     // Send to Claude (anonymous users can use if they have quota)
 
@@ -369,33 +414,7 @@ ${result.text}
                     // Send the extracted text to Claude with the same prompt as file upload
                     console.log('🔍 Image Upload Debug: Sending extracted text to Claude for analysis');
                     
-                    const claudePrompt = `Use this fixed JSON schema and output ONLY a JSON object (no prose, no markdown):
-
-{
-  "has_api": boolean,
-  "base_urls": [ "string" ],
-  "endpoints": [
-    { "method": "GET|POST|PUT|DELETE|null", "path": "string", "summary": "string|null" }
-  ],
-  "api_type": "REST|GraphQL|SOAP|Unknown",
-  "parameters": [
-    { "name": "string", "in": "path|query|header|body", "type": "string|number|boolean|object|array|Unknown", "required": true|false, "applies_to": "string" }
-  ],
-  "auth": { "type": "Bearer|API Key|OAuth2|Basic|Unknown", "headers": ["string"] },
-  "responses": { "format": "JSON|XML|Other|Unknown", "status_codes": [ { "code": 200, "meaning": "OK" } ] },
-  "notes": [ "string" ]
-}
-
-Rules:
-- Only API facts (endpoints, methods, params, auth, response format, status codes).
-- If the text doesn't specify an item, set it to null/[].
-- Do not invent, infer conservatively.
-- Output must be valid JSON. No explanations.
-
-TEXT:
-<<<
-${result.text}
->>>`;
+                    const claudePrompt = createClaudeApiPrompt(result.text);
 
                     // Send to Claude (anonymous users can use if they have quota)
 
@@ -452,54 +471,14 @@ ${result.text}
         }
     };
 
-    const handleCopyCode = async () => {
-        const codeToCopy = generatedCode[selectedLanguage];
-        if (codeToCopy) {
-            try {
-                await navigator.clipboard.writeText(codeToCopy);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            } catch (err) {
-                console.error('Failed to copy: ', err);
-            }
-        }
-    };
-
-    const handleCopyApiDoc = async () => {
-        if (apiDoc) {
-            try {
-                await navigator.clipboard.writeText(apiDoc);
-                setCopiedApiDoc(true);
-                setTimeout(() => setCopiedApiDoc(false), 2000);
-            } catch (err) {
-                console.error('Failed to copy API documentation: ', err);
-            }
-        }
-    };
-
-    const handleCopyUserQuery = async () => {
-        if (userQuery) {
-            try {
-                await navigator.clipboard.writeText(userQuery);
-                setCopiedUserQuery(true);
-                setTimeout(() => setCopiedUserQuery(false), 2000);
-            } catch (err) {
-                console.error('Failed to copy user query: ', err);
-            }
-        }
-    };
+    const handleCopyCode = () => copyToClipboard(generatedCode[selectedLanguage]);
+    const handleCopyApiDoc = () => copyApiDocToClipboard(apiDoc);
+    const handleCopyUserQuery = () => copyUserQueryToClipboard(userQuery);
 
     const handleClearAll = () => {
         setApiDoc('');
         setUserQuery('');
-        setGeneratedCode({ 
-            javascript: '', 
-            python: '', 
-            curl: '', 
-            csharp: '', 
-            java: '', 
-            go: '' 
-        });
+        setGeneratedCode(INITIAL_CODE_STATE);
         setApiResult(null);
         setApiError('');
         setUploadedFile(null);
@@ -771,22 +750,64 @@ ${result.text}
             // Looks for `body: JSON.stringify(...)` or `body: '...'` or `body: "..."` or `body: {...}`
             console.log('🔍 Extracting body from options string:', optionsStr);
             
-            const bodyMatch = optionsStr.match(/body\s*:\s*(?:JSON\.stringify\s*\(([\s\S]*?)\)|(['"`])([\s\S]*?)\2|(\{[\s\S]*?\}))/);
+            // Improved regex to better capture complete JSON objects
+            const bodyMatch = optionsStr.match(/body\s*:\s*(?:JSON\.stringify\s*\((\{(?:[^{}]|\{[^{}]*\})*\}|[^)]*)\)|(['"`])([\s\S]*?)\2|(\{(?:[^{}]|\{[^{}]*\})*\}))/);
 
             if (bodyMatch) {
                 console.log('🔍 Body match found:', bodyMatch);
                 
                 if (bodyMatch[1]) { // Matched JSON.stringify(...)
                     console.log('🔍 Processing JSON.stringify content');
-                    const jsonContent = bodyMatch[1];
-                    try {
-                        // Use the utility function to validate and fix JSON
-                        const fixedJson = validateAndFixJson(jsonContent);
-                        body = fixedJson;
-                        console.log('✅ Body extracted from JSON.stringify:', body);
-                    } catch (e) {
-                        console.warn('Failed to parse JSON.stringify content, skipping body:', e);
-                        body = null;
+                    const jsonContent = bodyMatch[1].trim();
+                    
+                    // Check if it's a variable reference like 'requestData'
+                    if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(jsonContent)) {
+                        console.log('🔍 Body references a variable:', jsonContent);
+                        // Try to find the variable definition in the code (const, let, or var)
+                        const varPattern = new RegExp(`(?:const|let|var)\\s+${jsonContent}\\s*=\\s*(\\{[\\s\\S]*?\\});`, 'i');
+                        const varMatch = code.match(varPattern);
+                        
+                        if (varMatch && varMatch[1]) {
+                            console.log('🔍 Found variable definition:', varMatch[1]);
+                            try {
+                                const fixedJson = validateAndFixJson(varMatch[1]);
+                                body = fixedJson;
+                                console.log('✅ Body extracted from variable definition:', body);
+                            } catch (e) {
+                                console.warn('Failed to parse variable definition, skipping body:', e);
+                                body = null;
+                            }
+                        } else {
+                            console.log('❌ Could not find variable definition for:', jsonContent);
+                            // Try a more flexible pattern as fallback
+                            const flexiblePattern = new RegExp(`${jsonContent}\\s*=\\s*(\\{[\\s\\S]*?\\})`, 'i');
+                            const flexibleMatch = code.match(flexiblePattern);
+                            
+                            if (flexibleMatch && flexibleMatch[1]) {
+                                console.log('🔍 Found variable with flexible pattern:', flexibleMatch[1]);
+                                try {
+                                    const fixedJson = validateAndFixJson(flexibleMatch[1]);
+                                    body = fixedJson;
+                                    console.log('✅ Body extracted with flexible pattern:', body);
+                                } catch (e) {
+                                    console.warn('Failed to parse flexible pattern content, skipping body:', e);
+                                    body = null;
+                                }
+                            } else {
+                                console.log('❌ No fallback pattern matched for:', jsonContent);
+                                body = null;
+                            }
+                        }
+                    } else {
+                        // Direct JSON content
+                        try {
+                            const fixedJson = validateAndFixJson(jsonContent);
+                            body = fixedJson;
+                            console.log('✅ Body extracted from JSON.stringify:', body);
+                        } catch (e) {
+                            console.warn('Failed to parse JSON.stringify content, skipping body:', e);
+                            body = null;
+                        }
                     }
                 } else if (bodyMatch[3]) { // Matched direct string literal ('...' or "...")
                     console.log('🔍 Processing direct string literal');
@@ -807,14 +828,24 @@ ${result.text}
                 }
             } else {
                 console.log('🔍 No body match found in options string');
-                // Try alternative body extraction patterns
-                const alternativeBodyMatch = optionsStr.match(/body\s*:\s*([^,}]+)/);
-                if (alternativeBodyMatch) {
-                    console.log('🔍 Alternative body match found:', alternativeBodyMatch[1]);
-                    const altBody = alternativeBodyMatch[1].trim();
-                    if (altBody && altBody !== 'undefined' && altBody !== 'null') {
-                        body = altBody;
-                        console.log('✅ Body extracted with alternative pattern:', body);
+                // Try alternative body extraction patterns - more comprehensive
+                const alternativePatterns = [
+                    /body\s*:\s*(\{[^}]*(?:\{[^}]*\}[^}]*)*\})/,  // Nested objects
+                    /body\s*:\s*JSON\.stringify\s*\(([^)]+(?:\([^)]*\)[^)]*)*)\)/,  // JSON.stringify with nested calls
+                    /body\s*:\s*([a-zA-Z_$][a-zA-Z0-9_$]*)/,  // Variable references
+                    /body\s*:\s*(['"`])([^'"`]*)\1/,  // String literals
+                ];
+                
+                for (const pattern of alternativePatterns) {
+                    const altMatch = optionsStr.match(pattern);
+                    if (altMatch) {
+                        console.log('🔍 Alternative body match found:', altMatch[1] || altMatch[2]);
+                        const altBody = (altMatch[1] || altMatch[2]).trim();
+                        if (altBody && altBody !== 'undefined' && altBody !== 'null') {
+                            body = altBody;
+                            console.log('✅ Body extracted with alternative pattern:', body);
+                            break;
+                        }
                     }
                 }
             }
@@ -822,6 +853,64 @@ ${result.text}
             // If no body found, leave it as null (don't create fallback Anthropic call)
             if (!body) {
                 console.log('🔍 No body extracted, body will be null');
+            } else {
+                // Special handling for Anthropic API - ensure complete body structure
+                if (url && url.includes('anthropic.com') && body) {
+                    console.log('🔍 Detected Anthropic API, ensuring complete body structure');
+                    console.log('🔍 Body before parsing:', body);
+                    try {
+                        let bodyObj;
+                        if (typeof body === 'string') {
+                            // Check if body contains JSON.stringify() pattern and extract the content
+                            if (body.includes('JSON.stringify(')) {
+                                console.log('🔍 Body contains JSON.stringify pattern, extracting content');
+                                // Use a more sophisticated pattern to match nested JSON
+                                const jsonMatch = body.match(/JSON\.stringify\s*\(\s*(\{(?:[^{}]|\{[^{}]*\})*\})\s*\)/);
+                                if (jsonMatch && jsonMatch[1]) {
+                                    try {
+                                        bodyObj = JSON.parse(jsonMatch[1]);
+                                        console.log('✅ Extracted JSON from JSON.stringify pattern');
+                                    } catch (e) {
+                                        console.warn('⚠️ Failed to parse extracted JSON, using validateAndFixJson');
+                                        const fixedJson = validateAndFixJson(jsonMatch[1]);
+                                        bodyObj = JSON.parse(fixedJson);
+                                    }
+                                } else {
+                                    throw new Error('Could not extract JSON from JSON.stringify pattern');
+                                }
+                            } else {
+                                // Try to parse as regular JSON
+                                bodyObj = JSON.parse(body);
+                            }
+                        } else {
+                            bodyObj = body;
+                        }
+                        
+                        // Ensure required Anthropic fields are present
+                        if (!bodyObj.max_tokens) {
+                            bodyObj.max_tokens = 1024;
+                            console.log('✅ Added missing max_tokens field');
+                        }
+                        if (!bodyObj.messages && bodyObj.content) {
+                            // Convert old format to new messages format
+                            bodyObj.messages = [{ role: 'user', content: bodyObj.content }];
+                            delete bodyObj.content;
+                            console.log('✅ Converted content to messages format');
+                        }
+                        if (!bodyObj.messages) {
+                            bodyObj.messages = [{ role: 'user', content: userQuery }];
+                            console.log('✅ Added missing messages field');
+                        }
+                        
+                        body = JSON.stringify(bodyObj);
+                        console.log('✅ Enhanced Anthropic body:', body);
+                    } catch (e) {
+                        console.warn('⚠️ Failed to enhance Anthropic body:', e);
+                        console.warn('⚠️ Original body value:', body);
+                        console.warn('⚠️ Body type:', typeof body);
+                        // Don't modify the body if enhancement fails
+                    }
+                }
             }
 
             // Final validation and fallback
@@ -927,10 +1016,16 @@ ${result.text}
                 console.log(`🔍 Processing direct variable reference: ${varName}`);
                 const value = extractVariableValue(originalCode || '', varName);
                 
-                // Special handling for API keys
-                if (varName.toLowerCase().includes('api') || varName.toLowerCase().includes('key')) {
+                // Special handling for API keys - but first check if it's already a placeholder
+                if (varName.toLowerCase().includes('api') && varName.toLowerCase().includes('key')) {
                     console.log(`🔍 API key variable detected: ${varName}`);
-                    return 'YOUR_API_KEY';
+                    // If it's already 'API_KEY' or similar placeholder, convert to 'YOUR_API_KEY'
+                    if (varName === 'API_KEY' || varName === 'api_key' || varName === 'apiKey') {
+                        return 'YOUR_API_KEY';
+                    }
+                    // For other API key variables, try to extract their value first
+                    const extractedValue = extractVariableValue(originalCode || '', varName);
+                    return extractedValue || 'YOUR_API_KEY';
                 }
                 
                 const result = value || match;
@@ -1005,7 +1100,7 @@ ${result.text}
         // 1. Authorization header (Anthropic style)
         if (fetchOptions.headers.Authorization && fetchOptions.headers.Authorization.includes('YOUR_API_KEY')) {
             // Check if user provided an authorization key
-            if (authorizationKey.trim()) {
+            if (validateApiKey(authorizationKey)) {
                 // Use the user-provided authorization key
                 if (fetchOptions.headers.Authorization.startsWith('Bearer ')) {
                     fetchOptions.headers.Authorization = `Bearer ${authorizationKey.trim()}`;
@@ -1042,7 +1137,7 @@ ${result.text}
                 apiKeyHeaderFound = true;
                 
                 // Check if user provided an authorization key
-                if (authorizationKey.trim()) {
+                if (validateApiKey(authorizationKey)) {
                     // Use the user-provided authorization key
                     fetchOptions.headers[headerKey] = authorizationKey.trim();
                     console.log(`✅ Updated ${headerKey} header with user-provided key`); // Key value not logged for security
@@ -1096,7 +1191,7 @@ ${result.text}
             if (finalUrl.includes(placeholder)) {
                 console.log(`🔍 Found API key placeholder: ${placeholder}`);
                 hasPlaceholder = true;
-                if (authorizationKey.trim()) {
+                if (validateApiKey(authorizationKey)) {
                     console.log(`🔍 Using user-provided authorization key`); // Key value not logged for security
                     // Use the user-provided authorization key
                     finalUrl = finalUrl.replace(new RegExp(placeholder, 'g'), authorizationKey.trim());
@@ -1133,7 +1228,7 @@ ${result.text}
         
         // Handle other specific API key patterns
         if (finalUrl.includes('openweathermap.org') && finalUrl.includes('appid=demo-api-key')) {
-            if (authorizationKey.trim()) {
+            if (validateApiKey(authorizationKey)) {
                 finalUrl = finalUrl.replace(/appid=demo-api-key/, `appid=${authorizationKey.trim()}`);
             } else {
                 try {
@@ -1269,14 +1364,7 @@ ${result.text}
         }
 
         setIsLoading(true);
-        setGeneratedCode({ 
-            javascript: '', 
-            python: '', 
-            curl: '', 
-            csharp: '', 
-            java: '', 
-            go: '' 
-        });
+        setGeneratedCode(INITIAL_CODE_STATE);
         setApiResult(null);
         setApiError('');
         setShowProOnlyMessage(false);
@@ -1501,6 +1589,15 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                             `curl "${baseUrl}$1"`
                         );
                     }
+
+                    // Clean up any remaining template literals in the displayed code
+                    snippet = snippet.replace(/\$\{baseUrl\}/g, 'https://api.example.com');
+                    snippet = snippet.replace(/\$\{apiUrl\}/g, 'https://api.example.com');
+                    snippet = snippet.replace(/\$\{url\}/g, 'https://api.example.com');
+                    snippet = snippet.replace(/\$\{BASE_URL\}/g, 'https://api.example.com');
+                    
+                    // Remove any remaining template literal syntax
+                    snippet = snippet.replace(/\$\{[^}]+\}/g, 'https://api.example.com');
 
                     validSnippets[lang] = snippet;
                     hasValidSnippet = true;
@@ -1809,14 +1906,7 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
         // Store the selected API information for use in API calls
         setSelectedApiInfo({ apiName, demoKey, docsUrl });
         // Clear all result-related state when switching API
-        setGeneratedCode({ 
-            javascript: '', 
-            python: '', 
-            curl: '', 
-            csharp: '', 
-            java: '', 
-            go: '' 
-        });
+        setGeneratedCode(INITIAL_CODE_STATE);
         setApiResult(null);
         setApiError('');
         setIsFavorited(false);
@@ -2005,7 +2095,7 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                                 <Code className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0" />
                                 <span className="break-words">3. Generated Code</span>
                             </label>
-                                                         {(generatedCode.javascript || generatedCode.python || generatedCode.curl || generatedCode.csharp || generatedCode.java || generatedCode.go) && (
+                                                         {hasAnyGeneratedCode(generatedCode) && (
                                 <div className="flex items-center gap-2 self-start sm:self-auto">
                                     {user && user.isLoggedIn && currentHistoryId && (
                                         <Button
@@ -2098,7 +2188,7 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                     </div>
                     
                     <div className="space-y-4">
-                                                 {(generatedCode.javascript || generatedCode.python || generatedCode.curl || generatedCode.csharp || generatedCode.java || generatedCode.go) && (
+                                                 {hasAnyGeneratedCode(generatedCode) && (
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -2170,7 +2260,7 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                             onClick={handleRunApiCall} 
                             size="lg" 
                             className="w-full text-base sm:text-lg bg-purple-600 hover:bg-purple-700 py-4 sm:py-6" 
-                                                         disabled={isExecuting || !(generatedCode.javascript || generatedCode.python || generatedCode.curl || generatedCode.csharp || generatedCode.java || generatedCode.go)}
+                                                         disabled={isExecuting || !hasAnyGeneratedCode(generatedCode)}
                         >
                             {isExecuting ? (
                                 <>
@@ -2206,7 +2296,7 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                             )}
                         </div>
                         <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 sm:p-4 min-h-[120px] sm:min-h-[150px] font-mono text-xs sm:text-sm overflow-hidden">
-                                                         {!(generatedCode.javascript || generatedCode.python || generatedCode.curl || generatedCode.csharp || generatedCode.java || generatedCode.go) ? (
+                                                         {!hasAnyGeneratedCode(generatedCode) ? (
                                 <div className="text-slate-500 text-center">Response from the API will appear here...</div>
                             ) : isExecuting ? (
                                 <div className="flex items-center gap-2 text-slate-400">

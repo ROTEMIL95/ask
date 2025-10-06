@@ -26,7 +26,7 @@ client = Anthropic(
     # defaults to os.environ.get("ANTHROPIC_API_KEY")
     api_key=ANTHROPIC_API_KEY,
 )
-MODEL_NAME = "claude-sonnet-4-5"  # Updated to user's preferred model
+MODEL_NAME = "claude-sonnet-4-5-20250929"  # Updated to specific version
 
 # --- Blueprint & limiter (app will init later) ---
 api_bp = Blueprint("api", __name__)
@@ -98,11 +98,32 @@ Use these details to generate accurate code examples. Include proper:
 5. Response parsing
 """
 
-    # Format the base URL and endpoint
-    base_url = api_config.get('baseUrl', 'https://api.anthropic.com').rstrip('/')
+    # Format the base URL and endpoint - ensure no template variables
+    raw_base_url = api_config.get('baseUrl', 'https://api.anthropic.com')
+    
+    # Remove any template variable syntax and use direct URLs
+    base_url = raw_base_url.replace('${BASE_URL}', 'https://api.example.com')
+    base_url = base_url.replace('${baseUrl}', 'https://api.example.com')
+    base_url = base_url.replace('${apiUrl}', 'https://api.example.com')
+    base_url = base_url.replace('${url}', 'https://api.example.com')
+    
+    # Clean up any remaining template literal syntax
+    import re
+    base_url = re.sub(r'\$\{[^}]+\}', 'https://api.example.com', base_url)
+    base_url = base_url.replace('`', '').replace('${', '').replace('}', '')
+    base_url = base_url.rstrip('/')
+    
+    # If base_url still contains template variables or is empty, use a default
+    if '${' in base_url or '`' in base_url or base_url == '':
+        base_url = 'https://api.example.com'
+    
+    # Remove any existing endpoint from base_url to avoid duplication
+    if base_url.endswith('/v1/messages'):
+        base_url = base_url.replace('/v1/messages', '')
+    
     endpoint = '/v1/messages'  # Default endpoint for Anthropic
     method = api_config.get('methods', ['POST'])[0]  # Get first available method or POST
-    model = api_config.get('version', 'claude-3-5-sonnet-20241022')
+    model = api_config.get('version', 'claude-sonnet-4-5-20250929')
     
     # Prepare auth headers based on API config and analysis
     auth_headers = []
@@ -157,13 +178,9 @@ Use these details to generate accurate code examples. Include proper:
     js_headers_list = ["'Content-Type': 'application/json'"]
     
     if api_config and api_config.get('authType') == 'basic':
-        js_auth_setup = f"""// Basic Authentication setup
-const username = '{username_placeholder}';
-const password = '{password_placeholder}';
-const auth = btoa(username + ':' + password);
-
-"""
-        js_headers_list.insert(0, "'Authorization': `Basic ${auth}`")
+        js_auth_setup = ""
+        # For Basic Auth, encode directly without variables
+        js_headers_list.insert(0, f"'Authorization': 'Basic ' + btoa('{username_placeholder}:{password_placeholder}')")
     elif auth_headers_str:
         # Clean up the headers for JavaScript format
         for header in auth_headers_str.split(','):
@@ -176,20 +193,22 @@ const auth = btoa(username + ':' + password);
     js_code = f"""
 ```javascript
 // JavaScript example using fetch
-{js_auth_setup}const requestData = {{
-    content: {json.dumps(user_question)},
-    model: {json.dumps(model)},
-    max_tokens: 1024,
-    temperature: 0.7
-}};
-
-const response = await fetch('{base_url}{endpoint}', {{
+{js_auth_setup}const response = await fetch('{base_url}{endpoint}', {{
     method: '{method}',
     headers: {{
         {js_headers_formatted}
     }},
-    body: JSON.stringify(requestData)
+    body: JSON.stringify({{
+        content: {json.dumps(user_question)},
+        model: {json.dumps(model)},
+        max_tokens: 1024,
+        temperature: 0.7
+    }})
 }});
+
+if (!response.ok) {{
+    throw new Error('HTTP error! status: ' + response.status);
+}}
 
 const data = await response.json();
 console.log('API Response:', data);
@@ -207,13 +226,9 @@ console.log('API Response:', data);
     
     if api_config and api_config.get('authType') == 'basic':
         py_imports = "import requests\nimport base64"
-        py_auth_setup = f"""
-# Basic Authentication setup
-username = '{username_placeholder}'
-password = '{password_placeholder}'
-auth = base64.b64encode(f'{{username}}:{{password}}'.encode()).decode()
-"""
-        py_headers_list.insert(0, "'Authorization': f'Basic {auth}'")
+        py_auth_setup = ""
+        # For Basic Auth, encode directly without variables
+        py_headers_list.insert(0, f"'Authorization': 'Basic ' + base64.b64encode('{username_placeholder}:{password_placeholder}'.encode()).decode()")
     elif auth_headers_str:
         # Clean up the headers for Python format  
         for header in auth_headers_str.split(','):
@@ -227,21 +242,20 @@ auth = base64.b64encode(f'{{username}}:{{password}}'.encode()).decode()
 ```python
 # Python example using requests
 {py_imports}{py_auth_setup}
-request_data = {{
-    'content': {json.dumps(user_question)},
-    'model': {json.dumps(model)},
-    'max_tokens': 1024,
-    'temperature': 0.7
-}}
-
 response = requests.{method.lower()}(
     '{base_url}{endpoint}',
     headers={{
         {py_headers_formatted}
     }},
-    json=request_data
+    json={{
+        'content': {json.dumps(user_question)},
+        'model': {json.dumps(model)},
+        'max_tokens': 1024,
+        'temperature': 0.7
+    }}
 )
 
+response.raise_for_status()  # Raises an HTTPError for bad responses
 data = response.json()
 print('API Response:', data)
 ```"""
@@ -265,13 +279,13 @@ print('API Response:', data)
     curl_headers_str = " \\\n    ".join(curl_headers)
     curl_auth_str = f" \\\n    {curl_auth}" if curl_auth else ""
     
-    # Prepare request data as proper JSON
-    request_data = {
+    # Prepare request data as proper JSON (inline)
+    request_data_json = json.dumps({
         "content": user_question,
         "model": model,
         "max_tokens": 1024,
         "temperature": 0.7
-    }
+    }, indent=2)
     
     curl_code = f"""
 ```bash
@@ -279,7 +293,7 @@ print('API Response:', data)
 
 curl -X {method} '{base_url}{endpoint}'{curl_auth_str} \\
     {curl_headers_str} \\
-    -d '{json.dumps(request_data, indent=2)}'
+    -d '{request_data_json}'
 ```"""
 
     base_prompt += curl_code
@@ -617,7 +631,7 @@ def ask():
 
         
         # Call Anthropic Claude API using the template structure
-        model_name = os.getenv("LLM_MODEL", "claude-sonnet-4-5")
+        model_name = os.getenv("LLM_MODEL", "claude-sonnet-4-5-20250929")
         print(f"DEBUG: Calling Anthropic API with model: {model_name}")
         print(f"DEBUG: System prompt length: {len(system_prompt)} chars")
         print(f"DEBUG: User question length: {len(question)} chars")
