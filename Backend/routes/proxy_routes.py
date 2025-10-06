@@ -96,6 +96,7 @@ def proxy_api():
     allowed_domains = [
         'api.openweathermap.org',
         'api.openai.com',
+        'api.anthropic.com',
         'jsonplaceholder.typicode.com',
         'api.github.com',
         'api.stripe.com',
@@ -115,39 +116,139 @@ def proxy_api():
     method = data.get('method', 'GET')
     headers = data.get('headers', {})
     body = data.get('body')
-    
+
     # SSRF protection: only allow http/https
     if not url.startswith(('http://', 'https://')):
         return jsonify({'error': 'Invalid URL protocol'}), 400
-    
+
+    # Auto-inject API keys for known services
+    if 'api.anthropic.com' in url:
+        print(f"🔍 Anthropic API detected. Original headers: {headers}")
+        # Inject Anthropic API key from environment
+        anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+        if anthropic_key:
+            print(f"✅ Anthropic API key found (length: {len(anthropic_key)})")
+
+            # Check for x-api-key with different casing
+            api_key_header = None
+            for key in headers.keys():
+                if key.lower() == 'x-api-key':
+                    api_key_header = key
+                    break
+
+            # Replace placeholder API keys or add if missing
+            if api_key_header:
+                original_key = headers[api_key_header]
+                # List of known placeholders
+                placeholders = [
+                    'YOUR_API_KEY',
+                    'YOUR_API_KEY_HERE',
+                    'your-api-key-here',
+                    '${apiKey}',
+                    'apiKey',
+                    'your_api_key',
+                    'YOUR-API-KEY',
+                    '<your-api-key>'
+                ]
+
+                # Check if the key looks valid (starts with sk- for Anthropic and has good length)
+                is_valid_key = (
+                    original_key and
+                    len(original_key) >= 20 and
+                    original_key not in placeholders and
+                    (original_key.startswith('sk-') or len(original_key) > 50)
+                )
+
+                if is_valid_key:
+                    # User provided their own valid API key, use it!
+                    print(f"✅ Using user-provided API key (length: {len(original_key)})")
+                    # Keep the user's key as-is
+                elif original_key in placeholders or not original_key or len(original_key) < 20:
+                    # Placeholder or invalid key, use server's key
+                    headers[api_key_header] = anthropic_key
+                    print(f"🔄 Replaced placeholder/invalid '{original_key}' with server's API key")
+                else:
+                    # Suspicious key that doesn't match our patterns, use server's key for safety
+                    headers[api_key_header] = anthropic_key
+                    print(f"⚠️ Suspicious key detected, using server's API key instead")
+            else:
+                # Add the API key if not present
+                headers['x-api-key'] = anthropic_key
+                print(f"➕ Added x-api-key header")
+
+            # Ensure required Anthropic headers
+            anthropic_version_header = None
+            for key in headers.keys():
+                if key.lower() == 'anthropic-version':
+                    anthropic_version_header = key
+                    break
+
+            if not anthropic_version_header:
+                headers['anthropic-version'] = '2023-06-01'
+                print(f"➕ Added anthropic-version header")
+
+            print(f"📤 Final headers for Anthropic: {list(headers.keys())}")
+        else:
+            print(f"❌ ANTHROPIC_API_KEY not found in environment")
+            return jsonify({'error': 'Anthropic API key not configured on server'}), 500
+
     # Prepare request
     request_kwargs = {
         'headers': headers,
         'timeout': 30
     }
-    
+
     if body and method.upper() not in ['GET', 'HEAD']:
-        if isinstance(body, dict):
+        print(f"📦 Processing request body (type: {type(body).__name__})")
+
+        # If body is a string, try to parse it as JSON
+        if isinstance(body, str):
+            try:
+                parsed_body = _json.loads(body)
+                request_kwargs['json'] = parsed_body
+                print(f"✅ Body parsed from string to JSON: {type(parsed_body).__name__}")
+            except _json.JSONDecodeError as e:
+                print(f"⚠️ Body is not valid JSON, sending as raw data: {str(e)}")
+                request_kwargs['data'] = body
+        elif isinstance(body, dict):
             request_kwargs['json'] = body
+            print(f"✅ Body is already a dict, using json parameter")
         else:
             request_kwargs['data'] = body
+            print(f"⚠️ Body is neither string nor dict, using data parameter")
     
     try:
+        print(f"🚀 Making request to: {url}")
+        print(f"📮 Method: {method.upper()}")
+        print(f"📑 Request kwargs: {list(request_kwargs.keys())}")
+
         response = requests.request(method.upper(), url, **request_kwargs)
+
+        print(f"📡 Response status: {response.status_code}")
+        print(f"📊 Response headers: {list(response.headers.keys())}")
+
         try:
             response_data = response.json()
+            print(f"✅ Response is JSON")
         except:
             response_data = response.text
-        
-        return jsonify({
+            print(f"📄 Response is text (length: {len(response_data)})")
+
+        result = {
             'status': response.status_code,
+            'statusText': 'OK' if response.status_code == 200 else response.reason,
             'headers': dict(response.headers),
             'data': response_data,
             'url': url
-        })
+        }
+
+        print(f"📤 Returning proxy response")
+        return jsonify(result)
     except requests.exceptions.RequestException as e:
+        print(f"❌ Request exception: {str(e)}")
         return jsonify({'error': f'Request failed: {str(e)}'}), 500
     except Exception as e:
+        print(f"❌ Proxy error: {str(e)}")
         return jsonify({'error': f'Proxy error: {str(e)}'}), 500
 
 

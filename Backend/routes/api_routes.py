@@ -111,10 +111,14 @@ Use these details to generate accurate code examples. Include proper:
     import re
     base_url = re.sub(r'\$\{[^}]+\}', 'https://api.example.com', base_url)
     base_url = base_url.replace('`', '').replace('${', '').replace('}', '')
+    
+    # Clean up any curly brace template syntax that might remain
+    base_url = re.sub(r'\{[^}]+\}', 'https://api.example.com', base_url)
+    base_url = base_url.replace('{', '').replace('}', '')
     base_url = base_url.rstrip('/')
     
-    # If base_url still contains template variables or is empty, use a default
-    if '${' in base_url or '`' in base_url or base_url == '':
+    # If base_url still contains template variables, is empty, or is invalid, use a default
+    if any(char in base_url for char in ['${', '`', '{', '}']) or base_url == '' or not base_url.startswith('http'):
         base_url = 'https://api.example.com'
     
     # Remove any existing endpoint from base_url to avoid duplication
@@ -199,10 +203,14 @@ Use these details to generate accurate code examples. Include proper:
         {js_headers_formatted}
     }},
     body: JSON.stringify({{
-        content: {json.dumps(user_question)},
         model: {json.dumps(model)},
         max_tokens: 1024,
-        temperature: 0.7
+        messages: [
+            {{
+                role: 'user',
+                content: {json.dumps(user_question)}
+            }}
+        ]
     }})
 }});
 
@@ -248,10 +256,14 @@ response = requests.{method.lower()}(
         {py_headers_formatted}
     }},
     json={{
-        'content': {json.dumps(user_question)},
         'model': {json.dumps(model)},
         'max_tokens': 1024,
-        'temperature': 0.7
+        'messages': [
+            {{
+                'role': 'user',
+                'content': {json.dumps(user_question)}
+            }}
+        ]
     }}
 )
 
@@ -281,10 +293,14 @@ print('API Response:', data)
     
     # Prepare request data as proper JSON (inline)
     request_data_json = json.dumps({
-        "content": user_question,
         "model": model,
         "max_tokens": 1024,
-        "temperature": 0.7
+        "messages": [
+            {
+                "role": "user",
+                "content": user_question
+            }
+        ]
     }, indent=2)
     
     curl_code = f"""
