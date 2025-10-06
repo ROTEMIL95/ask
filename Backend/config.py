@@ -4,7 +4,7 @@ class Config:
     # --- AI Models ---
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-    LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+    LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-5")
 
     # --- Supabase ---
     SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -24,6 +24,9 @@ class Config:
     # --- Security ---
     ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
     ALLOWED_PROXY_DOMAINS = [d.strip() for d in os.getenv("ALLOWED_PROXY_DOMAINS", "").split(",") if d.strip()]
+    
+    # --- Development ---
+    DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "false").lower() in ("true", "1", "yes")
 
     # --- OCR ---
     VISION_KEY_B64 = os.getenv("VISION_KEY_B64")

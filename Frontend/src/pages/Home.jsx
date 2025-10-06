@@ -110,6 +110,11 @@ function ApiToolSection() {
     const [copiedUserQuery, setCopiedUserQuery] = useState(false);
     const [authorizationKey, setAuthorizationKey] = useState('');
     const [selectedApiInfo, setSelectedApiInfo] = useState(null);
+    
+    // Authentication type and credentials
+    const [authType, setAuthType] = useState('api_key'); // 'api_key' or 'basic'
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
 
     // Use the new API hook
     const { 
@@ -1064,7 +1069,22 @@ ${result.text}
             }
         }
 
-        // 2. URL query parameter (API key in URL)
+        // 3. Basic Authentication (username:password)
+        if (fetchOptions.headers.Authorization && 
+            (fetchOptions.headers.Authorization.includes('YOUR_USERNAME') || 
+             fetchOptions.headers.Authorization.includes('YOUR_PASSWORD'))) {
+            
+            if (authType === 'basic' && username.trim() && password.trim()) {
+                // Create Basic Auth header
+                const auth = btoa(`${username.trim()}:${password.trim()}`);
+                fetchOptions.headers.Authorization = `Basic ${auth}`;
+                console.log('✅ Updated Authorization header with Basic Auth'); // Credentials not logged for security
+            } else {
+                throw new Error('Please enter your username and password in the authentication fields, or switch to API Key authentication.');
+            }
+        }
+
+        // 4. URL query parameter (API key in URL)
         let finalUrl = processedUrl; // Use the processed URL that has evaluated parameters
         console.log('🔍 URL before API key handling:', finalUrl);
         
@@ -1411,7 +1431,10 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                 enhancedApiDoc,
                 {
                     ...selectedApiInfo,
-                    baseUrl: apiBaseUrl
+                    baseUrl: apiBaseUrl,
+                    authType: authType === 'basic' ? 'basic' : selectedApiInfo?.authType || 'x-api-key',
+                    username: authType === 'basic' ? username : '',
+                    password: authType === 'basic' ? password : ''
                 }
             );
             
@@ -2076,20 +2099,70 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                     
                     <div className="space-y-4">
                                                  {(generatedCode.javascript || generatedCode.python || generatedCode.curl || generatedCode.csharp || generatedCode.java || generatedCode.go) && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Authorization Key (Optional)
-                                </label>
-                                <Input
-                                    type="password"
-                                    placeholder="Enter your API key or Bearer token..."
-                                    value={authorizationKey}
-                                    onChange={(e) => setAuthorizationKey(e.target.value)}
-                                    className="bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-purple-400"
-                                />
-                                <p className="text-xs text-slate-400 mt-1">
-                                    This will replace "YOUR_API_KEY" in the generated code when running the request
-                                </p>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Authentication Type
+                                    </label>
+                                    <select
+                                        value={authType}
+                                        onChange={(e) => setAuthType(e.target.value)}
+                                        className="w-full bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-purple-400 rounded-md p-2"
+                                    >
+                                        <option value="api_key">API Key</option>
+                                        <option value="basic">Username & Password (Basic Auth)</option>
+                                    </select>
+                                </div>
+
+                                {authType === 'api_key' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            API Key (Optional)
+                                        </label>
+                                        <Input
+                                            type="password"
+                                            placeholder="Enter your API key or Bearer token..."
+                                            value={authorizationKey}
+                                            onChange={(e) => setAuthorizationKey(e.target.value)}
+                                            className="bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-purple-400"
+                                        />
+                                        <p className="text-xs text-slate-400 mt-1">
+                                            This will replace "YOUR_API_KEY" in the generated code when running the request
+                                        </p>
+                                    </div>
+                                )}
+
+                                {authType === 'basic' && (
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Username
+                                            </label>
+                                            <Input
+                                                type="text"
+                                                placeholder="Enter your username..."
+                                                value={username}
+                                                onChange={(e) => setUsername(e.target.value)}
+                                                className="bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-purple-400"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Password
+                                            </label>
+                                            <Input
+                                                type="password"
+                                                placeholder="Enter your password..."
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                className="bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-purple-400"
+                                            />
+                                        </div>
+                                        <p className="text-xs text-slate-400">
+                                            This will replace "YOUR_USERNAME" and "YOUR_PASSWORD" in the generated code when running the request
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         )}
 

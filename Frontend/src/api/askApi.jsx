@@ -214,14 +214,15 @@ export const useAskApi = () => {
             const defaultApiName = import.meta.env.VITE_API_NAME || 'anthropic';
             
             // Prepare dynamic API configuration based on selected API
-            // Get the API key from either demo key or user input
+            // This describes the TARGET API (what user wants to integrate with)
+            // TalkAPI uses its own Anthropic key to generate the code examples
             const apiKey = selectedApi?.demoKey || selectedApi?.apiKey || '';
             
             const apiConfig = {
-                apiName: selectedApi?.apiName?.toLowerCase() || defaultApiName,
-                baseUrl: selectedApi?.baseUrl || defaultBaseUrl,
+                apiName: selectedApi?.apiName?.toLowerCase() || 'generic-api',
+                baseUrl: selectedApi?.baseUrl || 'https://api.example.com',
                 hasApiKey: Boolean(apiKey),
-                apiKey: apiKey, // Include the actual API key
+                apiKey: apiKey,
                 docsUrl: selectedApi?.docsUrl || '',
                 // Include additional API details if available
                 endpoints: selectedApi?.endpoints || [],
@@ -229,7 +230,10 @@ export const useAskApi = () => {
                 headers: selectedApi?.headers || {},
                 authType: selectedApi?.authType || (apiKey ? 'x-api-key' : 'none'),
                 parameters: selectedApi?.parameters || {},
-                version: selectedApi?.version || 'latest'
+                version: selectedApi?.version || 'latest',
+                // Add support for username/password authentication
+                username: selectedApi?.username || '',
+                password: selectedApi?.password || ''
             };
 
             // Production backend expects field "question" and complete API config

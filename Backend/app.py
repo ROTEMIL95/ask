@@ -37,18 +37,52 @@ def create_app() -> Flask:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     app.logger.info("Booting TalkAPI backend...")
 
-    # CORS - Configuration for talkapi.ai with all necessary headers
+    # CORS - Dynamic configuration based on environment
+    # Default production origins
+    allowed_origins = ["https://talkapi.ai"]
+    
+    # Add configured origins from environment
+    if Config.ALLOWED_ORIGINS:
+        allowed_origins.extend(Config.ALLOWED_ORIGINS)
+    
+    # Add localhost for development (detect if in development mode)
+    is_development = (
+        Config.DEVELOPMENT_MODE or 
+        os.getenv("FLASK_ENV") == "development" or 
+        os.getenv("NODE_ENV") == "development" or 
+        not os.getenv("RENDER")
+    )
+    
+    if is_development:
+        localhost_origins = [
+            "http://localhost:3000",    # React default
+            "http://localhost:5173",    # Vite default  
+            "http://localhost:5000",    # Flask default
+            "http://localhost:8080",    # Common dev port
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173", 
+            "http://127.0.0.1:5000",
+            "http://127.0.0.1:8080"
+        ]
+        allowed_origins.extend(localhost_origins)
+        app.logger.info("Development mode detected - adding localhost origins")
+    
+    # Remove duplicates while preserving order
+    allowed_origins = list(dict.fromkeys(allowed_origins))
+    
     CORS(app, 
          resources={
              r"/*": {
-                 "origins": ["https://talkapi.ai"],
-                 "methods": ["GET", "POST", "OPTIONS"],
+                 "origins": allowed_origins,
+                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                  "allow_headers": [
                      "Content-Type",
-                     "Authorization",
+                     "Authorization", 
                      "X-API-Key",
                      "X-User-Id",
-                     "Origin"
+                     "Origin",
+                     "Accept",
+                     "X-Requested-With"
                  ],
                  "expose_headers": ["Content-Type"],
                  "supports_credentials": True,
@@ -57,7 +91,7 @@ def create_app() -> Flask:
              }
          })
     
-    app.logger.info("CORS configured to allow origin: https://talkapi.ai")
+    app.logger.info(f"CORS configured for origins: {allowed_origins}")
 
     # Rate limiter
     if USE_LIMITER:

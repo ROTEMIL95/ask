@@ -26,7 +26,7 @@ client = Anthropic(
     # defaults to os.environ.get("ANTHROPIC_API_KEY")
     api_key=ANTHROPIC_API_KEY,
 )
-MODEL_NAME = "claude-3-5-sonnet-20241022"  # Use the model from template
+MODEL_NAME = "claude-sonnet-4-5"  # Updated to user's preferred model
 
 # --- Blueprint & limiter (app will init later) ---
 api_bp = Blueprint("api", __name__)
@@ -108,16 +108,23 @@ Use these details to generate accurate code examples. Include proper:
     auth_headers = []
     
     # Add headers from API config
-    # Always use placeholder for generated code examples
+    # Always use placeholders for generated code examples
     api_key_placeholder = 'YOUR_API_KEY'
+    username_placeholder = 'YOUR_USERNAME'
+    password_placeholder = 'YOUR_PASSWORD'
     
     if api_config:
-        if api_config.get('hasApiKey'):
-            if api_config.get('authType') == 'bearer':
+        auth_type = api_config.get('authType', 'none')
+        
+        if auth_type == 'basic':
+            # Basic Authentication (username:password)
+            auth_headers.append(f"'Authorization': 'Basic ' + btoa('{username_placeholder}:{password_placeholder}')")
+        elif api_config.get('hasApiKey'):
+            if auth_type == 'bearer':
                 auth_headers.append(f"'Authorization': 'Bearer {api_key_placeholder}'")
-            elif api_config.get('authType') == 'x-api-key':
+            elif auth_type == 'x-api-key':
                 auth_headers.append(f"'X-API-Key': '{api_key_placeholder}'")
-            elif api_config.get('authType') == 'api_key':
+            elif auth_type == 'api_key':
                 auth_headers.append(f"'X-API-Key': '{api_key_placeholder}'")
             else:
                 auth_headers.append(f"'Authorization': 'Bearer {api_key_placeholder}'")
@@ -129,6 +136,8 @@ Use these details to generate accurate code examples. Include proper:
                 auth_headers.append(f"'{req['name']}': '{api_key_placeholder}'")
             elif req['type'] == 'bearer':
                 auth_headers.append(f"'Authorization': 'Bearer {api_key_placeholder}'")
+            elif req['type'] == 'basic':
+                auth_headers.append(f"'Authorization': 'Basic ' + btoa('{username_placeholder}:{password_placeholder}')")
     
     # Ensure we have at least one auth header if auth is required
     if (api_config and api_config.get('hasApiKey')) or (api_analysis and api_analysis.get('security_requirements')):
@@ -143,17 +152,31 @@ Use these details to generate accurate code examples. Include proper:
     code_intro = "\nYour response MUST include these three code blocks with the actual API configuration:\n"
     
     # JavaScript code
-    # Convert headers to proper JSON format
-    js_headers_list = []
-    if auth_headers_str:
-        js_headers_list.extend([h.strip() for h in auth_headers_str.split(',')])
-    js_headers_list.append("'Content-Type': 'application/json'")
+    # Handle Basic Auth separately for proper code generation
+    js_auth_setup = ""
+    js_headers_list = ["'Content-Type': 'application/json'"]
+    
+    if api_config and api_config.get('authType') == 'basic':
+        js_auth_setup = f"""// Basic Authentication setup
+const username = '{username_placeholder}';
+const password = '{password_placeholder}';
+const auth = btoa(username + ':' + password);
+
+"""
+        js_headers_list.insert(0, "'Authorization': `Basic ${auth}`")
+    elif auth_headers_str:
+        # Clean up the headers for JavaScript format
+        for header in auth_headers_str.split(','):
+            header = header.strip()
+            if 'btoa(' not in header:  # Skip Basic Auth headers already handled above
+                js_headers_list.insert(0, header)
+    
     js_headers_formatted = ',\n        '.join(js_headers_list)
     
     js_code = f"""
 ```javascript
 // JavaScript example using fetch
-const requestData = {{
+{js_auth_setup}const requestData = {{
     content: {json.dumps(user_question)},
     model: {json.dumps(model)},
     max_tokens: 1024,
@@ -177,18 +200,33 @@ console.log('API Response:', data);
     base_prompt += js_code
 
     # Python code
-    # Convert headers to proper Python dict format
-    py_headers_list = []
-    if auth_headers_str:
-        py_headers_list.extend([h.strip() for h in auth_headers_str.split(',')])
-    py_headers_list.append("'Content-Type': 'application/json'")
+    # Handle Basic Auth separately for proper code generation
+    py_imports = "import requests"
+    py_auth_setup = ""
+    py_headers_list = ["'Content-Type': 'application/json'"]
+    
+    if api_config and api_config.get('authType') == 'basic':
+        py_imports = "import requests\nimport base64"
+        py_auth_setup = f"""
+# Basic Authentication setup
+username = '{username_placeholder}'
+password = '{password_placeholder}'
+auth = base64.b64encode(f'{{username}}:{{password}}'.encode()).decode()
+"""
+        py_headers_list.insert(0, "'Authorization': f'Basic {auth}'")
+    elif auth_headers_str:
+        # Clean up the headers for Python format  
+        for header in auth_headers_str.split(','):
+            header = header.strip()
+            if 'btoa(' not in header:  # Skip Basic Auth headers already handled above
+                py_headers_list.insert(0, header)
+    
     py_headers_formatted = ',\n        '.join(py_headers_list)
     
     py_code = f"""
 ```python
 # Python example using requests
-import requests
-
+{py_imports}{py_auth_setup}
 request_data = {{
     'content': {json.dumps(user_question)},
     'model': {json.dumps(model)},
@@ -211,14 +249,21 @@ print('API Response:', data)
     base_prompt += py_code
 
     # cURL code
-    # Convert auth headers to cURL format
+    # Handle Basic Auth separately for proper cURL command
+    curl_auth = ""
     curl_headers = ["-H 'Content-Type: application/json'"]
-    if auth_headers:
+    
+    if api_config and api_config.get('authType') == 'basic':
+        curl_auth = f"-u {username_placeholder}:{password_placeholder}"
+    elif auth_headers:
         for header in auth_headers:
             # Convert 'Header': 'value' to -H 'Header: value'
             header = header.replace("'", "")
-            curl_headers.append(f"-H '{header}'")
+            if 'btoa(' not in header:  # Skip Basic Auth headers already handled above
+                curl_headers.append(f"-H '{header}'")
+    
     curl_headers_str = " \\\n    ".join(curl_headers)
+    curl_auth_str = f" \\\n    {curl_auth}" if curl_auth else ""
     
     # Prepare request data as proper JSON
     request_data = {
@@ -232,7 +277,7 @@ print('API Response:', data)
 ```bash
 # cURL example
 
-curl -X {method} '{base_url}{endpoint}' \\
+curl -X {method} '{base_url}{endpoint}'{curl_auth_str} \\
     {curl_headers_str} \\
     -d '{json.dumps(request_data, indent=2)}'
 ```"""
@@ -359,7 +404,7 @@ def analyze_api_doc(text: str) -> dict:
     # Regular expressions for different patterns
     url_pattern = r'https?://[^\s<>"\']+[a-zA-Z0-9]'
     endpoint_pattern = r'["\']/([\w\/_-]+)(?:\{[\w-]+\})*["\']'
-    auth_pattern = r'(api[_-]?key|auth[_-]?token|bearer|x-api-key)'
+    auth_pattern = r'(api[_-]?key|auth[_-]?token|bearer|x-api-key|basic[_-]?auth|username|password|credentials)'
     method_pattern = r'(GET|POST|PUT|DELETE|PATCH)\s+[\'"]/?[\w\/_-]+[\'"]'
     param_pattern = r'["\'](\{[\w-]+\})["\']'
 
@@ -383,9 +428,19 @@ def analyze_api_doc(text: str) -> dict:
 
     # Analyze security requirements
     security_requirements = []
+    has_basic_auth = False
+    
     for auth in auth_types:
         auth = auth.lower()
-        if "api" in auth and "key" in auth:
+        if "basic" in auth or "username" in auth or "password" in auth or "credentials" in auth:
+            if not has_basic_auth:  # Avoid duplicates
+                security_requirements.append({
+                    "type": "basic",
+                    "location": "header",
+                    "name": "Authorization"
+                })
+                has_basic_auth = True
+        elif "api" in auth and "key" in auth:
             security_requirements.append({
                 "type": "api_key",
                 "location": "header",
@@ -487,15 +542,9 @@ def get_api_key():
 @limiter.limit("100 per minute", methods=["POST"])  # Only apply rate limit to POST
 def ask():
     """Handle /ask endpoint for both OPTIONS and POST requests"""
-    # Handle CORS preflight request
+    # CORS is now handled by Flask-CORS in app.py - no manual handling needed
     if request.method == "OPTIONS":
-        response = make_response()
-        response.headers.add("Access-Control-Allow-Origin", "https://talkapi.ai")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, X-User-Id, Origin")
-        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
-        response.headers.add("Access-Control-Allow-Credentials", "true")
-        response.headers.add("Access-Control-Max-Age", "3600")
-        return response, 204
+        return '', 204
     try:
         if not ANTHROPIC_API_KEY:
             return jsonify({
@@ -568,7 +617,7 @@ def ask():
 
         
         # Call Anthropic Claude API using the template structure
-        model_name = os.getenv("LLM_MODEL", "claude-3-5-sonnet-20241022")
+        model_name = os.getenv("LLM_MODEL", "claude-sonnet-4-5")
         print(f"DEBUG: Calling Anthropic API with model: {model_name}")
         print(f"DEBUG: System prompt length: {len(system_prompt)} chars")
         print(f"DEBUG: User question length: {len(question)} chars")
