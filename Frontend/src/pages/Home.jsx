@@ -540,7 +540,7 @@ function ApiToolSection() {
 
     // Utility function to create a fallback Anthropic API call body
     const getFallbackAnthropicBody = (userQuery) => JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-5-20250929',
         max_tokens: 1000,
         messages: [
             {
@@ -746,171 +746,90 @@ function ApiToolSection() {
                 console.log('🔍 No headers found in options string');
             }
             
-            // 5. Extract body - improved regex to handle more cases
-            // Looks for `body: JSON.stringify(...)` or `body: '...'` or `body: "..."` or `body: {...}`
-            console.log('🔍 Extracting body from options string:', optionsStr);
-            
-            // Improved regex to better capture complete JSON objects
-            const bodyMatch = optionsStr.match(/body\s*:\s*(?:JSON\.stringify\s*\((\{(?:[^{}]|\{[^{}]*\})*\}|[^)]*)\)|(['"`])([\s\S]*?)\2|(\{(?:[^{}]|\{[^{}]*\})*\}))/);
+            // 5. Extract body - SIMPLIFIED VERSION
+            console.log('🔍 Extracting body from code');
 
-            if (bodyMatch) {
-                console.log('🔍 Body match found:', bodyMatch);
-                
-                if (bodyMatch[1]) { // Matched JSON.stringify(...)
-                    console.log('🔍 Processing JSON.stringify content');
-                    const jsonContent = bodyMatch[1].trim();
-                    
-                    // Check if it's a variable reference like 'requestData'
-                    if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(jsonContent)) {
-                        console.log('🔍 Body references a variable:', jsonContent);
-                        // Try to find the variable definition in the code (const, let, or var)
-                        const varPattern = new RegExp(`(?:const|let|var)\\s+${jsonContent}\\s*=\\s*(\\{[\\s\\S]*?\\});`, 'i');
-                        const varMatch = code.match(varPattern);
-                        
-                        if (varMatch && varMatch[1]) {
-                            console.log('🔍 Found variable definition:', varMatch[1]);
-                            try {
-                                const fixedJson = validateAndFixJson(varMatch[1]);
-                                body = fixedJson;
-                                console.log('✅ Body extracted from variable definition:', body);
-                            } catch (e) {
-                                console.warn('Failed to parse variable definition, skipping body:', e);
-                                body = null;
-                            }
-                        } else {
-                            console.log('❌ Could not find variable definition for:', jsonContent);
-                            // Try a more flexible pattern as fallback
-                            const flexiblePattern = new RegExp(`${jsonContent}\\s*=\\s*(\\{[\\s\\S]*?\\})`, 'i');
-                            const flexibleMatch = code.match(flexiblePattern);
-                            
-                            if (flexibleMatch && flexibleMatch[1]) {
-                                console.log('🔍 Found variable with flexible pattern:', flexibleMatch[1]);
-                                try {
-                                    const fixedJson = validateAndFixJson(flexibleMatch[1]);
-                                    body = fixedJson;
-                                    console.log('✅ Body extracted with flexible pattern:', body);
-                                } catch (e) {
-                                    console.warn('Failed to parse flexible pattern content, skipping body:', e);
-                                    body = null;
-                                }
-                            } else {
-                                console.log('❌ No fallback pattern matched for:', jsonContent);
-                                body = null;
-                            }
-                        }
-                    } else {
-                        // Direct JSON content
-                        try {
-                            const fixedJson = validateAndFixJson(jsonContent);
-                            body = fixedJson;
-                            console.log('✅ Body extracted from JSON.stringify:', body);
-                        } catch (e) {
-                            console.warn('Failed to parse JSON.stringify content, skipping body:', e);
-                            body = null;
+            // Method 1: Find JSON.stringify( and extract balanced braces
+            const stringifyMatch = code.match(/body\s*:\s*JSON\.stringify\s*\(/);
+            if (stringifyMatch) {
+                const startIndex = stringifyMatch.index + stringifyMatch[0].length;
+                let braceCount = 0;
+                let inString = false;
+                let stringChar = null;
+                let bodyStart = -1;
+                let bodyEnd = -1;
+
+                for (let i = startIndex; i < code.length; i++) {
+                    const char = code[i];
+                    const prevChar = i > 0 ? code[i - 1] : '';
+
+                    // Handle string boundaries
+                    if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
+                        if (!inString) {
+                            inString = true;
+                            stringChar = char;
+                        } else if (char === stringChar) {
+                            inString = false;
+                            stringChar = null;
                         }
                     }
-                } else if (bodyMatch[3]) { // Matched direct string literal ('...' or "...")
-                    console.log('🔍 Processing direct string literal');
-                    body = bodyMatch[3];
-                    console.log('✅ Body extracted from string literal:', body);
-                } else if (bodyMatch[4]) { // Matched direct object literal {...}
-                    console.log('🔍 Processing direct object literal');
-                    const objectContent = bodyMatch[4];
+
+                    if (!inString) {
+                        if (char === '{') {
+                            if (braceCount === 0) bodyStart = i;
+                            braceCount++;
+                        } else if (char === '}') {
+                            braceCount--;
+                            if (braceCount === 0 && bodyStart >= 0) {
+                                bodyEnd = i + 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (bodyStart >= 0 && bodyEnd > bodyStart) {
+                    body = code.substring(bodyStart, bodyEnd).trim();
+                    console.log('✅ Body extracted using balanced brace parser');
+                    console.log('📦 Body (first 200 chars):', body.substring(0, 200));
+                }
+            }
+
+            // Method 2: Try variable reference
+            if (!body) {
+                const varMatch = code.match(/body\s*:\s*JSON\.stringify\s*\(\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\)/);
+                if (varMatch && varMatch[1]) {
+                    const varName = varMatch[1];
+                    console.log('🔍 Body is a variable:', varName);
+                    const varPattern = new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\\s*(\\{[\\s\\S]*?\\});`, 'i');
+                    const varDefMatch = code.match(varPattern);
+                    if (varDefMatch && varDefMatch[1]) {
+                        body = varDefMatch[1].trim();
+                        console.log('✅ Variable definition found');
+                    }
+                }
+            }
+
+            // Validate and fix the body JSON
+            if (body) {
+                console.log('🔍 Validating body JSON...');
+                try {
+                    // Try to parse as-is first
+                    JSON.parse(body);
+                    console.log('✅ Body is already valid JSON');
+                } catch (e) {
+                    console.log('⚠️ Body is not valid JSON, attempting to fix...');
                     try {
-                        // Use the utility function to validate and fix JSON
-                        const fixedJson = validateAndFixJson(objectContent);
-                        body = fixedJson;
-                        console.log('✅ Body extracted from object literal:', body);
-                    } catch (e) {
-                        console.warn('Failed to parse object content, skipping body:', e);
+                        body = validateAndFixJson(body);
+                        console.log('✅ Body fixed and validated');
+                    } catch (fixError) {
+                        console.error('❌ Failed to fix body JSON:', fixError);
+                        console.error('Body content:', body);
                         body = null;
                     }
                 }
             } else {
-                console.log('🔍 No body match found in options string');
-                // Try alternative body extraction patterns - more comprehensive
-                const alternativePatterns = [
-                    /body\s*:\s*(\{[^}]*(?:\{[^}]*\}[^}]*)*\})/,  // Nested objects
-                    /body\s*:\s*JSON\.stringify\s*\(([^)]+(?:\([^)]*\)[^)]*)*)\)/,  // JSON.stringify with nested calls
-                    /body\s*:\s*([a-zA-Z_$][a-zA-Z0-9_$]*)/,  // Variable references
-                    /body\s*:\s*(['"`])([^'"`]*)\1/,  // String literals
-                ];
-                
-                for (const pattern of alternativePatterns) {
-                    const altMatch = optionsStr.match(pattern);
-                    if (altMatch) {
-                        console.log('🔍 Alternative body match found:', altMatch[1] || altMatch[2]);
-                        const altBody = (altMatch[1] || altMatch[2]).trim();
-                        if (altBody && altBody !== 'undefined' && altBody !== 'null') {
-                            body = altBody;
-                            console.log('✅ Body extracted with alternative pattern:', body);
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // If no body found, leave it as null (don't create fallback Anthropic call)
-            if (!body) {
-                console.log('🔍 No body extracted, body will be null');
-            } else {
-                // Special handling for Anthropic API - ensure complete body structure
-                if (url && url.includes('anthropic.com') && body) {
-                    console.log('🔍 Detected Anthropic API, ensuring complete body structure');
-                    console.log('🔍 Body before parsing:', body);
-                    try {
-                        let bodyObj;
-                        if (typeof body === 'string') {
-                            // Check if body contains JSON.stringify() pattern and extract the content
-                            if (body.includes('JSON.stringify(')) {
-                                console.log('🔍 Body contains JSON.stringify pattern, extracting content');
-                                // Use a more sophisticated pattern to match nested JSON
-                                const jsonMatch = body.match(/JSON\.stringify\s*\(\s*(\{(?:[^{}]|\{[^{}]*\})*\})\s*\)/);
-                                if (jsonMatch && jsonMatch[1]) {
-                                    try {
-                                        bodyObj = JSON.parse(jsonMatch[1]);
-                                        console.log('✅ Extracted JSON from JSON.stringify pattern');
-                                    } catch (e) {
-                                        console.warn('⚠️ Failed to parse extracted JSON, using validateAndFixJson');
-                                        const fixedJson = validateAndFixJson(jsonMatch[1]);
-                                        bodyObj = JSON.parse(fixedJson);
-                                    }
-                                } else {
-                                    throw new Error('Could not extract JSON from JSON.stringify pattern');
-                                }
-                            } else {
-                                // Try to parse as regular JSON
-                                bodyObj = JSON.parse(body);
-                            }
-                        } else {
-                            bodyObj = body;
-                        }
-                        
-                        // Ensure required Anthropic fields are present
-                        if (!bodyObj.max_tokens) {
-                            bodyObj.max_tokens = 1024;
-                            console.log('✅ Added missing max_tokens field');
-                        }
-                        if (!bodyObj.messages && bodyObj.content) {
-                            // Convert old format to new messages format
-                            bodyObj.messages = [{ role: 'user', content: bodyObj.content }];
-                            delete bodyObj.content;
-                            console.log('✅ Converted content to messages format');
-                        }
-                        if (!bodyObj.messages) {
-                            bodyObj.messages = [{ role: 'user', content: userQuery }];
-                            console.log('✅ Added missing messages field');
-                        }
-                        
-                        body = JSON.stringify(bodyObj);
-                        console.log('✅ Enhanced Anthropic body:', body);
-                    } catch (e) {
-                        console.warn('⚠️ Failed to enhance Anthropic body:', e);
-                        console.warn('⚠️ Original body value:', body);
-                        console.warn('⚠️ Body type:', typeof body);
-                        // Don't modify the body if enhancement fails
-                    }
-                }
+                console.log('🔍 No body extracted');
             }
 
             // Final validation and fallback
@@ -1753,7 +1672,7 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
     'anthropic-version': '2023-06-01'
   },
   body: JSON.stringify({
-    model: 'claude-3-5-sonnet-20241022',
+    model: 'claude-sonnet-4-5-20250929',
     max_tokens: 1000,
     messages: [
       {
@@ -1822,20 +1741,34 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                 }
             }
             
-            // Check if it's an Anthropic API call
-            if (parsedCode.url.includes('api.anthropic.com')) {
-                // Test the API key first
-                try {
-                    const testApiKey = await getApiKey('anthropic');
-                    if (!testApiKey) {
-                        throw new Error('Anthropic API key not available');
-                    }
-                } catch (error) {
-                    throw new Error('Failed to get Anthropic API key: ' + error.message);
-                }
-            }
-            
-            const result = await executeApiCall(parsedCode);
+            // Execute through backend proxy to avoid CORS issues
+            console.log('🚀 Executing API call through backend proxy...');
+            console.log('📦 Request details:', {
+                url: parsedCode.url,
+                method: parsedCode.method,
+                headers: parsedCode.headers,
+                bodyLength: parsedCode.body ? parsedCode.body.length : 0
+            });
+
+            const proxyResponse = await proxyApiCall({
+                url: parsedCode.url,
+                method: parsedCode.method || 'POST',
+                headers: parsedCode.headers || {},
+                body: parsedCode.body
+            });
+
+            console.log('📡 Proxy response received:', proxyResponse);
+
+            // Format the result for display
+            const result = {
+                status: proxyResponse.status || 200,
+                statusText: proxyResponse.statusText || 'OK',
+                url: parsedCode.url,
+                headers: proxyResponse.headers || {},
+                data: proxyResponse.data || proxyResponse
+            };
+
+            console.log('✅ Final result:', result);
             setApiResult(result);
             if (user && user.isLoggedIn) { // Check if user is logged in
                 historyEntry = {

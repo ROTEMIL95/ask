@@ -26,7 +26,7 @@ client = Anthropic(
     # defaults to os.environ.get("ANTHROPIC_API_KEY")
     api_key=ANTHROPIC_API_KEY,
 )
-MODEL_NAME = "claude-sonnet-4-5-20250929"  # Updated to specific version
+MODEL_NAME = "claude-sonnet-4-5-20250929"  # Updated to correct version
 
 # --- Blueprint & limiter (app will init later) ---
 api_bp = Blueprint("api", __name__)

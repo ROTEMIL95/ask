@@ -201,21 +201,32 @@ def proxy_api():
     if body and method.upper() not in ['GET', 'HEAD']:
         print(f"📦 Processing request body (type: {type(body).__name__})")
 
+        # Enhanced logging: Show body content
+        body_preview = str(body)[:500] if body else 'None'
+        print(f"📄 Body content (first 500 chars): {body_preview}")
+        print(f"📏 Body length: {len(str(body)) if body else 0}")
+
         # If body is a string, try to parse it as JSON
         if isinstance(body, str):
+            print(f"🔍 Body is a string, attempting JSON parse...")
             try:
                 parsed_body = _json.loads(body)
                 request_kwargs['json'] = parsed_body
                 print(f"✅ Body parsed from string to JSON: {type(parsed_body).__name__}")
+                print(f"📊 Parsed body keys: {list(parsed_body.keys()) if isinstance(parsed_body, dict) else 'N/A'}")
             except _json.JSONDecodeError as e:
-                print(f"⚠️ Body is not valid JSON, sending as raw data: {str(e)}")
+                print(f"❌ JSON parse error: {str(e)}")
+                print(f"❌ Error at position: {e.pos if hasattr(e, 'pos') else 'unknown'}")
+                print(f"❌ Problematic section: {body[max(0, e.pos-50):min(len(body), e.pos+50)] if hasattr(e, 'pos') else 'N/A'}")
+                print(f"⚠️ Sending as raw data instead")
                 request_kwargs['data'] = body
         elif isinstance(body, dict):
             request_kwargs['json'] = body
             print(f"✅ Body is already a dict, using json parameter")
+            print(f"📊 Body keys: {list(body.keys())}")
         else:
             request_kwargs['data'] = body
-            print(f"⚠️ Body is neither string nor dict, using data parameter")
+            print(f"⚠️ Body is neither string nor dict (type: {type(body).__name__}), using data parameter")
     
     try:
         print(f"🚀 Making request to: {url}")

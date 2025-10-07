@@ -31,7 +31,7 @@ const PUBLIC_APIS = [
               "schema": {
                 "type": "object",
                 "properties": {
-                  "model": { "type": "string", "example": "claude-3-5-sonnet-20241022" },
+                  "model": { "type": "string", "example": "claude-sonnet-4-5-20250929" },
                   "max_tokens": { "type": "integer", "example": 1000 },
                   "messages": {
                     "type": "array",
