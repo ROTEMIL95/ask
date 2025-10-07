@@ -196,7 +196,6 @@ Use these details to generate accurate code examples. Include proper:
     
     js_code = f"""
 ```javascript
-// JavaScript example using fetch
 {js_auth_setup}const response = await fetch('{base_url}{endpoint}', {{
     method: '{method}',
     headers: {{
@@ -248,7 +247,6 @@ console.log('API Response:', data);
     
     py_code = f"""
 ```python
-# Python example using requests
 {py_imports}{py_auth_setup}
 response = requests.{method.lower()}(
     '{base_url}{endpoint}',
@@ -305,8 +303,6 @@ print('API Response:', data)
     
     curl_code = f"""
 ```bash
-# cURL example
-
 curl -X {method} '{base_url}{endpoint}'{curl_auth_str} \\
     {curl_headers_str} \\
     -d '{request_data_json}'

@@ -1469,7 +1469,7 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
             console.log('🔍 Using base URL:', baseUrl);
 
             // Validate each code snippet and ensure absolute URLs
-            const languages = ['javascript', 'python', 'curl', 'csharp', 'java', 'go'];
+            const languages = ['javascript', 'python', 'curl'];
             const validSnippets = {};
             let hasValidSnippet = false;
 
@@ -1493,12 +1493,6 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                         // Handle requests calls (Python)
                         snippet = snippet.replace(
                             /requests\.[a-z]+\s*\(\s*['"`](\/[^'"`]+)['"`]/g,
-                            (match, path) => match.replace(path, `${baseUrl}${path}`)
-                        );
-
-                        // Handle HttpClient calls (C#)
-                        snippet = snippet.replace(
-                            /client\.[a-zA-Z]+Async\s*\(\s*['"`](\/[^'"`]+)['"`]/g,
                             (match, path) => match.replace(path, `${baseUrl}${path}`)
                         );
 
@@ -1539,10 +1533,7 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                 snippets = {
                     javascript: response.snippets.javascript || '// JavaScript code will be generated here',
                     python: response.snippets.python || '// Python code will be generated here',
-                    curl: response.snippets.curl || '// cURL command will be generated here',
-                    csharp: response.snippets.csharp || '// C# code will be generated here',
-                    java: response.snippets.java || '// Java code will be generated here',
-                    go: response.snippets.go || '// Go code will be generated here'
+                    curl: response.snippets.curl || '// cURL command will be generated here'
                 };
                 
                 console.log('📝 Generated snippets:', {
@@ -2057,13 +2048,10 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                                 <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-blue-400" />
                             ) : generatedCode.javascript ? (
                                 <Tabs value={selectedLanguage} onValueChange={setSelectedLanguage} className="w-full h-full flex flex-col">
-                                    <TabsList className="grid w-full grid-cols-6 bg-slate-900 rounded-t-lg rounded-b-none">
+                                    <TabsList className="grid w-full grid-cols-3 bg-slate-900 rounded-t-lg rounded-b-none">
                                         <TabsTrigger value="javascript">JavaScript</TabsTrigger>
                                         <TabsTrigger value="python">Python</TabsTrigger>
                                         <TabsTrigger value="curl">cURL</TabsTrigger>
-                                        <TabsTrigger value="csharp">C#</TabsTrigger>
-                                        <TabsTrigger value="java">Java</TabsTrigger>
-                                        <TabsTrigger value="go">Go</TabsTrigger>
                                     </TabsList>
                                     <TabsContent value="javascript" className="p-0 text-xs sm:text-sm h-[170px] flex-grow mt-0">
                                         <Textarea
@@ -2087,30 +2075,6 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                                             onChange={(e) => setGeneratedCode(prev => ({ ...prev, curl: e.target.value }))}
                                             className="w-full h-full bg-slate-900 border-0 text-green-400 font-mono text-xs sm:text-sm resize-none focus:ring-0 focus:ring-offset-0 rounded-none"
                                             placeholder="Claude AI answer will appear here..."
-                                        />
-                                    </TabsContent>
-                                    <TabsContent value="csharp" className="p-0 text-xs sm:text-sm h-[170px] flex-grow mt-0">
-                                        <Textarea
-                                            value={generatedCode.csharp}
-                                            onChange={(e) => setGeneratedCode(prev => ({ ...prev, csharp: e.target.value }))}
-                                            className="w-full h-full bg-slate-900 border-0 text-green-400 font-mono text-xs sm:text-sm resize-none focus:ring-0 focus:ring-offset-0 rounded-none"
-                                            placeholder="Generated C# code will appear here..."
-                                        />
-                                    </TabsContent>
-                                    <TabsContent value="java" className="p-0 text-xs sm:text-sm h-[170px] flex-grow mt-0">
-                                        <Textarea
-                                            value={generatedCode.java}
-                                            onChange={(e) => setGeneratedCode(prev => ({ ...prev, java: e.target.value }))}
-                                            className="w-full h-full bg-slate-900 border-0 text-green-400 font-mono text-xs sm:text-sm resize-none focus:ring-0 focus:ring-offset-0 rounded-none"
-                                            placeholder="Generated Java code will appear here..."
-                                        />
-                                    </TabsContent>
-                                    <TabsContent value="go" className="p-0 text-xs sm:text-sm h-[170px] flex-grow mt-0">
-                                        <Textarea
-                                            value={generatedCode.go}
-                                            onChange={(e) => setGeneratedCode(prev => ({ ...prev, go: e.target.value }))}
-                                            className="w-full h-full bg-slate-900 border-0 text-green-400 font-mono text-xs sm:text-sm resize-none focus:ring-0 focus:ring-offset-0 rounded-none"
-                                            placeholder="Generated Go code will appear here..."
                                         />
                                     </TabsContent>
                                 </Tabs>
