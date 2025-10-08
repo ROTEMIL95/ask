@@ -39,6 +39,25 @@ def generate_system_prompt(api_config, user_question, api_analysis=None):
 You MUST ALWAYS provide code examples in three languages: JavaScript (fetch), Python (requests), and cURL.
 Each code example MUST be wrapped in triple backticks with the language specified.
 
+CRITICAL RULES FOR CODE GENERATION:
+1. NEVER use placeholder URLs like "https://api.example.com" in the generated code
+2. NEVER use generic placeholder text in template literals or string interpolations
+3. ALL template literals MUST use actual variable names from the code (e.g., ${response.status}, ${data.length})
+4. In error messages, use: throw new Error(`HTTP error! status: ${response.status}`)
+5. In console.log statements, use actual variables: console.log(`Found ${results.length} items`)
+6. Replace ALL "example.com" or generic placeholders with actual API-specific values
+7. If you don't know a specific value, use a descriptive variable name, NOT a placeholder URL
+8. For Basic Authentication: ALWAYS use btoa() in JavaScript and base64 in Python to encode credentials
+9. Define username/password variables first, then encode them before using in Authorization header
+10. NEVER substitute Base URL, endpoint, or any URL value for username or password
+11. Username and password MUST be literal placeholders: YOUR_USERNAME and YOUR_PASSWORD
+12. In template literals: ALWAYS use actual variable names (${variableName}), NEVER use URLs or placeholder strings
+13. For btoa() with Basic Auth: Use btoa(`${username}:${password}`), NEVER use URLs
+14. The base URL is ONLY for the fetch() URL parameter, NEVER for credentials, error messages, or console logs
+15. For date fields (CheckIn, CheckOut, etc.): Calculate dates using JavaScript Date() and format as YYYY-MM-DD strings
+16. NEVER use environment variables or process.env for date values - always use hardcoded date calculations
+17. Date format example: const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); const checkIn = tomorrow.toISOString().split('T')[0];
+
 Before generating code, I will analyze the API requirements and provide guidance:
 """
 
@@ -99,27 +118,23 @@ Use these details to generate accurate code examples. Include proper:
 """
 
     # Format the base URL and endpoint - ensure no template variables
-    raw_base_url = api_config.get('baseUrl', 'https://api.anthropic.com')
-    
-    # Remove any template variable syntax and use direct URLs
-    base_url = raw_base_url.replace('${BASE_URL}', 'https://api.example.com')
-    base_url = base_url.replace('${baseUrl}', 'https://api.example.com')
-    base_url = base_url.replace('${apiUrl}', 'https://api.example.com')
-    base_url = base_url.replace('${url}', 'https://api.example.com')
-    
-    # Clean up any remaining template literal syntax
+    raw_base_url = api_config.get('baseUrl', '')
+    # No fallback - let Claude use the actual API documentation
+
+    # Simply clean the base URL without replacing with example.com
     import re
-    base_url = re.sub(r'\$\{[^}]+\}', 'https://api.example.com', base_url)
-    base_url = base_url.replace('`', '').replace('${', '').replace('}', '')
-    
-    # Clean up any curly brace template syntax that might remain
-    base_url = re.sub(r'\{[^}]+\}', 'https://api.example.com', base_url)
-    base_url = base_url.replace('{', '').replace('}', '')
+    base_url = raw_base_url.replace('`', '').strip()
+
+    # Remove template variable syntax - keep the URL structure
+    base_url = re.sub(r'\$\{[^}]+\}', '', base_url)
+    base_url = re.sub(r'\{[^}]+\}', '', base_url)
+
+    # Clean up and normalize
     base_url = base_url.rstrip('/')
-    
-    # If base_url still contains template variables, is empty, or is invalid, use a default
-    if any(char in base_url for char in ['${', '`', '{', '}']) or base_url == '' or not base_url.startswith('http'):
-        base_url = 'https://api.example.com'
+
+    # If base_url is empty or invalid after cleaning, keep the original raw URL
+    if not base_url or not base_url.startswith('http'):
+        base_url = raw_base_url.rstrip('/')
     
     # Remove any existing endpoint from base_url to avoid duplication
     if base_url.endswith('/v1/messages'):
@@ -143,7 +158,7 @@ Use these details to generate accurate code examples. Include proper:
         
         if auth_type == 'basic':
             # Basic Authentication (username:password)
-            auth_headers.append(f"'Authorization': 'Basic ' + btoa('{username_placeholder}:{password_placeholder}')")
+            auth_headers.append(f"'Authorization': 'Basic {username_placeholder}:{password_placeholder}'")
         elif api_config.get('hasApiKey'):
             if auth_type == 'bearer':
                 auth_headers.append(f"'Authorization': 'Bearer {api_key_placeholder}'")
@@ -162,7 +177,7 @@ Use these details to generate accurate code examples. Include proper:
             elif req['type'] == 'bearer':
                 auth_headers.append(f"'Authorization': 'Bearer {api_key_placeholder}'")
             elif req['type'] == 'basic':
-                auth_headers.append(f"'Authorization': 'Basic ' + btoa('{username_placeholder}:{password_placeholder}')")
+                auth_headers.append(f"'Authorization': 'Basic {username_placeholder}:{password_placeholder}'")
     
     # Ensure we have at least one auth header if auth is required
     if (api_config and api_config.get('hasApiKey')) or (api_analysis and api_analysis.get('security_requirements')):
@@ -182,44 +197,37 @@ Use these details to generate accurate code examples. Include proper:
     js_headers_list = ["'Content-Type': 'application/json'"]
     
     if api_config and api_config.get('authType') == 'basic':
-        js_auth_setup = ""
-        # For Basic Auth, encode directly without variables
-        js_headers_list.insert(0, f"'Authorization': 'Basic ' + btoa('{username_placeholder}:{password_placeholder}')")
+        js_auth_setup = f"""
+// Your credentials
+const username = '{username_placeholder}';
+const password = '{password_placeholder}';
+const credentials = btoa(`${{username}}:${{password}}`);
+
+"""
+        js_headers_list.insert(0, "'Authorization': `Basic ${credentials}`")
     elif auth_headers_str:
         # Clean up the headers for JavaScript format
         for header in auth_headers_str.split(','):
             header = header.strip()
-            if 'btoa(' not in header:  # Skip Basic Auth headers already handled above
+            # Skip Basic Auth headers - they're already handled above
+            if 'btoa(' not in header and 'Basic YOUR_USERNAME' not in header:
                 js_headers_list.insert(0, header)
     
     js_headers_formatted = ',\n        '.join(js_headers_list)
     
-    js_code = f"""
-```javascript
-{js_auth_setup}const response = await fetch('{base_url}{endpoint}', {{
-    method: '{method}',
-    headers: {{
-        {js_headers_formatted}
-    }},
-    body: JSON.stringify({{
-        model: {json.dumps(model)},
-        max_tokens: 1024,
-        messages: [
-            {{
-                role: 'user',
-                content: {json.dumps(user_question)}
-            }}
-        ]
-    }})
-}});
-
-if (!response.ok) {{
-    throw new Error('HTTP error! status: ' + response.status);
-}}
-
-const data = await response.json();
-console.log('API Response:', data);
-```"""
+    js_code = """
+JAVASCRIPT EXAMPLE STRUCTURE (adapt to the actual API documentation):
+- Use fetch() with the actual API endpoint from the documentation
+- Include proper headers (Content-Type, Authorization, etc.) based on API requirements
+- For POST/PUT/PATCH: Include body with JSON.stringify() using actual API parameters
+- Handle errors: check response.ok and use try/catch
+- Use template literals with actual variable names (${variableName}), not URLs
+- For Basic Auth: Define username/password variables, encode with btoa(`${username}:${password}`), then use encoded credentials in Authorization header
+- In error messages: Use `HTTP error! status: ${response.status}` with response object
+- In console.log: Use actual data variables like `${data.id}`, `${results.length}`, `${checkIn}`
+- NEVER substitute URLs into template literals - only actual code variables
+- For date fields: Calculate dates dynamically (e.g., const checkIn = new Date(); checkIn.setDate(checkIn.getDate() + 1); const checkInStr = checkIn.toISOString().split('T')[0];)
+"""
 
     # Add the code blocks to the prompt
     base_prompt += code_intro
@@ -233,42 +241,36 @@ console.log('API Response:', data);
     
     if api_config and api_config.get('authType') == 'basic':
         py_imports = "import requests\nimport base64"
-        py_auth_setup = ""
-        # For Basic Auth, encode directly without variables
-        py_headers_list.insert(0, f"'Authorization': 'Basic ' + base64.b64encode('{username_placeholder}:{password_placeholder}'.encode()).decode()")
+        py_auth_setup = f"""
+
+# Your credentials
+username = '{username_placeholder}'
+password = '{password_placeholder}'
+credentials = base64.b64encode(f'{{username}}:{{password}}'.encode()).decode()
+
+"""
+        py_headers_list.insert(0, "'Authorization': f'Basic {credentials}'")
     elif auth_headers_str:
-        # Clean up the headers for Python format  
+        # Clean up the headers for Python format
         for header in auth_headers_str.split(','):
             header = header.strip()
-            if 'btoa(' not in header:  # Skip Basic Auth headers already handled above
+            # Skip Basic Auth headers - they're already handled above
+            if 'btoa(' not in header and 'Basic YOUR_USERNAME' not in header:
                 py_headers_list.insert(0, header)
     
     py_headers_formatted = ',\n        '.join(py_headers_list)
     
-    py_code = f"""
-```python
-{py_imports}{py_auth_setup}
-response = requests.{method.lower()}(
-    '{base_url}{endpoint}',
-    headers={{
-        {py_headers_formatted}
-    }},
-    json={{
-        'model': {json.dumps(model)},
-        'max_tokens': 1024,
-        'messages': [
-            {{
-                'role': 'user',
-                'content': {json.dumps(user_question)}
-            }}
-        ]
-    }}
-)
-
-response.raise_for_status()  # Raises an HTTPError for bad responses
-data = response.json()
-print('API Response:', data)
-```"""
+    py_code = """
+PYTHON EXAMPLE STRUCTURE (adapt to the actual API documentation):
+- Import requests library
+- Use requests.post/get/put/delete based on the API method
+- Include proper headers dictionary (Content-Type, Authorization, etc.)
+- For POST/PUT/PATCH: Use json parameter with actual API request body structure
+- For Basic Auth: Import base64, define username/password, encode with base64.b64encode(f'{username}:{password}'.encode()).decode(), then use in Authorization header
+- Handle errors: Use response.raise_for_status() or check response.status_code
+- For date fields: Use datetime to calculate dates and format as 'YYYY-MM-DD' strings
+- Example: from datetime import datetime, timedelta; check_in = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+"""
 
     base_prompt += py_code
 
@@ -283,30 +285,20 @@ print('API Response:', data)
         for header in auth_headers:
             # Convert 'Header': 'value' to -H 'Header: value'
             header = header.replace("'", "")
-            if 'btoa(' not in header:  # Skip Basic Auth headers already handled above
+            # Skip Basic Auth headers - cURL uses -u flag instead
+            if 'btoa(' not in header and 'Basic YOUR_USERNAME' not in header:
                 curl_headers.append(f"-H '{header}'")
     
-    curl_headers_str = " \\\n    ".join(curl_headers)
-    curl_auth_str = f" \\\n    {curl_auth}" if curl_auth else ""
-    
-    # Prepare request data as proper JSON (inline)
-    request_data_json = json.dumps({
-        "model": model,
-        "max_tokens": 1024,
-        "messages": [
-            {
-                "role": "user",
-                "content": user_question
-            }
-        ]
-    }, indent=2)
-    
-    curl_code = f"""
-```bash
-curl -X {method} '{base_url}{endpoint}'{curl_auth_str} \\
-    {curl_headers_str} \\
-    -d '{request_data_json}'
-```"""
+    curl_code = """
+CURL EXAMPLE STRUCTURE (adapt to the actual API documentation):
+- Use curl with the actual API endpoint from documentation
+- Include -X flag for HTTP method (POST, GET, PUT, DELETE, etc.)
+- Add headers with -H flags (Content-Type, Authorization, etc.)
+- For Basic Auth: Use -u flag with YOUR_USERNAME:YOUR_PASSWORD
+- For POST/PUT/PATCH: Use -d flag with JSON data matching the API specification
+- Include proper request body structure based on API documentation
+- For date values: Use actual date strings in YYYY-MM-DD format (e.g., "2025-10-09")
+"""
 
     base_prompt += curl_code
     base_prompt += "\n\nThe code examples above use the actual values from your API configuration."

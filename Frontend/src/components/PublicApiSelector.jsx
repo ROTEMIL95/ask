@@ -235,38 +235,232 @@ const PUBLIC_APIS = [
         name: 'TBO Holidays',
         category: 'Travel',
         description: 'Hotel booking and travel services',
-        docs_url: 'https://www.tboholidays.com/api-documentation',
+        docs_url: 'http://api.tbotechnology.in/TBOHolidays_HotelAPI',
         demo_key: 'demo-tbo-key-replace-with-actual',
-        sample_doc: `{
-  "openapi": "3.0.0",
-  "info": {
-    "title": "TBO Holidays API",
-    "version": "1.0"
-  },
-  "paths": {
-    "/hotel/search": {
-      "post": {
-        "summary": "Search for hotels",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "CheckInDate": { "type": "string", "format": "date" },
-                  "CheckOutDate": { "type": "string", "format": "date" },
-                  "CityId": { "type": "integer" },
-                  "GuestNationality": { "type": "string" }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}`
+        sample_doc: `openapi: 3.0.3
+info:
+  title: TBO Holidays Hotel API (Staging)
+  version: "1.0"
+servers:
+  - url: http://api.tbotechnology.in/TBOHolidays_HotelAPI
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    PaxRoom:
+      type: object
+      properties:
+        Adults: { type: integer, example: 2 }
+        Children: { type: integer, example: 0 }
+        ChildrenAges:
+          type: array
+          items: { type: integer }
+          example: []
+      required: [Adults, Children, ChildrenAges]
+    SearchRequest:
+      type: object
+      properties:
+        CheckIn:   { type: string, format: date, example: "2025-10-09" }
+        CheckOut:  { type: string, format: date, example: "2025-10-10" }
+        GuestNationality: { type: string, example: "AE" }
+        HotelCodes: { type: string, example: "1402689,1405349,1405355" }
+        PaxRooms:
+          type: array
+          items: { $ref: "#/components/schemas/PaxRoom" }
+        ResponseTime: { type: integer, example: 20 }
+        IsDetailedResponse: { type: boolean, example: true }
+        Filters:
+          type: object
+          properties:
+            Refundable: { type: boolean, example: true }
+            NoOfRooms:  { type: integer, example: 0 }
+            MealType:   { type: string, example: "All" }
+      required: [CheckIn, CheckOut, GuestNationality, PaxRooms]
+    PreBookRequest:
+      type: object
+      properties:
+        BookingCode: { type: string, example: "1407362!TB!1!TB!964e0fed-4fe7-4eee-82c7-d00e04d64728" }
+        PaymentMode: { type: string, example: "Limit" }
+      required: [BookingCode, PaymentMode]
+    BookRequest:
+      type: object
+      properties:
+        BookingCode: { type: string }
+        CustomerDetails:
+          type: array
+          items:
+            type: object
+            properties:
+              CustomerNames:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    Title: { type: string, example: "Mr" }
+                    FirstName: { type: string }
+                    LastName: { type: string }
+                    Type: { type: string, example: "Adult" }
+        ClientReferenceId: { type: string, example: "2022081001" }
+        BookingReferenceId: { type: string, example: "2022081001" }
+        TotalFare: { type: number, example: 1222.09 }
+        EmailId: { type: string, format: email }
+        PhoneNumber: { type: string }
+        BookingType: { type: string, example: "Voucher" }
+        PaymentMode: { type: string, example: "Limit" }
+        PaymentInfo:
+          type: object
+          properties:
+            CvvNumber: { type: string, example: "123" }
+            CardNumber: { type: string, example: "5555555555554444" }
+            CardExpirationMonth: { type: string, example: "12" }
+            CardExpirationYear: { type: string, example: "2026" }
+            CardHolderFirstName: { type: string, example: "John" }
+            CardHolderlastName: { type: string, example: "Doe" }
+            BillingAmount: { type: number, example: 1627.872 }
+            BillingCurrency: { type: string, example: "AED" }
+            CardHolderAddress:
+              type: object
+              properties:
+                AddressLine1: { type: string }
+                AddressLine2: { type: string }
+                City: { type: string }
+                PostalCode: { type: string }
+                CountryCode: { type: string, example: "AE" }
+      required: [BookingCode, CustomerDetails, BookingType, PaymentMode]
+    CityListRequest:
+      type: object
+      properties:
+        CountryCode: { type: string, example: "AE" }
+      required: [CountryCode]
+    BookingDetailRequest:
+      type: object
+      properties:
+        BookingReferenceId: { type: string, example: "2022081001" }
+        PaymentMode: { type: string, example: "Limit" }
+      required: [BookingReferenceId, PaymentMode]
+    BookingDetailsByDateRequest:
+      type: object
+      properties:
+        FromDate: { type: string, example: "2025-10-01T00:00:00Z", description: "ISO 8601 (YYYY-MM-DDTHH:mm:ssZ)" }
+        ToDate:   { type: string, example: "2025-10-08T23:59:59Z", description: "ISO 8601 (YYYY-MM-DDTHH:mm:ssZ)" }
+      required: [FromDate, ToDate]
+    HotelDetailsRequest:
+      type: object
+      properties:
+        Hotelcodes: { type: string, example: "1033928" }
+        Language: { type: string, example: "en" }
+      required: [Hotelcodes]
+security:
+  - basicAuth: []
+paths:
+  /search:
+    post:
+      summary: Search hotels
+      security: [{ basicAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SearchRequest" }
+            examples:
+              sample:
+                value:
+                  CheckIn: "2025-10-09"
+                  CheckOut: "2025-10-10"
+                  GuestNationality: "AE"
+                  HotelCodes: "1402689,1405349,1405355"
+                  PaxRooms: [ { Adults: 1, Children: 0, ChildrenAges: [] } ]
+                  ResponseTime: 20
+                  IsDetailedResponse: true
+                  Filters: { Refundable: true, NoOfRooms: 0, MealType: "All" }
+      responses:
+        "200": { description: OK }
+        "400": { description: Invalid date format }
+  /PreBook:
+    post:
+      summary: Pre-book a room
+      security: [{ basicAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PreBookRequest" }
+      responses:
+        "200": { description: OK }
+  /Book:
+    post:
+      summary: Confirm booking
+      security: [{ basicAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookRequest" }
+      responses:
+        "200": { description: OK }
+  /CityList:
+    post:
+      summary: List cities by country
+      security: [{ basicAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CityListRequest" }
+      responses:
+        "200": { description: OK }
+  /CountryList:
+    get:
+      summary: List countries
+      security: [{ basicAuth: [] }]
+      responses:
+        "200": { description: OK }
+  /BookingDetail:
+    post:
+      summary: Get booking detail
+      security: [{ basicAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookingDetailRequest" }
+      responses:
+        "200": { description: OK }
+  /BookingDetailsBasedOnDate:
+    post:
+      summary: Get bookings by date range
+      security: [{ basicAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookingDetailsByDateRequest" }
+            examples:
+              week:
+                value:
+                  FromDate: "2025-10-01T00:00:00Z"
+                  ToDate:   "2025-10-08T23:59:59Z"
+      responses:
+        "200": { description: OK }
+  /Hoteldetails:
+    post:
+      summary: Hotel details by code
+      security: [{ basicAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HotelDetailsRequest" }
+      responses:
+        "200": { description: OK }
+  /hotelcodelist:
+    get:
+      summary: List hotel codes
+      security: [{ basicAuth: [] }]
+      responses:
+        "200": { description: OK }`
     }
 ];
 

@@ -190,6 +190,87 @@ function ApiToolSection() {
         error: hookError
     } = useAskApi();
 
+    // Update generated code when authType changes
+    useEffect(() => {
+        if (!generatedCode.javascript) return; // Only run if we have generated code
+
+        const updateAuthInCode = (code, language) => {
+            if (!code) return code;
+
+            if (authType === 'basic') {
+                // Replace API key auth with Basic auth (simplified format)
+                if (language === 'javascript') {
+                    code = code.replace(
+                        /'X-API-Key':\s*'[^']*'/g,
+                        "'Authorization': 'Basic YOUR_USERNAME:YOUR_PASSWORD'"
+                    );
+                    code = code.replace(
+                        /'x-api-key':\s*'[^']*'/gi,
+                        "'Authorization': 'Basic YOUR_USERNAME:YOUR_PASSWORD'"
+                    );
+                } else if (language === 'python') {
+                    code = code.replace(
+                        /'X-API-Key':\s*'[^']*'/g,
+                        "'Authorization': 'Basic YOUR_USERNAME:YOUR_PASSWORD'"
+                    );
+                } else if (language === 'curl') {
+                    code = code.replace(
+                        /-H\s+'X-API-Key:\s*[^']*'/g,
+                        ''
+                    );
+                    if (!code.includes('-u ')) {
+                        code = code.replace('curl -X', 'curl -u YOUR_USERNAME:YOUR_PASSWORD -X');
+                    }
+                }
+            } else {
+                // Replace Basic auth with API key auth
+                if (language === 'javascript') {
+                    // Match both old btoa() format and new simplified format
+                    code = code.replace(
+                        /'Authorization':\s*'Basic\s*'\s*\+\s*btoa\([^)]+\)/g,
+                        "'X-API-Key': 'YOUR_API_KEY'"
+                    );
+                    code = code.replace(
+                        /'Authorization':\s*'Basic\s+YOUR_USERNAME:YOUR_PASSWORD'/g,
+                        "'X-API-Key': 'YOUR_API_KEY'"
+                    );
+                } else if (language === 'python') {
+                    // Match both old base64 format and new simplified format
+                    code = code.replace(
+                        /'Authorization':\s*'Basic\s*'\s*\+\s*base64\.b64encode\([^)]+\)\.decode\(\)/g,
+                        "'X-API-Key': 'YOUR_API_KEY'"
+                    );
+                    code = code.replace(
+                        /'Authorization':\s*'Basic\s+YOUR_USERNAME:YOUR_PASSWORD'/g,
+                        "'X-API-Key': 'YOUR_API_KEY'"
+                    );
+                    if (code.includes('import base64') && !code.includes('base64.')) {
+                        code = code.replace(/\nimport base64/, '');
+                    }
+                } else if (language === 'curl') {
+                    code = code.replace(
+                        /-u\s+[^\s]+\s*/g,
+                        ''
+                    );
+                    if (!code.includes("-H 'X-API-Key:")) {
+                        code = code.replace(
+                            /curl\s+(-X\s+\w+)/,
+                            "curl -H 'X-API-Key: YOUR_API_KEY' $1"
+                        );
+                    }
+                }
+            }
+
+            return code;
+        };
+
+        setGeneratedCode(prev => ({
+            javascript: updateAuthInCode(prev.javascript, 'javascript'),
+            python: updateAuthInCode(prev.python, 'python'),
+            curl: updateAuthInCode(prev.curl, 'curl')
+        }));
+    }, [authType]); // Only run when authType changes
+
     // Copy utilities
     const copyToClipboard = createCopyToClipboard(setCopied);
     const copyApiDocToClipboard = createCopyToClipboard(setCopiedApiDoc);
@@ -554,9 +635,8 @@ function ApiToolSection() {
     const fixAnthropicPlaceholderUrl = (url) => {
         if (!url) return url;
         let fixed = url;
-        if (fixed.includes('api.example.com') || fixed.includes('example.com')) {
-            fixed = fixed.replace(/https?:\/\/[^\/]+\/v1\/messages/g, 'https://api.anthropic.com/v1/messages');
-        }
+        // Don't replace - the backend should provide the correct URL
+        // This function is kept for backward compatibility but doesn't modify URLs anymore
         return fixed;
     };
 
@@ -731,15 +811,60 @@ function ApiToolSection() {
                 method = methodMatch[2].toUpperCase();
             }
 
-            // 4. Extract headers
+            // 4. Extract headers - Enhanced to handle complex expressions
             const headersMatch = optionsStr.match(/headers\s*:\s*(\{[\s\S]*?\})/);
             if (headersMatch && headersMatch[1]) {
                 console.log('🔍 Headers string found:', headersMatch[1]);
-                // Regex to find key-value pairs in the headers object string
-                const headerPairs = headersMatch[1].matchAll(/(['"`])(.*?)\1\s*:\s*(['"`])(.*?)\3/g);
+
+                // Enhanced regex to capture entire expressions including concatenation and function calls
+                const headerPairs = headersMatch[1].matchAll(/(['"`])([^'"]+)\1\s*:\s*(.+?)(?=,\s*['"`]|\})/gs);
+
                 for (const match of headerPairs) {
-                    headers[match[2]] = match[4];
-                    console.log(`🔍 Header extracted: ${match[2]} = ${match[4]}`);
+                    const key = match[2].trim();
+                    let value = match[3].trim();
+
+                    // Remove trailing comma if present
+                    value = value.replace(/,\s*$/, '').trim();
+
+                    console.log(`🔍 Processing header: ${key} = ${value}`);
+
+                    // Handle different value formats:
+
+                    // 1. Basic Auth with btoa() - keep as placeholder for runtime injection
+                    if (value.includes('btoa(')) {
+                        const btoaMatch = value.match(/btoa\s*\(\s*['"`]([^'"]+)['"`]\s*\)/);
+                        if (btoaMatch) {
+                            // Keep the expression as-is for runtime processing
+                            headers[key] = value;
+                            console.log(`🔍 btoa() expression found, keeping as-is`);
+                        }
+                    }
+                    // 2. String concatenation - combine the parts
+                    else if (value.includes('+')) {
+                        // Extract quoted strings and combine
+                        const parts = value.split('+').map(p => {
+                            const trimmed = p.trim();
+                            const quoted = trimmed.match(/['"`]([^'"]+)['"`]/);
+                            return quoted ? quoted[1] : trimmed;
+                        });
+                        headers[key] = parts.join('');
+                        console.log(`🔍 Concatenation detected, combined to: ${headers[key]}`);
+                    }
+                    // 3. Template literal with variables - keep for runtime processing
+                    else if (value.includes('`') && value.includes('${')) {
+                        headers[key] = value;
+                        console.log(`🔍 Template literal with variables: ${value}`);
+                    }
+                    // 4. Simple quoted value
+                    else if (value.match(/^['"`](.+?)['"`]$/)) {
+                        headers[key] = value.replace(/^['"`]|['"`]$/g, '');
+                        console.log(`🔍 Simple quoted value: ${headers[key]}`);
+                    }
+                    // 5. Keep as-is (variable or expression)
+                    else {
+                        headers[key] = value;
+                        console.log(`🔍 Keeping value as-is: ${value}`);
+                    }
                 }
                 console.log('🔍 Final extracted headers:', headers);
             } else {
@@ -1083,18 +1208,59 @@ function ApiToolSection() {
             }
         }
 
-        // 3. Basic Authentication (username:password)
-        if (fetchOptions.headers.Authorization && 
-            (fetchOptions.headers.Authorization.includes('YOUR_USERNAME') || 
-             fetchOptions.headers.Authorization.includes('YOUR_PASSWORD'))) {
-            
+        // 3. Basic Authentication - Multiple formats handled with priority order
+        // Check template literal format FIRST (most specific)
+        if (fetchOptions.headers.Authorization &&
+            (fetchOptions.headers.Authorization.includes('${credentials}') ||
+             fetchOptions.headers.Authorization.includes('${encodedCredentials}') ||
+             fetchOptions.headers.Authorization.includes('`Basic ${'))) {
+
             if (authType === 'basic' && username.trim() && password.trim()) {
-                // Create Basic Auth header
+                // Evaluate template literal by replacing ${credentials} or ${encodedCredentials} with actual value
+                const auth = btoa(`${username.trim()}:${password.trim()}`);
+
+                // Handle template literal format: `Basic ${credentials}`
+                let authHeader = fetchOptions.headers.Authorization;
+
+                // Remove outer backticks if present
+                if (authHeader.startsWith('`') && authHeader.endsWith('`')) {
+                    authHeader = authHeader.slice(1, -1);
+                }
+
+                // Replace ${credentials} or ${encodedCredentials} with actual encoded value
+                authHeader = authHeader.replace(/\$\{credentials\}/g, auth);
+                authHeader = authHeader.replace(/\$\{encodedCredentials\}/g, auth);
+
+                fetchOptions.headers.Authorization = authHeader;
+                console.log(`✅ Evaluated template literal: 'Authorization': '${authHeader}'`);
+            } else {
+                throw new Error('This API requires Basic Authentication. Please enter your username and password, or switch authentication type.');
+            }
+        }
+        // Check btoa() expression format
+        else if (fetchOptions.headers.Authorization && fetchOptions.headers.Authorization.includes('btoa(')) {
+            if (authType === 'basic' && username.trim() && password.trim()) {
+                // Extract and replace btoa expression with actual encoded credentials
                 const auth = btoa(`${username.trim()}:${password.trim()}`);
                 fetchOptions.headers.Authorization = `Basic ${auth}`;
-                console.log('✅ Updated Authorization header with Basic Auth'); // Credentials not logged for security
+                console.log(`✅ Replaced btoa() expression with actual Basic Auth: 'Authorization': 'Basic ${auth}'`);
             } else {
-                throw new Error('Please enter your username and password in the authentication fields, or switch to API Key authentication.');
+                throw new Error('This API requires Basic Authentication. Please enter your username and password, or switch authentication type.');
+            }
+        }
+        // Check placeholder format (YOUR_USERNAME:YOUR_PASSWORD)
+        else if (fetchOptions.headers.Authorization &&
+            (fetchOptions.headers.Authorization.includes('YOUR_USERNAME') ||
+             fetchOptions.headers.Authorization.includes('YOUR_PASSWORD') ||
+             fetchOptions.headers.Authorization.startsWith('Basic YOUR_'))) {
+
+            if (authType === 'basic' && username.trim() && password.trim()) {
+                // Create Basic Auth header with proper encoding
+                const auth = btoa(`${username.trim()}:${password.trim()}`);
+                fetchOptions.headers.Authorization = `Basic ${auth}`;
+                console.log(`✅ Updated Authorization header with Basic Auth: 'Authorization': 'Basic ${auth}'`);
+            } else {
+                throw new Error('Please enter your username and password in the authentication fields for Basic Auth, or switch to API Key authentication.');
             }
         }
 
@@ -1503,14 +1669,15 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                         );
                     }
 
-                    // Clean up any remaining template literals in the displayed code
-                    snippet = snippet.replace(/\$\{baseUrl\}/g, 'https://api.example.com');
-                    snippet = snippet.replace(/\$\{apiUrl\}/g, 'https://api.example.com');
-                    snippet = snippet.replace(/\$\{url\}/g, 'https://api.example.com');
-                    snippet = snippet.replace(/\$\{BASE_URL\}/g, 'https://api.example.com');
-                    
-                    // Remove any remaining template literal syntax
-                    snippet = snippet.replace(/\$\{[^}]+\}/g, 'https://api.example.com');
+                    // Clean up only specific base URL template placeholders in the displayed code
+                    // Only replace base URL placeholders, NOT all template literals
+                    if (baseUrl) {
+                        snippet = snippet.replace(/\$\{baseUrl\}/g, baseUrl);
+                        snippet = snippet.replace(/\$\{apiUrl\}/g, baseUrl);
+                        snippet = snippet.replace(/\$\{url\}/g, baseUrl);
+                        snippet = snippet.replace(/\$\{BASE_URL\}/g, baseUrl);
+                    }
+                    // DO NOT replace other template literals - they're actual variables like ${checkIn}, ${username}, ${response.status}
 
                     validSnippets[lang] = snippet;
                     hasValidSnippet = true;
