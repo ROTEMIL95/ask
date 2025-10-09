@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, MapPin, Clock, Send } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, Send, MessageCircle } from 'lucide-react';
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
@@ -135,14 +135,6 @@ export default function ContactPage() {
                                     </div>
                                 </div>
 
-                                <div className="flex items-start gap-4">
-                                    <Phone className="w-6 h-6 text-green-400 mt-1" />
-                                    <div>
-                                        <h3 className="text-white font-semibold">Phone Support</h3>
-                                        <p className="text-gray-300">+972 50 905 8991</p>
-                                        <p className="text-gray-400 text-sm">Available for Pro plan customers</p>
-                                    </div>
-                                </div>
 
                                 <div className="flex items-start gap-4">
                                     <MapPin className="w-6 h-6 text-purple-400 mt-1" />
@@ -169,9 +161,14 @@ export default function ContactPage() {
                             <p className="text-blue-100 mb-4">
                                 Contact our sales team for dedicated support and custom solutions.
                             </p>
-                            <Button className="bg-white text-blue-700 hover:bg-gray-100">
-                                Contact Sales
-                            </Button>
+                            <Button
+                                            size="sm"
+                                            className="mt-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
+                                            onClick={() => window.open('https://wa.me/972509058991', '_blank')}
+                                        >
+                                            <MessageCircle className="w-4 h-4 mr-2" />
+                                            Chat on WhatsApp
+                                        </Button>
                         </div>
                     </div>
                 </div>

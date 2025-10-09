@@ -121,16 +121,16 @@ const SAMPLE_API_DOC = `{
 
 const faqData = [
     {
-        question: "How does Talkapi work?",
-        answer: "Talkapi is an AI-powered tool that generates API calls from natural language questions. Simply paste your API documentation and ask questions such as 'how do I get a list of users?'. Talkapi analyzes your documentation and your question to generate the exact API call code you need."
+        question: "How does TalkAPI work?",
+        answer: "TalkAPI is an AI-powered tool that understands your API documentation in any format — text, link, or even an image. You can simply paste a URL, upload a screenshot, or type your docs, then ask natural questions like \"Get all users from my CRM\" or \"Create a booking for next week.\" TalkAPI uses Anthropic Claude to read, understand, and run your API requests instantly."
     },
     {
-        question: "What type of documentation does Talkapi support?",
-        answer: "Talkapi works best with structured documentation like OpenAPI (formerly Swagger), Postman collections, or similar JSON-based specs. However, you can also paste plain text descriptions of your endpoints and Talkapi will still be able to help you generate API calls."
+        question: "What type of documentation does TalkAPI support?",
+        answer: "TalkAPI supports multiple formats including: Direct URLs to your API documentation, Plain text or code blocks, and Uploaded screenshots (OCR). There's no need for Swagger or Postman — any readable API doc will work."
     },
     {
         question: "Is my API documentation and data secure?",
-        answer: "Yes. We take security very seriously. Your API documentation is processed in memory and is not stored long-term unless you are on a Pro plan with a history feature enabled. We use industry-standard encryption for all data in transit and at rest."
+        answer: "Yes. TalkAPI processes your data in memory and never stores it unless you enable history on a Pro or Enterprise plan. All communication is encrypted in transit and at rest using industry standards. Your API keys are session-based and are never shared or logged."
     }
 ];
 
