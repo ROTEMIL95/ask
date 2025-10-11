@@ -14,30 +14,55 @@ export default function ContactPage() {
         message: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [statusMessage, setStatusMessage] = useState({ type: '', text: '' });
+
+    const openMailtoFallback = () => {
+        const mailtoLink = `mailto:rotemiluz53@gmail.com?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(
+            `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`
+        )}`;
+        window.location.href = mailtoLink;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setStatusMessage({ type: '', text: '' });
 
         try {
+            // Try SMTP first
             const result = await sendContactEmail(formData);
 
-            // Success
-            alert(result.message || 'Your message has been sent successfully! We will get back to you within 24 hours.');
-            setFormData({ name: '', email: '', subject: '', message: '' });
-        } catch (error) {
-            // Check if we should fallback to mailto
-            if (error.message === 'FALLBACK_REQUIRED') {
-                const mailtoLink = `mailto:rotemiluz53@gmail.com?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(
-                    `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`
-                )}`;
-                window.location.href = mailtoLink;
-                alert('Opening your email client... Please send the email to complete your message.');
+            if (result.success) {
+                setStatusMessage({
+                    type: 'success',
+                    text: 'Email sent successfully! We\'ll get back to you soon.'
+                });
+                // Reset form on success
                 setFormData({ name: '', email: '', subject: '', message: '' });
             } else {
-                // Show error
-                alert(error.message || 'Failed to send message. Please try again.');
+                // SMTP failed, use mailto fallback
+                setStatusMessage({
+                    type: 'info',
+                    text: 'Opening your email client...'
+                });
+                openMailtoFallback();
+                // Reset form after a delay
+                setTimeout(() => {
+                    setFormData({ name: '', email: '', subject: '', message: '' });
+                    setStatusMessage({ type: '', text: '' });
+                }, 2000);
             }
+        } catch (error) {
+            // On any error, fall back to mailto
+            setStatusMessage({
+                type: 'info',
+                text: 'Opening your email client as fallback...'
+            });
+            openMailtoFallback();
+            setTimeout(() => {
+                setFormData({ name: '', email: '', subject: '', message: '' });
+                setStatusMessage({ type: '', text: '' });
+            }, 2000);
         } finally {
             setIsSubmitting(false);
         }
@@ -128,10 +153,20 @@ export default function ContactPage() {
                                     />
                                 </div>
 
+                                {statusMessage.text && (
+                                    <div className={`p-4 rounded-lg ${
+                                        statusMessage.type === 'success'
+                                            ? 'bg-green-500/20 border border-green-500/50 text-green-300'
+                                            : 'bg-blue-500/20 border border-blue-500/50 text-blue-300'
+                                    }`}>
+                                        {statusMessage.text}
+                                    </div>
+                                )}
+
                                 <Button
                                     type="submit"
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-6"
                                     disabled={isSubmitting}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-6 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <Send className="w-5 h-5 mr-2" />
                                     {isSubmitting ? 'Sending...' : 'Send Message'}

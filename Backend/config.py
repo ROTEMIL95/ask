@@ -30,3 +30,10 @@ class Config:
 
     # --- OCR ---
     VISION_KEY_B64 = os.getenv("VISION_KEY_B64")
+
+    # --- SMTP Email ---
+    SMTP_SERVER = os.getenv("SMTP_SERVER")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+    CONTACT_EMAIL = os.getenv("CONTACT_EMAIL")

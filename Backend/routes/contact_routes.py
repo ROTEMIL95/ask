@@ -1,135 +1,144 @@
-"""
-Contact Routes - Handle contact form submissions
-"""
-from flask import Blueprint, request, jsonify
-from limiter_config import get_limiter
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import os
-from dotenv import load_dotenv
+from flask import Blueprint, request, jsonify
+from config import Config
+import logging
 
-load_dotenv()
+contact_bp = Blueprint("contact", __name__)
+logger = logging.getLogger(__name__)
 
-# Create blueprint
-contact_bp = Blueprint('contact', __name__)
 
-# Get limiter instance
-limiter = get_limiter(None)
-
-# Email configuration
-SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
-SMTP_USERNAME = os.getenv('SMTP_USERNAME', '')
-SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
-CONTACT_EMAIL = os.getenv('CONTACT_EMAIL', 'rotemiluz53@gmail.com')
-
-@contact_bp.route('/send-contact-email', methods=['POST', 'OPTIONS'])
-@limiter.limit("5 per minute", methods=["POST"])
+@contact_bp.route("/send-contact-email", methods=["POST"])
 def send_contact_email():
-    """Send contact form email
-
-    CORS is handled globally by Flask-CORS in app.py
-    Rate limiting only applies to POST requests, not OPTIONS preflight
-    """
-    # OPTIONS requests are handled automatically by Flask-CORS
-    if request.method == 'OPTIONS':
-        return '', 204
-
+    """Send contact form email via SMTP"""
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Request data is required'}), 400
-
-        name = data.get('name', '').strip()
-        email = data.get('email', '').strip()
-        subject = data.get('subject', '').strip()
-        message = data.get('message', '').strip()
 
         # Validate required fields
+        name = data.get("name", "").strip()
+        email = data.get("email", "").strip()
+        subject = data.get("subject", "").strip()
+        message = data.get("message", "").strip()
+
         if not all([name, email, subject, message]):
-            return jsonify({'error': 'All fields are required'}), 400
-
-        # Validate email format (basic check)
-        if '@' not in email or '.' not in email:
-            return jsonify({'error': 'Invalid email format'}), 400
-
-        # Check if SMTP is configured
-        if not SMTP_USERNAME or not SMTP_PASSWORD:
-            print("⚠️ SMTP credentials not configured, using mailto fallback")
             return jsonify({
-                'error': 'Email server not configured',
-                'fallback': True
+                "success": False,
+                "error": "All fields are required"
+            }), 400
+
+        # Get SMTP configuration from environment
+        smtp_server = Config.SMTP_SERVER
+        smtp_port = Config.SMTP_PORT
+        smtp_username = Config.SMTP_USERNAME
+        smtp_password = Config.SMTP_PASSWORD
+        contact_email = Config.CONTACT_EMAIL
+
+        if not all([smtp_server, smtp_port, smtp_username, smtp_password, contact_email]):
+            logger.error("SMTP configuration incomplete")
+            return jsonify({
+                "success": False,
+                "error": "Email service not configured"
             }), 503
 
         # Create email message
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = f"Contact Form: {subject}"
-        msg['From'] = SMTP_USERNAME
-        msg['To'] = CONTACT_EMAIL
-        msg['Reply-To'] = email
+        msg = MIMEMultipart("alternative")
+        msg["From"] = smtp_username
+        msg["To"] = contact_email
+        msg["Subject"] = f"TalkAPI Contact Form: {subject}"
+        msg["Reply-To"] = email
 
-        # Email body
-        text_content = f"""
-New Contact Form Submission
+        # Email body (HTML)
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
+                .content {{ background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px; }}
+                .field {{ margin-bottom: 15px; }}
+                .label {{ font-weight: bold; color: #667eea; }}
+                .value {{ margin-top: 5px; padding: 10px; background: white; border-radius: 4px; }}
+                .footer {{ margin-top: 20px; padding-top: 20px; border-top: 2px solid #667eea; font-size: 12px; color: #666; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h2>New Contact Form Submission</h2>
+                    <p>TalkAPI - https://talkapi.ai</p>
+                </div>
+                <div class="content">
+                    <div class="field">
+                        <div class="label">From:</div>
+                        <div class="value">{name}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Email:</div>
+                        <div class="value">{email}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Subject:</div>
+                        <div class="value">{subject}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Message:</div>
+                        <div class="value">{message.replace(chr(10), '<br>')}</div>
+                    </div>
+                    <div class="footer">
+                        <p>This email was sent from the TalkAPI contact form.</p>
+                        <p>To reply, use: {email}</p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
 
-From: {name}
-Email: {email}
-Subject: {subject}
+        # Attach HTML body
+        msg.attach(MIMEText(html_body, "html"))
 
-Message:
-{message}
-"""
+        # Send email via SMTP
+        logger.info(f"Connecting to SMTP server: {smtp_server}:{smtp_port}")
 
-        html_content = f"""
-<html>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0;">
-        <h2 style="color: white; margin: 0;">New Contact Form Submission</h2>
-    </div>
-    <div style="border: 1px solid #e0e0e0; padding: 20px; border-radius: 0 0 10px 10px;">
-        <p style="margin: 10px 0;"><strong>From:</strong> {name}</p>
-        <p style="margin: 10px 0;"><strong>Email:</strong> <a href="mailto:{email}">{email}</a></p>
-        <p style="margin: 10px 0;"><strong>Subject:</strong> {subject}</p>
-        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-        <p style="margin: 10px 0;"><strong>Message:</strong></p>
-        <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
-{message}
-        </div>
-    </div>
-</body>
-</html>
-"""
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.set_debuglevel(0)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
 
-        # Attach both plain text and HTML versions
-        part1 = MIMEText(text_content, 'plain')
-        part2 = MIMEText(html_content, 'html')
-        msg.attach(part1)
-        msg.attach(part2)
+            logger.info(f"Logging in with username: {smtp_username}")
+            server.login(smtp_username, smtp_password)
 
-        # Send email
-        try:
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SMTP_USERNAME, SMTP_PASSWORD)
-                server.send_message(msg)
+            logger.info(f"Sending email to: {contact_email}")
+            server.send_message(msg)
 
-            print(f"✅ Contact email sent from {email} (Name: {name})")
-            return jsonify({
-                'success': True,
-                'message': 'Your message has been sent successfully! We will get back to you within 24 hours.'
-            })
+        logger.info("Contact email sent successfully")
 
-        except smtplib.SMTPException as smtp_error:
-            print(f"❌ SMTP error: {str(smtp_error)}")
-            return jsonify({
-                'error': 'Failed to send email. Please try again later.',
-                'fallback': True
-            }), 500
+        return jsonify({
+            "success": True,
+            "message": "Email sent successfully"
+        }), 200
+
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"SMTP Authentication failed: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Email authentication failed. Please use the mailto fallback."
+        }), 503
+
+    except smtplib.SMTPException as e:
+        logger.error(f"SMTP error: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Failed to send email. Please use the mailto fallback."
+        }), 503
 
     except Exception as e:
-        print(f"❌ Error in /send-contact-email: {str(e)}")
+        logger.error(f"Unexpected error sending email: {e}")
         return jsonify({
-            'error': 'An error occurred while sending your message.',
-            'fallback': True
+            "success": False,
+            "error": "An error occurred. Please use the mailto fallback."
         }), 500
