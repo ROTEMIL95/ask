@@ -20,6 +20,7 @@ from routes.payment_routes import payment_bp
 from routes.payment_complete import payment_complete_bp
 from routes.payments_webhook import payments_webhook_bp
 from routes.ocr_routes import ocr_bp
+from routes.contact_routes import contact_bp
 
 # Optional: rate limiter (if you use it in your project)
 try:
@@ -137,6 +138,7 @@ def create_app() -> Flask:
     app.register_blueprint(payment_complete_bp)
     app.register_blueprint(payments_webhook_bp)
     app.register_blueprint(ocr_bp)
+    app.register_blueprint(contact_bp)
 
     # ---- Optional: Google Vision init from base64 key ----
     try:

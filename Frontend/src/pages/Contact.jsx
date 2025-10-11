@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, Phone, MapPin, Clock, Send, MessageCircle } from 'lucide-react';
+import { sendContactEmail } from '@/api/contactApi';
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
@@ -12,12 +13,34 @@ export default function ContactPage() {
         subject: '',
         message: ''
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // In a real app, this would send the email
-        alert('Thank you for your message! We will get back to you within 24 hours.');
-        setFormData({ name: '', email: '', subject: '', message: '' });
+        setIsSubmitting(true);
+
+        try {
+            const result = await sendContactEmail(formData);
+
+            // Success
+            alert(result.message || 'Your message has been sent successfully! We will get back to you within 24 hours.');
+            setFormData({ name: '', email: '', subject: '', message: '' });
+        } catch (error) {
+            // Check if we should fallback to mailto
+            if (error.message === 'FALLBACK_REQUIRED') {
+                const mailtoLink = `mailto:rotemiluz53@gmail.com?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(
+                    `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`
+                )}`;
+                window.location.href = mailtoLink;
+                alert('Opening your email client... Please send the email to complete your message.');
+                setFormData({ name: '', email: '', subject: '', message: '' });
+            } else {
+                // Show error
+                alert(error.message || 'Failed to send message. Please try again.');
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleChange = (e) => {
@@ -105,12 +128,13 @@ export default function ContactPage() {
                                     />
                                 </div>
 
-                                <Button 
-                                    type="submit" 
+                                <Button
+                                    type="submit"
                                     className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-6"
+                                    disabled={isSubmitting}
                                 >
                                     <Send className="w-5 h-5 mr-2" />
-                                    Send Message
+                                    {isSubmitting ? 'Sending...' : 'Send Message'}
                                 </Button>
                             </form>
                         </CardContent>

@@ -1,0 +1,11 @@
+# TalkAPI - Robots.txt
+# https://talkapi.ai/robots.txt
+
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /register
+Disallow: /checkout
+
+# Sitemap
+Sitemap: https://talkapi.ai/sitemap.xml
