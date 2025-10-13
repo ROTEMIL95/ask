@@ -16,6 +16,7 @@ import PublicApiSelector from '../components/PublicApiSelector';
 import { useAskApi, processImageOCR, processFileToText } from '@/api/askApi';
 import { proxyApiCall } from '@/api/proxyApi';
 import { fixApiUrl, validateApiUrl } from '@/utils/testApiUrl';
+import SEO from '@/components/SEO';
 
 // Constants
 const INITIAL_CODE_STATE = {
@@ -2455,10 +2456,18 @@ function FaqSection() {
 
 export default function Home() {
     return (
-        <div>
-            <HeroSection />
-            <ApiToolSection />
-            <FaqSection />
-        </div>
+        <>
+            <SEO
+                title="TalkAPI - AI-Powered API Documentation to Code"
+                description="Transform API documentation into ready-to-use code instantly. Paste docs, ask questions in plain language, get JavaScript, Python, and cURL code."
+                keywords="API documentation, code generator, AI, developer tools, REST API, API testing, JavaScript, Python, cURL, API integration"
+                canonicalUrl="/"
+            />
+            <div>
+                <HeroSection />
+                <ApiToolSection />
+                <FaqSection />
+            </div>
+        </>
     );
 }

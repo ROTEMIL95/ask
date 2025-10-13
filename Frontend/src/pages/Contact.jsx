@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, Phone, MapPin, Clock, Send, MessageCircle } from 'lucide-react';
 import { sendContactEmail } from '@/api/askApi';
+import SEO from '@/components/SEO';
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
@@ -76,7 +77,14 @@ export default function ContactPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 py-16 px-6">
+        <>
+            <SEO
+                title="Contact Us - TalkAPI Support"
+                description="Get in touch with TalkAPI support team. We're here to help with API integration, technical questions, and enterprise solutions."
+                keywords="contact TalkAPI, API support, customer service, technical support, enterprise solutions"
+                canonicalUrl="/contact"
+            />
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 py-16 px-6">
             <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Contact Us</h1>
@@ -233,5 +241,6 @@ export default function ContactPage() {
                 </div>
             </div>
         </div>
+        </>
     );
 }
