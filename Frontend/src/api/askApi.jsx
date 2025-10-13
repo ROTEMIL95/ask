@@ -360,3 +360,42 @@ export const submitFeedback = async (feedbackData) => {
         throw error;
     }
 };
+
+/**
+ * Send contact form email via SMTP
+ * @param {Object} formData - Contact form data
+ * @param {string} formData.name - Sender name
+ * @param {string} formData.email - Sender email
+ * @param {string} formData.subject - Email subject
+ * @param {string} formData.message - Email message
+ * @returns {Promise<Object>} Response data with success status
+ */
+export const sendContactEmail = async (formData) => {
+    try {
+        const response = await fetch(`${getBackendUrl()}/send-contact-email`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to send email');
+        }
+
+        const data = await response.json();
+        return {
+            success: true,
+            data: data,
+        };
+    } catch (error) {
+        console.error('Error sending contact email:', error);
+        return {
+            success: false,
+            error: error.message || 'Failed to send email',
+            shouldFallback: true,
+        };
+    }
+};

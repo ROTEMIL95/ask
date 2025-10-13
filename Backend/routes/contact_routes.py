@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 def send_contact_email():
     """Send contact form email via SMTP"""
     try:
+        logger.info("=" * 60)
+        logger.info("📧 CONTACT EMAIL DEBUG - Starting email send process")
+        logger.info("=" * 60)
+
         data = request.get_json()
+        logger.info(f"📝 Received form data: name={data.get('name')}, email={data.get('email')}, subject={data.get('subject')}")
 
         # Validate required fields
         name = data.get("name", "").strip()
@@ -22,10 +27,13 @@ def send_contact_email():
         message = data.get("message", "").strip()
 
         if not all([name, email, subject, message]):
+            logger.warning("❌ Validation failed: Missing required fields")
             return jsonify({
                 "success": False,
                 "error": "All fields are required"
             }), 400
+
+        logger.info("✅ Form validation passed")
 
         # Get SMTP configuration from environment
         smtp_server = Config.SMTP_SERVER
@@ -34,12 +42,22 @@ def send_contact_email():
         smtp_password = Config.SMTP_PASSWORD
         contact_email = Config.CONTACT_EMAIL
 
+        logger.info(f"🔧 SMTP Configuration:")
+        logger.info(f"   Server: {smtp_server}")
+        logger.info(f"   Port: {smtp_port}")
+        logger.info(f"   Username: {smtp_username}")
+        logger.info(f"   Password length: {len(smtp_password) if smtp_password else 0}")
+        logger.info(f"   Password (with spaces): '{smtp_password}'")
+        logger.info(f"   Contact Email: {contact_email}")
+
         if not all([smtp_server, smtp_port, smtp_username, smtp_password, contact_email]):
-            logger.error("SMTP configuration incomplete")
+            logger.error("❌ SMTP configuration incomplete")
             return jsonify({
                 "success": False,
                 "error": "Email service not configured"
             }), 503
+
+        logger.info("✅ SMTP configuration complete")
 
         # Create email message
         msg = MIMEMultipart("alternative")
@@ -101,21 +119,36 @@ def send_contact_email():
         msg.attach(MIMEText(html_body, "html"))
 
         # Send email via SMTP
-        logger.info(f"Connecting to SMTP server: {smtp_server}:{smtp_port}")
+        logger.info(f"🔌 Connecting to SMTP server: {smtp_server}:{smtp_port}")
 
         with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.set_debuglevel(0)
+            server.set_debuglevel(1)  # Enable detailed SMTP debug output
+
+            logger.info("📡 Sending EHLO...")
             server.ehlo()
+
+            logger.info("🔒 Starting TLS...")
             server.starttls()
+
+            logger.info("📡 Sending EHLO again after TLS...")
             server.ehlo()
 
-            logger.info(f"Logging in with username: {smtp_username}")
-            server.login(smtp_username, smtp_password)
+            logger.info(f"🔐 Attempting login with username: {smtp_username}")
+            logger.info(f"🔐 Password being used: '{smtp_password}'")
 
-            logger.info(f"Sending email to: {contact_email}")
+            try:
+                server.login(smtp_username, smtp_password)
+                logger.info("✅ Login successful!")
+            except smtplib.SMTPAuthenticationError as auth_error:
+                logger.error(f"❌ Authentication failed with error: {auth_error}")
+                logger.error(f"   Server response: {auth_error.smtp_code} - {auth_error.smtp_error}")
+                raise
+
+            logger.info(f"📤 Sending email to: {contact_email}")
             server.send_message(msg)
 
-        logger.info("Contact email sent successfully")
+        logger.info("✅ Contact email sent successfully!")
+        logger.info("=" * 60)
 
         return jsonify({
             "success": True,
