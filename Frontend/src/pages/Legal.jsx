@@ -48,6 +48,73 @@ export default function LegalPage() {
                                 We reserve the right to modify these terms at any time. We will notify users of significant 
                                 changes via email or through our service notifications.
                             </p>
+
+                            <h3 className="text-lg font-semibold text-white">Limitation of Liability</h3>
+                            <p>
+                                To the maximum extent permitted by law,
+                                TalkAPI.ai and its owners, affiliates, and partners shall not be liable for any indirect, incidental, or consequential damages,
+                                including loss of data, revenue, or business opportunities,
+                                arising out of or in connection with the use or inability to use the service.
+                            </p>
+
+                            <h3 className="text-lg font-semibold text-white">Liability Cap</h3>
+                            <p>
+                                The total cumulative liability of TalkAPI.ai for any claim shall not exceed the total amount (if any) paid by the user 
+                                for the service in the twelve (12) months preceding the event giving rise to such claim.
+                            </p>
+
+                            <h3 className="text-lg font-semibold text-white">Insurance Coverage</h3>
+                            <p>
+                                The company maintains appropriate professional liability and cyber insurance coverage,
+                                but these policies are for internal risk management only and do not create any direct rights or coverage for users of the platform.
+                            </p>
+
+                            <h3 className="text-lg font-semibold text-white">Risk Acknowledgment</h3>
+                            <p>
+                                Use of the service is at your own discretion and risk.
+                            </p>
+
+                            <h3 className="text-lg font-semibold text-white">Artificial Intelligence Disclaimer</h3>
+                            <p>
+                                TalkAPI.ai uses artificial intelligence models to generate text, code, and responses based on user input.
+                                While we strive for accuracy, the output may contain errors, omissions, or inconsistencies.
+                                All content generated through the platform is provided "as is" without warranty of any kind, express or implied.
+                            </p>
+
+                            <h4 className="text-md font-semibold text-blue-300 mt-4">AI Model Limitations</h4>
+                            <ul className="list-disc list-inside space-y-2">
+                                <li>AI models may occasionally produce incorrect or incomplete code</li>
+                                <li>Generated content may not always follow latest best practices or security standards</li>
+                                <li>Results may vary based on input quality and context provided</li>
+                                <li>The service may not understand all programming languages or frameworks equally well</li>
+                            </ul>
+
+                            <h4 className="text-md font-semibold text-blue-300 mt-4">User Responsibilities</h4>
+                            <ul className="list-disc list-inside space-y-2">
+                                <li>Review and test all generated code thoroughly before use</li>
+                                <li>Verify security implications of generated code</li>
+                                <li>Ensure compliance with your project's requirements and standards</li>
+                                <li>Maintain appropriate error handling and validation</li>
+                            </ul>
+
+                            <p className="mt-4">
+                                Users are responsible for reviewing, testing, and verifying all generated results before using them in production or for commercial purposes.
+                            </p>
+
+                            <p className="mt-4">
+                                TalkAPI.ai shall not be held liable for any damages, losses, or issues arising from reliance on AI-generated content or code.
+                            </p>
+
+                            <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-500/30 mt-4">
+                                <h4 className="text-md font-semibold text-blue-300 mb-2">Best Practices for Using AI-Generated Code</h4>
+                                <ul className="list-disc list-inside space-y-2 text-sm">
+                                    <li>Always review generated code for security vulnerabilities</li>
+                                    <li>Test thoroughly in a development environment before production use</li>
+                                    <li>Verify compatibility with your existing codebase</li>
+                                    <li>Document any modifications made to generated code</li>
+                                    <li>Keep your team informed about the use of AI-generated code</li>
+                                </ul>
+                            </div>
                         </CardContent>
                     </Card>
 
