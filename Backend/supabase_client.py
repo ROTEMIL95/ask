@@ -159,11 +159,15 @@ class SupabaseManager:
             return False
     
     # Subscription Management Functions
-    def update_subscription_after_payment(self, user_id: str, sto_id: str, plan_type: str = 'pro', user_email: str = None, user_token: str = None) -> bool:
+    def update_subscription_after_payment(self, user_id: str, sto_id: str, plan_type: str = 'pro', user_email: str = None, user_token: str = None, limits: dict = None) -> bool:
         """Update user subscription after successful payment"""
         try:
             from datetime import datetime, timezone
-            
+
+            # Use provided limits or default
+            if limits is None:
+                limits = {"convert_limit": 500, "run_limit": 2000} if plan_type == 'pro' else {"total_limit": 50}
+
             update_data = {
                 'plan_type': plan_type,
                 'sto_id': sto_id,
@@ -173,14 +177,22 @@ class SupabaseManager:
                 'payment_method': 'credit_card',
                 'daily_limit': 100 if plan_type == 'pro' else 50  # Pro gets 100/day
             }
-            
-            # Use admin client (SERVICE_KEY) to bypass RLS
-            print("Using admin client to bypass RLS")
-            client = self.admin_client or self.client
-            
-            # Update with correct column names - try plan_type first
+
+            # Create authenticated client using user's JWT token if provided
+            if user_token:
+                print(f"Using user token to authenticate update for {user_email}")
+                from supabase import create_client
+                authenticated_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+                authenticated_client.auth.set_session(user_token, None)
+                client = authenticated_client
+            else:
+                # Fall back to admin client or regular client
+                print("Using admin/anon client for update")
+                client = self.admin_client or self.client
+
+            # Update with correct column names
             profile_data = {
-                "plan_type": plan_type,  # Try plan_type first
+                "plan_type": plan_type,
                 "sto_id": sto_id,
                 "subscription_status": "active",
                 "subscription_start_date": update_data['subscription_start_date'],
@@ -188,19 +200,21 @@ class SupabaseManager:
                 "payment_method": "credit_card",
                 "daily_limit": update_data['daily_limit']
             }
-            
+
             # Update based on email - use api schema
             response = client.schema('api').table('user_profiles').update(profile_data).eq('email', user_email).execute()
-            
+
             if response.data:
-                print(f"Updated subscription for user {user_id}: plan={plan_type}, sto_id={sto_id}")
+                print(f"✅ Updated subscription for user {user_id}: plan={plan_type}, sto_id={sto_id}, limits={limits}")
                 return True
             else:
-                print(f"No rows updated - profile with email {user_email} not found")
+                print(f"❌ No rows updated - profile with email {user_email} not found")
                 return False
-            
+
         except Exception as e:
-            print(f"Error updating subscription: {e}")
+            print(f"❌ Error updating subscription: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def get_user_sto_id(self, user_id: str) -> Optional[str]:

@@ -84,7 +84,7 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         },
         "items": [{
             "name": "Monthly TalkAPI Subscription",
-            "unit_price": 19,
+            "unit_price": 0.10,
             "units_number": 1,
             "price_currency": "ILS",
             "price_type": "G",
@@ -125,7 +125,7 @@ def format_payload_initial(params):
             {
                 "code": "1",
                 "name": "TalkAPI Subscription",
-                "unit_price": 1,
+                "unit_price": 0.10,
                 "type": "I",
                 "units_number": 1,
                 "unit_type": 1,

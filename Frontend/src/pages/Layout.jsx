@@ -5,6 +5,10 @@ import { Zap, LogIn, LogOut, UserCircle, LayoutDashboard, Loader2, Menu, X, Book
 import { Button } from '@/components/ui/button';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import BetaBanner from '@/components/BetaBanner';
+import BetaBadge from '@/components/BetaBadge';
+import CookieConsent from '@/components/CookieConsent';
+import { initializeCookieConsent } from '@/utils/cookieConsent';
 
 export default function Layout({ children }) {
     const { user, loading, isAuthenticated, signOut } = useAuth();
@@ -13,6 +17,11 @@ export default function Layout({ children }) {
     const navigate = useNavigate();
 
     // User authentication is now handled by AuthContext - no need for local state management
+
+    // Initialize cookie consent system on mount
+    useEffect(() => {
+        initializeCookieConsent();
+    }, []);
 
     useEffect(() => {
         // Close mobile menu when location changes
@@ -50,16 +59,23 @@ export default function Layout({ children }) {
 
     return (
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 text-white">
+            {/* Beta Banner - Shows at very top */}
+            <BetaBanner />
+
+            {/* Cookie Consent Banner */}
+            <CookieConsent />
+
             <header className="sticky top-0 z-50 bg-black/20 backdrop-blur-lg border-b border-white/10">
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-2 sm:py-3">
                     <div className="flex justify-between items-center">
                         {/* Logo */}
                         <Link to={createPageUrl("Home")} className="flex items-center gap-2 sm:gap-3">
-                            <img 
-                                src="/images/Logo.webp" 
-                                alt="AskAPI Logo" 
-                                className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-24 xl:w-38 xl:h-24 object-contain"
+                            <img
+                                src="/images/logoTalk.webp"
+                                alt="AskAPI Logo"
+                                className="w-32 h-32 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-24 xl:w-38 xl:h-24 object-contain"
                             />
+                            <BetaBadge />
                         </Link>
                         
                         {/* Desktop Navigation */}
@@ -194,13 +210,16 @@ export default function Layout({ children }) {
                             Documentation
                         </Link>
                         <Link to={createPageUrl("Legal")} className="text-gray-400 hover:text-white text-sm sm:text-base">
-                            Legal
+                            Terms and Conditions
                         </Link>
                         <Link to={createPageUrl("Contact")} className="text-gray-400 hover:text-white text-sm sm:text-base">
                             Contact
                         </Link>
                         <Link to={createPageUrl("RefundPolicy")} className="text-gray-400 hover:text-white text-sm sm:text-base">
                             Refund Policy
+                        </Link>
+                        <Link to={createPageUrl("Legal")} className="text-gray-400 hover:text-white text-sm sm:text-base">
+                            Cookie Settings
                         </Link>
                         {/* <Link to={createPageUrl("Status")} className="text-gray-400 hover:text-white text-sm sm:text-base">
                             Status
