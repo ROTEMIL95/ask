@@ -236,16 +236,25 @@ export default function Login() {
                         </Button>
                     </form>
 
-                    {/* Toggle Mode */}
+                    {/* Toggle Mode or Register Link */}
                     <div className="mt-8 text-center">
                         <p className="text-gray-300">
                             {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-                            <button 
-                                onClick={toggleMode}
-                                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-                            >
-                                {isSignUp ? 'Sign in' : 'Sign up'}
-                            </button>
+                            {isSignUp ? (
+                                <button 
+                                    onClick={toggleMode}
+                                    className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                                >
+                                    Sign in
+                                </button>
+                            ) : (
+                                <Link 
+                                    to={createPageUrl("Register")}
+                                    className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                                >
+                                    Create account
+                                </Link>
+                            )}
                         </p>
                     </div>
                 </div>

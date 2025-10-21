@@ -29,6 +29,8 @@ export default function Register() {
         score: 0,
         feedback: []
     });
+    const [acceptedTerms, setAcceptedTerms] = useState(false);
+    const [acceptedCookies, setAcceptedCookies] = useState(false);
     const navigate = useNavigate();
 
     const handleInputChange = (e) => {
@@ -85,7 +87,9 @@ export default function Register() {
             email: formData.email,
             emailLength: formData.email?.length || 0,
             password: formData.password ? 'Yes (length: ' + formData.password.length + ')' : 'No',
-            passwordStrength: passwordStrength.score
+            passwordStrength: passwordStrength.score,
+            acceptedTerms: acceptedTerms,
+            acceptedCookies: acceptedCookies
         });
         
         if (!formData.name || !formData.email || !formData.password) {
@@ -96,6 +100,16 @@ export default function Register() {
         if (passwordStrength.score < 3) {
             console.log('Validation failed: Password too weak (score: ' + passwordStrength.score + ')');
             setError('Password is too weak. Please choose a stronger password.');
+            return false;
+        }
+        if (!acceptedTerms) {
+            console.log('Validation failed: Terms and conditions not accepted');
+            setError('Please accept the Terms and Conditions to continue.');
+            return false;
+        }
+        if (!acceptedCookies) {
+            console.log('Validation failed: Cookie settings not accepted');
+            setError('Please accept the Cookie Settings to continue.');
             return false;
         }
         console.log('Form validation passed');
@@ -265,11 +279,58 @@ export default function Register() {
                             )}
                         </div>
 
+                        {/* Terms and Conditions Checkbox */}
+                        <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                                <input
+                                    type="checkbox"
+                                    id="terms"
+                                    checked={acceptedTerms}
+                                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                    className="mt-1 w-4 h-4 rounded border-white/20 bg-black/30 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+                                    required
+                                />
+                                <label htmlFor="terms" className="text-sm text-gray-300">
+                                    I agree to the{' '}
+                                    <Link 
+                                        to={createPageUrl("Legal")} 
+                                        className="text-blue-400 hover:text-blue-300 underline"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        Terms and Conditions
+                                    </Link>
+                                </label>
+                            </div>
+
+                            <div className="flex items-start gap-3">
+                                <input
+                                    type="checkbox"
+                                    id="cookies"
+                                    checked={acceptedCookies}
+                                    onChange={(e) => setAcceptedCookies(e.target.checked)}
+                                    className="mt-1 w-4 h-4 rounded border-white/20 bg-black/30 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+                                    required
+                                />
+                                <label htmlFor="cookies" className="text-sm text-gray-300">
+                                    I accept the{' '}
+                                    <Link 
+                                        to={createPageUrl("Legal")} 
+                                        className="text-blue-400 hover:text-blue-300 underline"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        Cookie Settings
+                                    </Link>
+                                </label>
+                            </div>
+                        </div>
+
                         {/* Submit Button */}
                         <Button
                             type="submit"
-                            disabled={loading}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3"
+                            disabled={loading || !acceptedTerms || !acceptedCookies}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
                                 <>
