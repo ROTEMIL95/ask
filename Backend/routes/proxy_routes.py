@@ -4,6 +4,7 @@ Proxy Routes - API proxy and external service functionality
 from flask import Blueprint, request, jsonify, Response
 from datetime import datetime
 from limiter_config import get_limiter, add_bonus_calls
+from utils.security import is_safe_url, validate_request_size, validate_headers
 import requests
 import yaml
 import os
@@ -19,10 +20,13 @@ proxy_bp = Blueprint('proxy', __name__)
 limiter = get_limiter(None)  # Will be configured in main app
 
 # --- Security Config ---
-# Load allowed API keys and domains from environment or config file
+# Load allowed API keys from environment or config file
 ALLOWED_API_KEYS = set(os.getenv('ALLOWED_API_KEYS', '').split(',')) if os.getenv('ALLOWED_API_KEYS') else set()
 ALLOWED_ORIGINS = set(os.getenv('ALLOWED_ORIGINS', '').split(',')) if os.getenv('ALLOWED_ORIGINS') else set()
-ALLOWED_PROXY_DOMAINS = set(os.getenv('ALLOWED_PROXY_DOMAINS', '').split(',')) if os.getenv('ALLOWED_PROXY_DOMAINS') else set()
+
+# NOTE: ALLOWED_PROXY_DOMAINS is intentionally NOT enforced
+# The proxy allows ALL external domains with SSRF protection (blocks localhost, private IPs, metadata services)
+# This is by design to allow users to call any public API
 
 # Optionally load from YAML config (for scalability)
 try:
@@ -30,7 +34,6 @@ try:
         config = yaml.safe_load(f)
         ALLOWED_API_KEYS.update(config.get('api_keys', []))
         ALLOWED_ORIGINS.update(config.get('origins', []))
-        ALLOWED_PROXY_DOMAINS.update(config.get('proxy_domains', []))
 except Exception:
     pass
 
@@ -44,20 +47,15 @@ def require_api_key(f):
         return f(*args, **kwargs)
     return decorated
 
-# Helper: Proxy target domain whitelist check
+# Helper: Proxy target domain whitelist check (DEPRECATED - not used)
+# Domain whitelisting is intentionally disabled to allow any public API
+# Security is enforced via SSRF protection instead
 def is_proxy_domain_allowed(url):
-    try:
-        from urllib.parse import urlparse
-        parsed = urlparse(url)
-        domain = parsed.hostname
-        if not domain:
-            return False
-        for allowed in ALLOWED_PROXY_DOMAINS:
-            if allowed and allowed in domain:
-                return True
-        return False
-    except Exception:
-        return False
+    """
+    DEPRECATED: This function is not used.
+    All public domains are allowed. Security is enforced via SSRF protection.
+    """
+    return True  # Allow all domains (SSRF protection handles security)
 
 # Helper: Rate limit per API key (simple in-memory, for demo; use Redis for prod)
 RATE_LIMITS = defaultdict(lambda: {'count': 0, 'reset': 0})
@@ -76,50 +74,106 @@ def check_rate_limit(api_key):
     return True, rl['reset'] - now
 
 @proxy_bp.route('/proxy-api', methods=['POST', 'OPTIONS'])
+@limiter.limit("100 per minute")  # Enhanced rate limiting
 def proxy_api():
-    """Proxy external API calls to bypass CORS restrictions"""
-    # Handle OPTIONS request for CORS
-    if request.method == 'OPTIONS':
-        return ('', 204)
+    """
+    Proxy external API calls to bypass CORS restrictions
+
+    Security features:
+    - SSRF protection (blocks localhost, private IPs, metadata services)
+    - Request size limits
+    - Header validation
+    - Rate limiting
+    """
+    try:
+        # Handle OPTIONS request for CORS
+        if request.method == 'OPTIONS':
+            return ('', 204)
+
+        # Parse and validate target URL
+        data = request.get_json()
+        print(f"🔍 Proxy request received:")
+        print(f"🔍 Request data: {data}")
+    except Exception as e:
+        print(f"❌ Error in proxy_api initial setup: {str(e)}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Internal error: {str(e)}'}), 500
     
-    # Parse and validate target URL
-    data = request.get_json()
     if not data:
         return jsonify({'error': 'Request data is required'}), 400
-    
+
     url = data.get('url')
+    print(f"🔍 Target URL: {url}")
+    
     if not url:
         return jsonify({'error': 'URL is required'}), 400
-    
-    # For development: Allow common API domains
-    # In production, you should use proper domain whitelisting
-    allowed_domains = [
-        'api.openweathermap.org',
-        'api.openai.com',
-        'api.anthropic.com',
-        'jsonplaceholder.typicode.com',
-        'api.github.com',
-        'api.stripe.com',
-        'maps.googleapis.com'
-    ]
-    
-    # Check if the URL is from an allowed domain
-    from urllib.parse import urlparse
-    parsed_url = urlparse(url)
-    is_allowed = any(domain in parsed_url.hostname for domain in allowed_domains) if parsed_url.hostname else False
-    
-    # For development, allow all domains if ALLOWED_PROXY_DOMAINS is empty
-    if not ALLOWED_PROXY_DOMAINS or not is_allowed:
-        # In development mode, allow all domains
-        pass  # Remove domain restriction for development
-    
+
     method = data.get('method', 'GET')
     headers = data.get('headers', {})
     body = data.get('body')
+    
+    print(f"🔍 Method: {method}")
+    print(f"🔍 Headers: {list(headers.keys()) if headers else 'None'}")
+    print(f"🔍 Body type: {type(body).__name__}")
 
-    # SSRF protection: only allow http/https
-    if not url.startswith(('http://', 'https://')):
-        return jsonify({'error': 'Invalid URL protocol'}), 400
+    # 1. SSRF Protection - validate URL is safe
+    # In development mode, allow localhost for testing
+    import os
+    flask_env = os.getenv('FLASK_ENV')
+    flask_debug = os.getenv('FLASK_DEBUG')
+    is_dev_mode = flask_env == 'development' or flask_debug == '1'
+    
+    print(f"🔍 Environment check:")
+    print(f"   FLASK_ENV: {flask_env}")
+    print(f"   FLASK_DEBUG: {flask_debug}")
+    print(f"   is_dev_mode: {is_dev_mode}")
+    
+    url_safe, url_message = is_safe_url(url)
+    print(f"🔍 URL safety check result: safe={url_safe}, message={url_message}")
+    
+    # Check if URL is localhost/127.0.0.1 and we're in dev mode
+    is_localhost_url = any(host in url.lower() for host in ['localhost', '127.0.0.1', '0.0.0.0'])
+    print(f"🔍 Is localhost URL: {is_localhost_url}")
+    
+    if not url_safe:
+        # If it's a localhost URL and we're in dev mode, allow it
+        if is_localhost_url and is_dev_mode:
+            print(f"⚠️ DEVELOPMENT MODE: Allowing localhost URL: {url}")
+        else:
+            print(f"🚫 Blocked unsafe URL: {url} - Reason: {url_message}")
+            print(f"🚫 Dev mode: {is_dev_mode}, Localhost: {is_localhost_url}")
+            return jsonify({
+                'error': 'URL blocked for security reasons',
+                'details': url_message,
+                'suggestion': 'Ensure you are not trying to access localhost, private networks, or metadata services'
+            }), 403
+
+    print(f"✅ URL security check passed: {url}")
+
+    # 2. Validate request body size
+    body_valid, body_message = validate_request_size(body)
+    if not body_valid:
+        print(f"🚫 Request body too large: {body_message}")
+        return jsonify({
+            'error': 'Request body too large',
+            'details': body_message,
+            'suggestion': 'Reduce the size of your request body'
+        }), 413
+
+    print(f"✅ Request size check passed: {body_message}")
+
+    # 3. Validate headers
+    headers_valid, headers_message = validate_headers(headers)
+    if not headers_valid:
+        print(f"🚫 Invalid headers: {headers_message}")
+        return jsonify({
+            'error': 'Invalid request headers',
+            'details': headers_message,
+            'suggestion': 'Check your headers for invalid characters or excessive length'
+        }), 400
+
+    print(f"✅ Headers validation passed")
 
     # Auto-inject API keys for known services
     if 'api.anthropic.com' in url:
@@ -257,9 +311,13 @@ def proxy_api():
         return jsonify(result)
     except requests.exceptions.RequestException as e:
         print(f"❌ Request exception: {str(e)}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Request failed: {str(e)}'}), 500
     except Exception as e:
         print(f"❌ Proxy error: {str(e)}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Proxy error: {str(e)}'}), 500
 
 
@@ -357,36 +415,64 @@ def proxy_openai_completions():
     except Exception as e:
         return jsonify({'error': f'Proxy error: {str(e)}'}), 500
 
-@proxy_bp.route('/proxy-docs', methods=['GET'])
+@proxy_bp.route('/proxy-docs', methods=['GET', 'OPTIONS'])
 @limiter.limit("10 per minute")
 def proxy_docs():
     """Fetch external documentation to bypass CORS restrictions"""
+    # Handle OPTIONS request for CORS
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
     try:
         url = request.args.get('url')
         if not url:
             return jsonify({'error': 'URL parameter is required'}), 400
-        
-        # Validate URL
+
+        # Validate URL protocol
         if not url.startswith(('http://', 'https://')):
             return jsonify({'error': 'Invalid URL protocol'}), 400
-        
+
+        # SSRF Protection - validate URL is safe
+        url_safe, url_message = is_safe_url(url)
+        if not url_safe:
+            print(f"🚫 Blocked unsafe URL in /proxy-docs: {url} - Reason: {url_message}")
+            return jsonify({
+                'error': 'URL blocked for security reasons',
+                'details': url_message
+            }), 403
+
+        print(f"📚 Fetching documentation from: {url}")
+
         # Fetch the documentation
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        
+        response = requests.get(url, timeout=30, allow_redirects=True)
+
+        print(f"📡 Response status: {response.status_code}")
+
+        # Handle non-200 responses gracefully
         content_type = response.headers.get('content-type', '')
-        
-        # Return the content
+
+        # Return the content even if status is not 200 (let frontend handle it)
         return jsonify({
             'status': response.status_code,
             'content_type': content_type,
             'content': response.text,
-            'url': url
+            'url': url,
+            'ok': response.status_code >= 200 and response.status_code < 300
         })
-        
+
+    except requests.exceptions.Timeout as e:
+        print(f"⏱️ Timeout fetching documentation from {url}: {str(e)}")
+        return jsonify({'error': 'Request timed out while fetching documentation'}), 504
     except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'Failed to fetch documentation: {str(e)}'}), 500
+        print(f"❌ Request exception in /proxy-docs: {str(e)}")
+        return jsonify({
+            'error': f'Failed to fetch documentation: {str(e)}',
+            'url': url
+        }), 500
     except Exception as e:
+        print(f"❌ Unexpected error in /proxy-docs: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Proxy error: {str(e)}'}), 500
 
 @proxy_bp.route('/feedback', methods=['POST'])

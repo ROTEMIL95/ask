@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Copy, CheckCheck, Upload } from 'lucide-react';
+import { FileText, Copy, CheckCheck, Upload, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { validateApiRequest } from '@/validators/apiRequestValidator.jsx';
 
 /**
  * Component for handling API documentation input with validation and feedback
@@ -18,10 +19,12 @@ export default function ApiDocumentationInput({
     ocrText,
     onClearAll,
     onSelectPublicApi,
-    className = ''
+    className = '',
+    apiConfig = null  // Optional API config for comprehensive validation
 }) {
     const [copiedApiDoc, setCopiedApiDoc] = useState(false);
     const [validationError, setValidationError] = useState('');
+    const [validationErrors, setValidationErrors] = useState([]);
 
     // Handle API doc copy
     const handleCopyApiDoc = useCallback(async () => {
@@ -40,6 +43,7 @@ export default function ApiDocumentationInput({
     const validateApiDoc = useCallback((doc) => {
         if (!doc) {
             setValidationError('');
+            setValidationErrors([]);
             return true;
         }
 
@@ -48,9 +52,11 @@ export default function ApiDocumentationInput({
             try {
                 new URL(doc);
                 setValidationError('');
+                setValidationErrors([]);
                 return true;
             } catch (e) {
                 setValidationError('Invalid URL format');
+                setValidationErrors([]);
                 return false;
             }
         }
@@ -59,11 +65,13 @@ export default function ApiDocumentationInput({
         try {
             JSON.parse(doc);
             setValidationError('');
+            setValidationErrors([]);
             return true;
         } catch (e) {
             // Not JSON, check if it's OpenAPI/Swagger format
             if (doc.includes('openapi:') || doc.includes('swagger:')) {
                 setValidationError('');
+                setValidationErrors([]);
                 return true;
             }
         }
@@ -71,12 +79,33 @@ export default function ApiDocumentationInput({
         // Check minimum content
         if (doc.length < 50) {
             setValidationError('API documentation seems too short. Please provide more details.');
+            setValidationErrors([]);
             return false;
         }
 
         setValidationError('');
+        setValidationErrors([]);
         return true;
     }, []);
+
+    // Comprehensive API request validation (if apiConfig provided)
+    const validateApiConfiguration = useCallback(() => {
+        if (!apiConfig) {
+            return { valid: true, errors: [] };
+        }
+
+        const result = validateApiRequest(apiConfig);
+
+        if (!result.valid) {
+            setValidationErrors(result.errors);
+            setValidationError(`Found ${result.errors.length} validation error(s)`);
+        } else {
+            setValidationErrors([]);
+            setValidationError('');
+        }
+
+        return result;
+    }, [apiConfig]);
 
     // Handle API doc change with validation
     const handleApiDocChange = useCallback((e) => {
@@ -175,8 +204,20 @@ export default function ApiDocumentationInput({
 
             {validationError && (
                 <Alert variant="destructive" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Validation Error</AlertTitle>
-                    <AlertDescription>{validationError}</AlertDescription>
+                    <AlertDescription>
+                        {validationError}
+                        {validationErrors.length > 0 && (
+                            <ul className="mt-2 ml-4 list-disc space-y-1">
+                                {validationErrors.map((err, idx) => (
+                                    <li key={idx} className="text-sm">
+                                        <strong>{err.field}</strong>: {err.message}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </AlertDescription>
                 </Alert>
             )}
 

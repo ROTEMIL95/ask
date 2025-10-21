@@ -1468,29 +1468,52 @@ function ApiToolSection() {
             if (apiDoc) {
                 try {
                     // If it's a URL, try to fetch the actual documentation
-                    if (apiDoc.startsWith('http')) {
-                        console.log('📝 API Doc is a URL, fetching content...');
+                    // BUT: Skip fetching if it's an API endpoint (contains /search, /api/, etc.)
+                    const isApiEndpoint = apiDoc.match(/\/(search|create|update|delete|api\/)/i);
+                    const isDocsUrl = apiDoc.match(/\/(docs|swagger|openapi|spec|api-docs)/i) || apiDoc.endsWith('.json') || apiDoc.endsWith('.yaml');
+
+                    if (apiDoc.startsWith('http') && isDocsUrl && !isApiEndpoint) {
+                        console.log('📝 API Doc is a documentation URL, fetching content...');
                         try {
-                            const docResponse = await fetch(apiDoc, {
+                            // Use proxy to avoid CORS issues
+                            const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+                            const docResponse = await fetch(`${BACKEND_URL}/proxy-docs?url=${encodeURIComponent(apiDoc)}`, {
+                                method: 'GET',
                                 headers: {
-                                    'Accept': 'application/json, text/plain, */*'
+                                    'Content-Type': 'application/json'
                                 }
                             });
                             if (docResponse.ok) {
-                                const contentType = docResponse.headers.get('content-type');
-                                if (contentType?.includes('json')) {
-                                    enhancedApiDoc = await docResponse.json();
-                                    enhancedApiDoc = JSON.stringify(enhancedApiDoc, null, 2);
+                                const proxyData = await docResponse.json();
+                                // proxyData has: { status, content_type, content, url, ok }
+                                if (proxyData.ok && proxyData.content) {
+                                    if (proxyData.content_type?.includes('json')) {
+                                        try {
+                                            enhancedApiDoc = JSON.parse(proxyData.content);
+                                            enhancedApiDoc = JSON.stringify(enhancedApiDoc, null, 2);
+                                        } catch {
+                                            enhancedApiDoc = proxyData.content;
+                                        }
+                                    } else {
+                                        enhancedApiDoc = proxyData.content;
+                                    }
+                                    console.log('✅ Successfully fetched API documentation via proxy');
                                 } else {
-                                    enhancedApiDoc = await docResponse.text();
+                                    console.warn(`⚠️ Documentation fetch returned status ${proxyData.status}, using URL as-is`);
+                                    // Keep the original URL - it might be a base URL
                                 }
-                                console.log('✅ Successfully fetched API documentation');
                             } else {
-                                console.warn(`Failed to fetch API documentation: ${docResponse.status}`);
+                                const errorData = await docResponse.json().catch(() => ({}));
+                                console.warn(`⚠️ Failed to fetch API documentation: ${docResponse.status}`, errorData);
+                                // Keep the original URL - it might still be useful
                             }
                         } catch (error) {
-                            console.warn('Failed to fetch API documentation:', error);
+                            console.warn('⚠️ Failed to fetch API documentation:', error);
+                            // Keep the original URL - it might still be useful
                         }
+                    } else if (apiDoc.startsWith('http')) {
+                        console.log('📝 API Doc appears to be an API endpoint URL (not documentation), using as base URL');
+                        // Just use the URL as-is - it's probably a base URL or endpoint
                     }
 
                     // Try to parse and format JSON

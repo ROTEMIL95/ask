@@ -132,7 +132,7 @@ const Pricing = () => {
             {planType === 'pro' ? 'Your Plan' : 'Most Popular'}
           </div>
           <div className="flex flex-col space-y-1.5 p-6">
-            <div className="tracking-tight text-2xl font-bold text-purple-300">Pro Beta</div>
+            <div className="tracking-tight text-2xl font-bold text-purple-300">Pro</div>
           </div>
           <div className="p-6">
             <div className="text-4xl font-bold text-white">$19<span className="text-lg font-normal text-gray-400"> / per month</span></div>
@@ -182,14 +182,10 @@ const Pricing = () => {
                 }
                 return (
                   <Button
-                    onClick={() => handlePaidPlanClick('pro')}
-                    disabled={buttonState.disabled}
-                    className="w-full py-3 rounded-lg font-semibold transition bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 disabled:opacity-50"
+                    disabled={true}
+                    className="w-full py-3 rounded-lg font-semibold transition bg-gradient-to-r from-purple-500 to-pink-500 text-white opacity-50 cursor-not-allowed"
                   >
-                    {buttonState.type === 'loading' ? 'Loading...' :
-                     buttonState.type === 'login' ? 'Login to Subscribe – $19/mo' :
-                     buttonState.type === 'upgrade' ? 'Upgrade to Pro – $19/mo' :
-                     'Subscribe – $19/mo'}
+                    Coming Soon
                   </Button>
                 );
               })()}

@@ -8,6 +8,8 @@ from datetime import datetime
 from limiter_config import get_limiter
 from dotenv import load_dotenv
 from anthropic import Anthropic
+from validators.api_request_validator import validate_api_request
+from validators.code_output_validator import validate_generated_code
 import os, sys, io, json, re
 
 # --- Env & stdout ---
@@ -33,8 +35,15 @@ api_bp = Blueprint("api", __name__)
 limiter = get_limiter(None)
 
 # --- System prompt (for backward compatibility) ---
-def generate_system_prompt(api_config, user_question, api_analysis=None):
-    """Generate a dynamic system prompt based on API configuration and analysis"""
+def generate_system_prompt(api_config, user_question, api_analysis=None, date_context=None):
+    """Generate a dynamic system prompt based on API configuration and analysis
+
+    Args:
+        api_config: API configuration dictionary
+        user_question: User's question
+        api_analysis: Optional API analysis results
+        date_context: Optional dict with current date info (now, tomorrow, next_week, etc.)
+    """
     base_prompt = """You are TalkAPI's API-integration planner & code generator.
 You MUST ALWAYS provide code examples in three languages: JavaScript (fetch), Python (requests), and cURL.
 Each code example MUST be wrapped in triple backticks with the language specified.
@@ -289,7 +298,9 @@ PYTHON EXAMPLE STRUCTURE (adapt to the actual API documentation):
             if 'btoa(' not in header and 'Basic YOUR_USERNAME' not in header:
                 curl_headers.append(f"-H '{header}'")
     
-    curl_code = """
+    # Build curl code with date context if available
+    if date_context:
+        curl_code = f"""
 CURL EXAMPLE STRUCTURE (adapt to the actual API documentation):
 - Use curl with the actual API endpoint from documentation
 - Include -X flag for HTTP method (POST, GET, PUT, DELETE, etc.)
@@ -297,7 +308,20 @@ CURL EXAMPLE STRUCTURE (adapt to the actual API documentation):
 - For Basic Auth: Use -u flag with YOUR_USERNAME:YOUR_PASSWORD
 - For POST/PUT/PATCH: Use -d flag with JSON data matching the API specification
 - Include proper request body structure based on API documentation
-- For date values: Use actual date strings in YYYY-MM-DD format (e.g., "2025-10-09")
+- For date values: Use actual date strings in YYYY-MM-DD format (e.g., "{date_context.get('tomorrow', '2025-10-22')}", "{date_context.get('next_week', '2025-10-28')}")
+- IMPORTANT: Current year is {date_context.get('year', 2025)}, NOT 2023 or 2024. Always use {date_context.get('year', 2025)} in date examples.
+"""
+    else:
+        curl_code = """
+CURL EXAMPLE STRUCTURE (adapt to the actual API documentation):
+- Use curl with the actual API endpoint from documentation
+- Include -X flag for HTTP method (POST, GET, PUT, DELETE, etc.)
+- Add headers with -H flags (Content-Type, Authorization, etc.)
+- For Basic Auth: Use -u flag with YOUR_USERNAME:YOUR_PASSWORD
+- For POST/PUT/PATCH: Use -d flag with JSON data matching the API specification
+- Include proper request body structure based on API documentation
+- For date values: Use actual date strings in YYYY-MM-DD format
+- IMPORTANT: Current year is 2025, NOT 2023 or 2024. Always use 2025 in date examples.
 """
 
     base_prompt += curl_code
@@ -598,12 +622,25 @@ def ask():
         except ValueError as e:
             return jsonify({"error": str(e)}), 402
 
-        # Get current date and time for context
-        current_date = datetime.now().strftime("%Y-%m-%d")
-        current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-        print(f"DEBUG: Current date/time: {current_datetime}")
+        # Get REAL current date and time for context
+        now = datetime.now()
+        current_date = now.strftime("%Y-%m-%d")
+        current_datetime = now.strftime("%Y-%m-%d %H:%M:%S UTC")
 
-        # System prompt for consistent behavior
+        # Calculate common relative dates for context
+        from datetime import timedelta
+        tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+        next_week = (now + timedelta(days=7)).strftime("%Y-%m-%d")
+
+        # Calculate next month properly (handles month-end dates)
+        # Add 30 days instead of trying to increment month directly
+        # This avoids issues with dates like Jan 31 -> Feb 31 (invalid)
+        next_month = (now + timedelta(days=30)).strftime("%Y-%m-%d")
+
+        print(f"DEBUG: Current date/time: {current_datetime}")
+        print(f"DEBUG: Tomorrow: {tomorrow}, Next week: {next_week}")
+
+        # System prompt for consistent behavior with VALIDATION RULES
         system_prompt = (
     "You are a world-class API expert and senior software engineer, specializing in designing, "
     "debugging, and optimizing API requests and integrations. "
@@ -622,10 +659,50 @@ def ask():
     "Always parse .json() first and use .catch() for error handling. "
     "In Python, always use the requests library with the same headers and JSON payload if applicable. "
     "In cURL, always include the correct -H headers and -d payload when needed. "
-    f"Current date: {current_date}. Current date and time: {current_datetime}. "
-    "When users reference relative dates such as 'today', 'tomorrow', or 'yesterday', "
-    "use the provided current date as the reference. "
-    "Always follow best practices for API authentication, security, and efficiency. "
+    "\n\n"
+    "=== CRITICAL VALIDATION RULES ===\n"
+    "1. DATES: All dates MUST use YYYY-MM-DD format with CURRENT YEAR.\n"
+    f"   - ⚠️ CRITICAL: Current year is {now.year}, NOT 2023 or 2024!\n"
+    f"   - Today: {current_date} | Tomorrow: {tomorrow} | Next week: {next_week} | Next month: {next_month}\n"
+    "   - ⚠️ ABSOLUTELY FORBIDDEN: NEVER use years 2023 or 2024\n"
+    "\n"
+    "   DATE HANDLING IN JSON BODIES:\n"
+    f"   ✅ ALWAYS use HARDCODED date strings in JSON request bodies (NO variables, NO environment vars)\n"
+    f"   ✅ Example (JavaScript): body: JSON.stringify({{\"checkIn\": \"{tomorrow}\", \"checkOut\": \"{next_week}\"}})\n"
+    f"   ✅ Example (Python): json={{\"checkIn\": \"{tomorrow}\", \"checkOut\": \"{next_week}\"}}\n"
+    f"   ✅ Example (cURL): -d '{{\"checkIn\":\"{tomorrow}\",\"checkOut\":\"{next_week}\"}}'\n"
+    "\n"
+    "   ❌ WRONG: {{\"checkIn\": checkInDate}} (using variable in JSON)\n"
+    "   ❌ WRONG: {{\"checkIn\": process.env.CHECK_IN}} (using env var in JSON)\n"
+    "   ❌ WRONG: {{\"checkIn\": \"$CHECK_IN_DATE\"}} (shell variable in cURL)\n"
+    "\n"
+    "   DATE CALCULATIONS (only for variable declarations, NOT in JSON body):\n"
+    "   - JavaScript: const checkIn = new Date(); checkIn.setDate(checkIn.getDate() + 1); const checkInStr = checkIn.toISOString().split('T')[0];\n"
+    "   - Python: from datetime import datetime, timedelta; check_in = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')\n"
+    "   - These calculations can be shown in comments/examples, but JSON body must have hardcoded strings\n"
+    "\n"
+    "2. URLs: NEVER use 'undefined', 'null', or 'example.com' in generated code.\n"
+    "   - Use actual API endpoints from documentation\n"
+    "   - Prevent: /by-id/null, /undefined/resource, https://api.example.com\n"
+    "\n"
+    "3. HTTP METHODS:\n"
+    "   - GET/DELETE: Must NOT include body\n"
+    "   - POST/PUT/PATCH: Must include valid JSON body\n"
+    "\n"
+    "4. AUTHENTICATION:\n"
+    "   - Bearer: Use 'Authorization': 'Bearer YOUR_API_KEY'\n"
+    "   - Basic: Encode credentials properly\n"
+    "     * JavaScript: const credentials = btoa(`${username}:${password}`); then use in header\n"
+    "     * Python: import base64; credentials = base64.b64encode(f'{username}:{password}'.encode()).decode()\n"
+    "     * cURL: Use -u YOUR_USERNAME:YOUR_PASSWORD\n"
+    "   - NEVER put URLs or base URLs in authentication credentials\n"
+    "\n"
+    "5. TEMPLATE LITERALS (JavaScript):\n"
+    "   - Use ONLY actual variable names: ${response.status}, ${data.length}, ${checkInStr}\n"
+    "   - NEVER use URLs in template literals: ${baseUrl} is WRONG\n"
+    "   - Correct: throw new Error(`HTTP error! status: ${response.status}`)\n"
+    "   - Wrong: throw new Error(`Error at ${baseUrl}`)\n"
+    "\n"
     "Output must be in the following format with no extra explanations: "
     "```javascript\n// JavaScript code here\n```\n"
     "```python\n# Python code here\n```\n"
@@ -644,25 +721,44 @@ def ask():
         api_config = None
         if isinstance(payload.get('provider_hint'), dict):
             api_config = payload['provider_hint']
-        
+
+        # NOTE: Skip validation for provider_hint
+        # provider_hint is just API metadata (apiName, baseUrl, etc.), not a complete request config
+        # Validation is only for actual API requests with path, method, body, etc.
+        # The generate_system_prompt will handle the API config appropriately
+
         # First analyze the API documentation
         api_analysis = analyze_api_doc(doc)
         print(f"🔍 API Analysis Results:", api_analysis)
 
         # Clean and escape the user's question for use in code examples
         cleaned_question = question.replace('"', '\\"').replace('\n', ' ').strip()
-        
-        # Generate dynamic system prompt with API analysis results
-        dynamic_prompt = generate_system_prompt(api_config, cleaned_question, api_analysis)
-        print(f"📝 Generated System Prompt:", dynamic_prompt)
-        
+
+        # Prepare date context for system prompt
+        date_context = {
+            'year': now.year,
+            'month': now.month,
+            'day': now.day,
+            'current_date': current_date,
+            'tomorrow': tomorrow,
+            'next_week': next_week,
+            'next_month': next_month,
+            'current_datetime': current_datetime
+        }
+
+        # Generate dynamic system prompt with API analysis results and date context
+        dynamic_prompt = generate_system_prompt(api_config, cleaned_question, api_analysis, date_context)
+        print(f"📝 Generated System Prompt length: {len(dynamic_prompt)} chars")
+
+        # Use the system_prompt (with date context) instead of dynamic_prompt to keep it concise
         # Use enhanced prompt in the request
         message = client.messages.create(
             model=model_name,
-            max_tokens=1024,
-            system=dynamic_prompt,
+            max_tokens=4096,  # Increased from 1024 to allow full code generation (3 languages + explanation)
+            timeout=60.0,  # Add 60 second timeout
+            system=system_prompt,  # Use the concise system prompt with date validation
             messages=[
-                {"role": "user", "content": question}
+                {"role": "user", "content": f"{doc}\n\n{question}"}  # Include doc in user message
             ]
         )
         
@@ -723,6 +819,26 @@ def ask():
             except UnicodeEncodeError:
                 print("DEBUG: Answer contains Unicode characters that cannot be printed")
         
+        # Extract code snippets for validation
+        snippets = {}
+        if answer:
+            for block in re.finditer(r'```(\w+)\n([\s\S]*?)```', answer):
+                lang = block.group(1).lower()
+                code = block.group(2).strip()
+                if lang == 'bash' or lang == 'sh':
+                    snippets['curl'] = code
+                else:
+                    snippets[lang] = code
+
+        # Validate generated code output
+        code_validation = validate_generated_code(answer, snippets)
+
+        # Log validation results
+        if not code_validation['valid']:
+            print(f"⚠️ Code validation errors: {code_validation['errors']}")
+        if code_validation['warnings']:
+            print(f"⚠️ Code validation warnings: {code_validation['warnings']}")
+
         # Extract usage information for Anthropic using template structure
         usage_info = {}
         if hasattr(message, 'usage') and message.usage:
@@ -731,11 +847,16 @@ def ask():
                 'completion_tokens': getattr(message.usage, 'output_tokens', 0),
                 'total_tokens': getattr(message.usage, 'input_tokens', 0) + getattr(message.usage, 'output_tokens', 0)
             }
-        
+
         return jsonify({
             'answer': answer,
             'model': message.model if hasattr(message, 'model') else model_name,
-            'usage': usage_info
+            'usage': usage_info,
+            'validation': {
+                'valid': code_validation['valid'],
+                'errors': code_validation['errors'],
+                'warnings': code_validation['warnings']
+            }
         })
         
         # Keep OpenAI usage extraction commented for easy revert

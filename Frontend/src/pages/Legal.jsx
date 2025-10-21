@@ -63,12 +63,6 @@ export default function LegalPage() {
                                 for the service in the twelve (12) months preceding the event giving rise to such claim.
                             </p>
 
-                            <h3 className="text-lg font-semibold text-white">Insurance Coverage</h3>
-                            <p>
-                                The company maintains appropriate professional liability and cyber insurance coverage,
-                                but these policies are for internal risk management only and do not create any direct rights or coverage for users of the platform.
-                            </p>
-
                             <h3 className="text-lg font-semibold text-white">Risk Acknowledgment</h3>
                             <p>
                                 Use of the service is at your own discretion and risk.
