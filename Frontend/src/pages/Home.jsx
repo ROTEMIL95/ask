@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Bot, FileText, Code, Upload, Copy, CheckCheck, Zap, AlertTriangle, Terminal, Star } from 'lucide-react';
@@ -183,6 +184,10 @@ function ApiToolSection() {
     const [authType, setAuthType] = useState('api_key'); // 'api_key' or 'basic'
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    
+    // Popup for extracted documentation
+    const [showDocPopup, setShowDocPopup] = useState(false);
+    const [extractedDocText, setExtractedDocText] = useState('');
 
     // Use the new API hook
     const { 
@@ -427,12 +432,15 @@ function ApiToolSection() {
                             formattedResponse = result.text;
                         }
                         
-                        setApiDoc(formattedResponse);
+                        // Show extracted text in popup instead of textarea
+                        setExtractedDocText(formattedResponse);
+                        setShowDocPopup(true);
                     } catch (claudeError) {
                         console.error('❌ Error sending to Claude:', claudeError);
                         if (claudeError.message.includes('Anonymous usage limit reached')) {
                             alert('Anonymous usage limit reached. Please log in to continue using Claude AI.');
-                            setApiDoc(result.text); // Fallback to raw text
+                            setExtractedDocText(result.text); // Fallback to raw text
+                            setShowDocPopup(true);
                         } else {
                             alert('Failed to summarize API documentation with Claude.');
                         }
@@ -521,7 +529,9 @@ function ApiToolSection() {
                             formattedResponse = result.text;
                         }
                         
-                        setApiDoc(formattedResponse);
+                        // Show extracted text in popup instead of textarea
+                        setExtractedDocText(formattedResponse);
+                        setShowDocPopup(true);
                         
                         // Show a success message
                         alert('✅ Image processed successfully! The API documentation has been analyzed by Claude and is ready for use.');
@@ -529,10 +539,12 @@ function ApiToolSection() {
                         console.error('❌ Image Upload Debug: Claude processing failed:', claudeError);
                         if (claudeError.message.includes('Anonymous usage limit reached')) {
                             alert('Anonymous usage limit reached. Please log in to continue using Claude AI.');
-                            setApiDoc(result.text); // Fallback to raw text
+                            setExtractedDocText(result.text); // Fallback to raw text
+                            setShowDocPopup(true);
                         } else {
                             // Fallback: just set the raw text if Claude fails
-                        setApiDoc(result.text);
+                            setExtractedDocText(result.text);
+                            setShowDocPopup(true);
                             alert('✅ Image processed successfully! Raw text extracted (Claude analysis failed).');
                         }
                     }
@@ -2052,7 +2064,7 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                         <div className="flex items-center justify-between mb-3">
                             <label className="flex items-center gap-2 text-lg sm:text-xl font-semibold text-white">
                                 <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 flex-shrink-0" />
-                                <span className="break-words">1. Paste API Documentation</span>
+                                <span className="break-words">1. API Documentation URL</span>
                             </label>
                             {apiDoc && (
                                 <Button
@@ -2067,11 +2079,12 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                             )}
                         </div>
                         <div className="relative">
-                            <Textarea
+                            <Input
+                                type="url"
                                 value={apiDoc}
                                 onChange={(e) => setApiDoc(e.target.value)}
-                                placeholder="Paste your REST API documentation here..."
-                                className="bg-slate-800 border-slate-700 text-gray-300 h-32 sm:h-48 font-mono text-xs sm:text-sm resize-none"
+                                placeholder="https://api.example.com/docs"
+                                className="bg-slate-800 border-slate-700 text-gray-300 font-mono text-sm"
                                 disabled={isFileProcessing}
                             />
                             {isFileProcessing && (
@@ -2122,6 +2135,16 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                                     {isOcrProcessing ? 'Processing OCR...' : 'Upload Image'}
                                 </label>
                             </div>
+                            {extractedDocText && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowDocPopup(true)}
+                                    className="text-blue-400 hover:text-blue-300 text-sm p-0 h-auto justify-start"
+                                >
+                                    📄 View Extracted Text
+                                </Button>
+                            )}
                             <Button 
                                 variant="link" 
                                 className="p-0 h-auto text-red-400 hover:text-red-300 text-sm justify-start" 
@@ -2451,6 +2474,41 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                 onClose={() => setShowPublicApiSelector(false)}
                 onSelectApi={handleSelectPublicApi}
             />
+            
+            {/* Extracted Documentation Popup */}
+            <Dialog open={showDocPopup} onOpenChange={setShowDocPopup}>
+                <DialogContent className="max-w-4xl max-h-[80vh] bg-slate-900 border-slate-700">
+                    <DialogHeader>
+                        <DialogTitle className="text-white">Extracted Documentation</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            Review the extracted text from your uploaded document
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-4 max-h-[60vh] overflow-y-auto">
+                        <pre className="bg-slate-800 border border-slate-700 text-gray-300 p-4 rounded-lg text-sm whitespace-pre-wrap font-mono">
+                            {extractedDocText}
+                        </pre>
+                    </div>
+                    <div className="flex justify-end gap-3 mt-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDocPopup(false)}
+                            className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-400 hover:text-red-300 transition-all"
+                        >
+                            Close
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                navigator.clipboard.writeText(extractedDocText);
+                                alert('Copied to clipboard!');
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                            Copy to Clipboard
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
