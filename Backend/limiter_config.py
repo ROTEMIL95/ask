@@ -71,8 +71,28 @@ def add_bonus_calls(amount=5):
     except Exception:
         return False
 
+# Rate limits per plan
+RATE_LIMITS = {
+    'free': {
+        'daily': 50,
+        'monthly': 500,
+        'per_minute': 10
+    },
+    'pro': {
+        'daily': 200,
+        'monthly': 2000,
+        'per_minute': 30
+    }
+}
+
+def get_user_plan():
+    # TODO: Get user's plan from database
+    # For now, return 'free' as default
+    return 'free'
+
 def dynamic_daily_limit():
-    base = 50
+    user_plan = get_user_plan()
+    base = RATE_LIMITS[user_plan]['daily']
     bonus = get_bonus_calls()
     return f"{base + bonus} per day"
 

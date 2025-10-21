@@ -2,15 +2,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { auth, userProfile, supabase } from '@/lib/supabase';
 
 const PLAN_LIMITS = {
-    free: 50,
+    free: 50,    // Daily limit
     starter: 100,
-    pro: 100
+    pro: 200     // Daily limit
 };
 
 const MONTHLY_LIMITS = {
-    free: 1000,
-    starter: 2000,
-    pro: 2000
+    free: 500,   // Monthly limit
+    starter: 1000,
+    pro: 2000    // Monthly limit
 };
 
 export function useUsageTracking() {

@@ -82,15 +82,19 @@ const Pricing = () => {
             <ul className="mt-6 space-y-3 text-gray-200">
               <li className="flex items-start gap-2">
                 <span className="text-green-400">✓</span>
-                <span>Up to 50 API requests total (convert + run)</span>
+                <span>500 API requests per month</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-400">✓</span>
-                <span>Converter & Runner access</span>
+                <span>50 API requests per day</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-400">✓</span>
-                <span>Use your own API key</span>
+                <span>Basic code generation</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-400">✓</span>
+                <span>Basic API testing</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-400">✓</span>
@@ -139,23 +143,23 @@ const Pricing = () => {
             <ul className="mt-6 space-y-3 text-gray-200">
               <li className="flex items-start gap-2">
                 <span className="text-green-400">✓</span>
-                <span>500 code generations (convert)</span>
+                <span>2000 API requests per month</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-400">✓</span>
-                <span>2000 API runs (execute)</span>
+                <span>200 API requests per day</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-400">✓</span>
-                <span>Multiple code languages</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-400">✓</span>
-                <span>Saved history</span>
+                <span>API history & favorites</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-400">✓</span>
                 <span>Priority email support</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-400">✓</span>
+                <span>Custom API documentation</span>
               </li>
             </ul>
             <div className="mt-8">
