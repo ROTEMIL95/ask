@@ -11,6 +11,7 @@ const PUBLIC_APIS = [
         name: 'Anthropic',
         category: 'AI',
         description: 'AI language models and chat completions',
+        base_url: 'https://api.anthropic.com',
         docs_url: 'https://docs.anthropic.com/claude/reference',
         demo_key: null, // Will be fetched securely from backend
         sample_doc: `{
@@ -58,6 +59,7 @@ const PUBLIC_APIS = [
         name: 'OpenWeatherMap',
         category: 'Weather',
         description: 'Weather data and forecasts',
+        base_url: 'https://api.openweathermap.org/data/2.5',
         docs_url: 'https://openweathermap.org/api',
         demo_key: 'YOUR_API_KEY', // Will be replaced securely from backend
         sample_doc: `{
@@ -129,6 +131,7 @@ const PUBLIC_APIS = [
         name: 'CoinGecko',
         category: 'Crypto',
         description: 'Cryptocurrency prices and market data',
+        base_url: 'https://api.coingecko.com/api/v3',
         docs_url: 'https://www.coingecko.com/en/api/documentation',
         demo_key: null,
         sample_doc: `{
@@ -167,6 +170,7 @@ const PUBLIC_APIS = [
         name: 'ExchangeRate-API',
         category: 'Finance',
         description: 'Currency exchange rates',
+        base_url: 'https://api.exchangerate-api.com/v4',
         docs_url: 'https://www.exchangerate-api.com/docs',
         demo_key: null,
         sample_doc: `{
@@ -198,6 +202,7 @@ const PUBLIC_APIS = [
         name: 'Google Books',
         category: 'Books',
         description: 'Search and get book information',
+        base_url: 'https://www.googleapis.com/books/v1',
         docs_url: 'https://developers.google.com/books/docs/v1/using',
         demo_key: null,
         sample_doc: `{
@@ -260,6 +265,7 @@ export default function PublicApiSelector({ onSelectApi, onClose, open }) {
             documentation: api.sample_doc,
             id: api.id,  // Use id instead of name for provider_hint
             apiName: api.name,
+            baseUrl: api.base_url,  // Add base URL for API requests
             demoKey: demoKey, // This will be null for Anthropic, which is correct
             docsUrl: api.docs_url
         });

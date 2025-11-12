@@ -252,7 +252,7 @@ def proxy_api():
         'timeout': 30
     }
 
-    if body and method.upper() not in ['GET', 'HEAD']:
+    if body is not None and method.upper() not in ['GET', 'HEAD']:
         print(f"📦 Processing request body (type: {type(body).__name__})")
 
         # Enhanced logging: Show body content
@@ -260,27 +260,52 @@ def proxy_api():
         print(f"📄 Body content (first 500 chars): {body_preview}")
         print(f"📏 Body length: {len(str(body)) if body else 0}")
 
-        # If body is a string, try to parse it as JSON
+        # Check if body is effectively empty
+        is_empty_body = False
         if isinstance(body, str):
-            print(f"🔍 Body is a string, attempting JSON parse...")
-            try:
-                parsed_body = _json.loads(body)
-                request_kwargs['json'] = parsed_body
-                print(f"✅ Body parsed from string to JSON: {type(parsed_body).__name__}")
-                print(f"📊 Parsed body keys: {list(parsed_body.keys()) if isinstance(parsed_body, dict) else 'N/A'}")
-            except _json.JSONDecodeError as e:
-                print(f"❌ JSON parse error: {str(e)}")
-                print(f"❌ Error at position: {e.pos if hasattr(e, 'pos') else 'unknown'}")
-                print(f"❌ Problematic section: {body[max(0, e.pos-50):min(len(body), e.pos+50)] if hasattr(e, 'pos') else 'N/A'}")
-                print(f"⚠️ Sending as raw data instead")
-                request_kwargs['data'] = body
+            # Check if string is empty or just whitespace
+            is_empty_body = not body.strip()
         elif isinstance(body, dict):
-            request_kwargs['json'] = body
-            print(f"✅ Body is already a dict, using json parameter")
-            print(f"📊 Body keys: {list(body.keys())}")
+            # Check if dict is empty
+            is_empty_body = len(body) == 0
+
+        if is_empty_body:
+            print(f"⚠️ Body is empty (empty string or empty dict), skipping body in request")
         else:
-            request_kwargs['data'] = body
-            print(f"⚠️ Body is neither string nor dict (type: {type(body).__name__}), using data parameter")
+            # If body is a string, try to parse it as JSON
+            if isinstance(body, str):
+                print(f"🔍 Body is a string, attempting JSON parse...")
+                try:
+                    parsed_body = _json.loads(body)
+                    # Only add body if it's not None and not empty
+                    if parsed_body is not None and (not isinstance(parsed_body, dict) or len(parsed_body) > 0):
+                        request_kwargs['json'] = parsed_body
+                        print(f"✅ Body parsed from string to JSON: {type(parsed_body).__name__}")
+                        print(f"📊 Parsed body keys: {list(parsed_body.keys()) if isinstance(parsed_body, dict) else 'N/A'}")
+                    else:
+                        print(f"⚠️ Parsed body is None or empty, skipping body in request")
+                except _json.JSONDecodeError as e:
+                    print(f"❌ JSON parse error: {str(e)}")
+                    print(f"❌ Error at position: {e.pos if hasattr(e, 'pos') else 'unknown'}")
+                    print(f"❌ Problematic section: {body[max(0, e.pos-50):min(len(body), e.pos+50)] if hasattr(e, 'pos') else 'N/A'}")
+                    print(f"⚠️ Sending as raw data instead")
+                    request_kwargs['data'] = body
+            elif isinstance(body, dict):
+                # Only add body if dict is not empty
+                if len(body) > 0:
+                    request_kwargs['json'] = body
+                    print(f"✅ Body is already a dict, using json parameter")
+                    print(f"📊 Body keys: {list(body.keys())}")
+                else:
+                    print(f"⚠️ Body dict is empty, skipping body in request")
+            else:
+                request_kwargs['data'] = body
+                print(f"⚠️ Body is neither string nor dict (type: {type(body).__name__}), using data parameter")
+    else:
+        if body is None:
+            print(f"📦 No body provided (body is None)")
+        else:
+            print(f"📦 Skipping body for {method.upper()} request")
     
     try:
         print(f"🚀 Making request to: {url}")

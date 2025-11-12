@@ -611,22 +611,60 @@ function ApiToolSection() {
     };
 
     // Utility function to validate and fix JSON strings
-    const validateAndFixJson = (jsonString) => {
+    const validateAndFixJson = (jsonString, code = '') => {
         try {
             // First try to parse as-is
             JSON.parse(jsonString);
             return jsonString; // Already valid
         } catch (e) {
+            // Try to extract variable values from the code
+            let fixed = jsonString;
+
+            // Extract variable definitions from the code (improved regex)
+            const variables = {};
+
+            // Match: const varName = 'value';
+            const stringMatches = code.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*['"`]([^'"`]+)['"`]/g);
+            for (const match of stringMatches) {
+                variables[match[1]] = match[2];
+            }
+
+            // Match: const varName = 123;
+            const numberMatches = code.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(\d+)/g);
+            for (const match of numberMatches) {
+                variables[match[1]] = match[2];
+            }
+
+            console.log('🔍 Extracted variables:', variables);
+
+            // Replace variable references with their actual values
+            for (const [varName, varValue] of Object.entries(variables)) {
+                // Check if value is numeric
+                const isNumeric = !isNaN(varValue);
+
+                // Replace unquoted variable references
+                const regex = new RegExp(`:\\s*${varName}\\s*,`, 'g');
+                fixed = fixed.replace(regex, isNumeric ? `: ${varValue},` : `: "${varValue}",`);
+
+                // Replace variable references at end of object/array
+                const regexEnd = new RegExp(`:\\s*${varName}\\s*([}\]])`, 'g');
+                fixed = fixed.replace(regexEnd, isNumeric ? `: ${varValue}$1` : `: "${varValue}"$1`);
+            }
+
+            console.log('🔍 After variable replacement:', fixed);
+
             // Try to fix common issues
-            let fixed = jsonString
+            fixed = fixed
                 .replace(/'/g, '"') // Replace single quotes with double quotes
                 .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
                 .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":'); // Quote property names
-            
+
             try {
                 JSON.parse(fixed);
                 return fixed;
             } catch (parseError) {
+                console.error('❌ JSON parse error after fixes:', parseError.message);
+                console.error('Body content:', fixed);
                 throw new Error(`Invalid JSON: ${parseError.message}`);
             }
         }
@@ -958,12 +996,16 @@ function ApiToolSection() {
                 } catch (e) {
                     console.log('⚠️ Body is not valid JSON, attempting to fix...');
                     try {
-                        body = validateAndFixJson(body);
+                        body = validateAndFixJson(body, code);  // Pass the full code for variable extraction
                         console.log('✅ Body fixed and validated');
                     } catch (fixError) {
                         console.error('❌ Failed to fix body JSON:', fixError);
                         console.error('Body content:', body);
-                        body = null;
+
+                        // Use fallback body instead of null
+                        console.log('🔄 Using fallback body with user query');
+                        body = getFallbackAnthropicBody(userQuery);
+                        console.log('✅ Fallback body created:', body);
                     }
                 }
             } else {
@@ -1122,7 +1164,7 @@ function ApiToolSection() {
                         console.log('⚠️ Body string is not valid JSON, trying to fix it');
                         // Not valid JSON, try to fix it using the utility function
                         try {
-                            const fixedBody = validateAndFixJson(body);
+                            const fixedBody = validateAndFixJson(body, originalCode);  // Pass original code for variable extraction
                             fetchOptions.body = fixedBody;
                             console.log('✅ Body fixed and stringified:', fetchOptions.body);
                         } catch (parseError) {
@@ -1364,17 +1406,29 @@ function ApiToolSection() {
             if (fetchOptions.body) {
                 console.log('🔍 Processing request body for proxy:', fetchOptions.body);
                 try {
-                    requestData.body = JSON.parse(fetchOptions.body);
-                    console.log('✅ Body parsed as JSON for proxy:', requestData.body);
+                    const parsedBody = JSON.parse(fetchOptions.body);
+                    // Only add body if it's not null, undefined, or empty object
+                    if (parsedBody !== null && parsedBody !== undefined &&
+                        (typeof parsedBody !== 'object' || Object.keys(parsedBody).length > 0)) {
+                        requestData.body = parsedBody;
+                        console.log('✅ Body parsed as JSON for proxy:', requestData.body);
+                    } else {
+                        console.log('⚠️ Body is null/undefined/empty object, not sending to proxy');
+                        // Don't include body property at all
+                    }
                 } catch (e) {
                     console.log('⚠️ Body is not JSON, sending as string to proxy');
-                    // If not JSON, send as string
-                    requestData.body = fetchOptions.body;
+                    // If not JSON and not empty, send as string
+                    if (fetchOptions.body.trim()) {
+                        requestData.body = fetchOptions.body;
+                    } else {
+                        console.log('⚠️ Body string is empty, not sending to proxy');
+                        // Don't include body property at all
+                    }
                 }
             } else {
-                console.log('🔍 No body to send to proxy');
-                // Ensure body is never undefined in the request
-                requestData.body = null;
+                console.log('🔍 No body to send to proxy (fetchOptions.body is empty)');
+                // Don't include body property at all - let backend handle GET/HEAD requests correctly
             }
 
             console.log('🔍 Final request data being sent to proxy:', requestData);
@@ -1736,7 +1790,10 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                 snippets = {
                     javascript: response.snippets.javascript || '// JavaScript code will be generated here',
                     python: response.snippets.python || '// Python code will be generated here',
-                    curl: response.snippets.curl || '// cURL command will be generated here'
+                    curl: response.snippets.curl || '// cURL command will be generated here',
+                    csharp: response.snippets.csharp || '// C# code will be generated here',
+                    java: response.snippets.java || '// Java code will be generated here',
+                    go: response.snippets.go || '// Go code will be generated here'
                 };
                 
                 console.log('📝 Generated snippets:', {
@@ -1944,12 +2001,43 @@ fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
                 bodyLength: parsedCode.body ? parsedCode.body.length : 0
             });
 
-            const proxyResponse = await proxyApiCall({
+            // Prepare request data for proxy
+            const proxyRequestData = {
                 url: parsedCode.url,
                 method: parsedCode.method || 'POST',
-                headers: parsedCode.headers || {},
-                body: parsedCode.body
-            });
+                headers: parsedCode.headers || {}
+            };
+
+            // Only add body if it's not null/undefined/empty
+            if (parsedCode.body) {
+                try {
+                    // If body is a string, try to parse it
+                    const bodyToSend = typeof parsedCode.body === 'string'
+                        ? JSON.parse(parsedCode.body)
+                        : parsedCode.body;
+
+                    // Only add if not empty
+                    if (bodyToSend !== null && bodyToSend !== undefined &&
+                        (typeof bodyToSend !== 'object' || Object.keys(bodyToSend).length > 0)) {
+                        proxyRequestData.body = bodyToSend;
+                        console.log('✅ Body added to proxy request:', proxyRequestData.body);
+                    } else {
+                        console.log('⚠️ Body is empty, not adding to proxy request');
+                    }
+                } catch (e) {
+                    // If parsing fails, use as-is if not empty
+                    if (parsedCode.body.trim && parsedCode.body.trim()) {
+                        proxyRequestData.body = parsedCode.body;
+                        console.log('✅ Body added as string to proxy request');
+                    } else {
+                        console.log('⚠️ Body parsing failed and is empty, not adding to proxy request');
+                    }
+                }
+            } else {
+                console.log('📦 No body in parsedCode, not adding to proxy request');
+            }
+
+            const proxyResponse = await proxyApiCall(proxyRequestData);
 
             console.log('📡 Proxy response received:', proxyResponse);
 

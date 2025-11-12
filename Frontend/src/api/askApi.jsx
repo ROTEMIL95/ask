@@ -220,7 +220,7 @@ export const useAskApi = () => {
             
             const apiConfig = {
                 apiName: selectedApi?.apiName?.toLowerCase() || 'generic-api',
-                baseUrl: selectedApi?.baseUrl || 'https://api.example.com',
+                baseUrl: selectedApi?.baseUrl,  // Use the base URL from selected API (don't provide fallback)
                 hasApiKey: Boolean(apiKey),
                 apiKey: apiKey,
                 docsUrl: selectedApi?.docsUrl || '',
