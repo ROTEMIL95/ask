@@ -800,7 +800,7 @@ function ApiToolSection() {
                 console.log('✅ URL extracted:', url);
             } else {
                 console.log('❌ No URL found with primary pattern, trying alternatives...');
-                
+
                 // Try alternative URL extraction patterns
                 const altUrlPatterns = [
                     /fetch\s*\(\s*([^,)]+)/,  // fetch(url, ...)
@@ -808,7 +808,7 @@ function ApiToolSection() {
                     /fetch\s*\(\s*'([^']+)'/, // fetch('url')
                     /fetch\s*\(\s*"([^"]+)"/  // fetch("url")
                 ];
-                
+
                 for (const pattern of altUrlPatterns) {
                     const match = code.match(pattern);
                     if (match && match[1]) {
@@ -818,7 +818,45 @@ function ApiToolSection() {
                     }
                 }
             }
-            
+
+            // If URL is a variable name, try to extract its value
+            if (url && !url.startsWith('http')) {
+                console.log('🔍 URL appears to be a variable, trying to extract its value:', url);
+                // Look for variable definition like: const apiUrl = "..."
+                const varPattern = new RegExp(`(?:const|let|var)\\s+${url}\\s*=\\s*['\`"]([^'\`"]+)['\`"]`, 'g');
+                const varMatch = varPattern.exec(code);
+                if (varMatch && varMatch[1]) {
+                    url = varMatch[1];
+                    console.log('✅ Extracted URL from variable definition:', url);
+                } else {
+                    // Try template literal with variable interpolation
+                    const templatePattern = new RegExp(`(?:const|let|var)\\s+${url}\\s*=\\s*\`([^\`]+)\``, 'g');
+                    const templateMatch = templatePattern.exec(code);
+                    if (templateMatch && templateMatch[1]) {
+                        // Extract the template literal content
+                        let templateUrl = templateMatch[1];
+                        console.log('🔍 Found template literal:', templateUrl);
+
+                        // Extract variables used in the template
+                        const templateVars = templateUrl.matchAll(/\$\{([^}]+)\}/g);
+                        for (const varRef of templateVars) {
+                            const varName = varRef[1].trim();
+                            console.log('🔍 Found variable reference in template:', varName);
+
+                            // Try to find the variable's value
+                            const valuePattern = new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\\s*['\"]([^'\"]+)['\"]`);
+                            const valueMatch = code.match(valuePattern);
+                            if (valueMatch && valueMatch[1]) {
+                                console.log(`✅ Replacing \${${varName}} with "${valueMatch[1]}"`);
+                                templateUrl = templateUrl.replace(`\${${varName}}`, valueMatch[1]);
+                            }
+                        }
+                        url = templateUrl;
+                        console.log('✅ Final URL after template processing:', url);
+                    }
+                }
+            }
+
             if (!url) {
                 console.log('❌ Still no URL found, this might be a parsing issue');
             }
@@ -1668,28 +1706,52 @@ function ApiToolSection() {
 
             // Add API context to the question with base URL
             if (apiDoc) {
-                enhancedQuestion = `Using this API documentation:\n\n${enhancedApiDoc}\n\nBase URL: ${apiBaseUrl}\n\n${enhancedQuestion}\n\nPlease provide working code examples that use the actual API endpoints and methods from the documentation. IMPORTANT: Use the complete base URL (${apiBaseUrl}) for all endpoints.`;
+                enhancedQuestion = `Using this API documentation:\n\n${enhancedApiDoc}\n\nBase URL: ${apiBaseUrl}\n\n${enhancedQuestion}\n\nPlease provide working code examples that use the actual API endpoints and methods from the documentation.
+
+IMPORTANT REQUIREMENTS:
+1. Use the complete base URL (${apiBaseUrl}) for all endpoints
+2. DO NOT use variables for URLs - write the full URL directly in the fetch() call
+3. DO NOT use template literals with \${variables} for URLs
+4. Write URLs as hardcoded strings like: fetch("https://api.example.com/endpoint")
+5. The code must be executable as-is without any variable definitions for URLs
+
+Example of CORRECT format:
+fetch("${apiBaseUrl}/endpoint?param=value", {
+  method: "GET",
+  headers: { "Content-Type": "application/json" }
+})
+
+Example of INCORRECT format (DO NOT USE):
+const apiUrl = \`${apiBaseUrl}/endpoint\`;
+fetch(apiUrl, {...})`;
             }
 
             // Add example code with absolute URLs to the question
             const exampleCode = `
-Example of correct URL usage:
-❌ Wrong: 
-fetch('/pet/findByStatus?status=available')
+CRITICAL FORMATTING RULES:
+❌ WRONG - DO NOT use variables for URLs:
+const apiUrl = \`${apiBaseUrl}/endpoint\`;
+fetch(apiUrl)
 
-✅ Right:
-fetch("${apiBaseUrl}/pet/findByStatus?status=available", {
+❌ WRONG - DO NOT use relative URLs:
+fetch('/endpoint')
+
+✅ CORRECT - Use full hardcoded URLs:
+fetch("${apiBaseUrl}/endpoint?param=value", {
+  method: "GET",
   headers: {
     "Content-Type": "application/json",
     "Accept": "application/json"
   }
 })
+
+The code must be copy-paste executable without any modifications.
 `;
 
             // Send to Claude with proper context
             console.log('📤 Sending to Claude with enhanced documentation...');
             const response = await askQuestion(
-                `${enhancedQuestion}\n\n${exampleCode}\n\nIMPORTANT: Always use the complete base URL (${apiBaseUrl}) for all endpoints. Never use relative URLs.`,
+                `${enhancedQuestion}\n\n${exampleCode}\n\nREMINDER: Write URLs directly in fetch() calls. Do NOT use variables or template literals for URLs. The generated code must be executable as-is.`,
                 user?.id || '',
                 enhancedApiDoc,
                 {
