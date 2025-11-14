@@ -24,9 +24,13 @@ import Login from "./Login";
 
 import Register from "./Register";
 
+import ResetPassword from "./ResetPassword";
+
 import RefundPolicy from "./RefundPolicy";
 import Success from "./Success";
 import Fail from "./Fail";
+import PaymentSuccess from "./PaymentSuccess";
+import PaymentFail from "./PaymentFail";
 
 import { UserProfile } from "../components/UserProfile";
 
@@ -55,9 +59,11 @@ const PAGES = {
     Status: Status,
     
     Login: Login,
-    
+
     Register: Register,
-    
+
+    ResetPassword: ResetPassword,
+
     RefundPolicy: RefundPolicy,
     Success: Success,
     Fail: Fail,
@@ -112,13 +118,17 @@ function PagesContent() {
                 <Route path="/Status" element={<Status />} />
                 
                 <Route path="/Login" element={<Login />} />
-                
+
                 <Route path="/Register" element={<Register />} />
-                
+
+                <Route path="/reset-password" element={<ResetPassword />} />
+
                 <Route path="/RefundPolicy" element={<RefundPolicy />} />
                 <Route path="/success" element={<Success />} />
                 <Route path="/fail" element={<Fail />} />
-                
+                <Route path="/payment/success" element={<PaymentSuccess />} />
+                <Route path="/payment/fail" element={<PaymentFail />} />
+
                 <Route path="/profile" element={<UserProfile />} />
                 
             </Routes>

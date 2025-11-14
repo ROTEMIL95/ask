@@ -105,33 +105,60 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
 def format_payload_initial(params):
     # Clean and validate card number
     card_number = params["card_number"].replace(" ", "").replace("-", "")
-    
+
     # Ensure it's digits only and proper length (13-19 digits for most cards)
     if not card_number.isdigit():
         raise ValueError("Card number must contain only digits")
-    
+
     if len(card_number) < 13 or len(card_number) > 19:
         raise ValueError("Card number must be between 13-19 digits")
-    
-    return {
+
+    # Validate CVV if provided
+    cvv = params.get("cvv", "").strip()
+    if cvv and (not cvv.isdigit() or len(cvv) < 3 or len(cvv) > 4):
+        raise ValueError("CVV must be 3 or 4 digits")
+
+    # Convert expire_year to 4-digit format if needed
+    expire_year = int(params["expire_year"])
+    if expire_year < 100:
+        expire_year = expire_year + 2000
+
+    # Build base payload without any null values
+    payload = {
         "terminal_name": TRANZILA_SUPPLIER,
         "txn_currency_code": "ILS",
         "txn_type": "debit",
         "card_number": card_number,
         "expire_month": int(params["expire_month"]),
-        "expire_year": int(params["expire_year"]),
+        "expire_year": expire_year,
         "payment_plan": 1,
-        "items": [
-            {
-                "code": "1",
-                "name": "TalkAPI Subscription",
-                "unit_price": 0.10,
-                "type": "I",
-                "units_number": 1,
-                "unit_type": 1,
-                "price_type": "G",
-                "currency_code": "ILS",
-                "attributes": [],
-            }
-        ],
     }
+
+    # Add CVV if provided (before items to maintain order)
+    if cvv:
+        payload["cvv"] = cvv
+
+    # Add cardholder name if provided
+    if params.get("full_name"):
+        payload["card_holder_name"] = params["full_name"]
+
+    # Add cardholder ID if provided
+    if params.get("card_holder_id"):
+        payload["card_holder_id"] = params["card_holder_id"]
+
+    # Add items - only include fields that are not None
+    payload["items"] = [
+        {
+            "code": "1",
+            "name": "TalkAPI Subscription",
+            "unit_price": 0.10,
+            "type": "I",
+            "units_number": 1,
+            "unit_type": 1,
+            "price_type": "G",
+            "currency_code": "ILS",
+            # Don't include 'attributes' if it's empty - Tranzila doesn't like empty arrays
+        }
+    ]
+
+    return payload

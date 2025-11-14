@@ -46,6 +46,77 @@ TRANZILA_SECRET_API_KEY = os.getenv("TRANZILA_SECRET_API_KEY")
 PRO_LIMITS = {"convert_limit": 500, "run_limit": 2000}  # monthly quotas
 FREE_LIMITS = {"total_limit": 50}                       # combined monthly quota
 
+# Get frontend URL for callbacks
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5000")
+
+
+@payment_bp.route("/payment/create-hosted-payment", methods=["POST", "OPTIONS"])
+def create_hosted_payment():
+    """
+    Create parameters for Tranzila hosted payment page.
+    Returns payment form data that frontend will POST to Tranzila.
+    """
+    logger.info("🌐 /payment/create-hosted-payment called")
+
+    if request.method == "OPTIONS":
+        return "", 200
+
+    # 1) Authorization
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"status": "error", "message": "Authentication required"}), 401
+
+    auth_token = auth_header.split(" ")[1]
+    user_data = supabase_manager.verify_token(auth_token)
+    user_id = user_data.get("sub") if user_data else None
+    user_email = user_data.get("email") if user_data else None
+
+    if not user_id:
+        return jsonify({"status": "error", "message": "Invalid user token"}), 401
+
+    # 2) Get user info
+    params = request.get_json(silent=True) or {}
+    full_name = params.get("full_name", "")
+
+    # 3) Generate unique order ID
+    import time
+    order_id = f"ORDER_{user_id}_{int(time.time())}"
+
+    # 4) Create payment parameters for Tranzila iframe
+    payment_data = {
+        "supplier": TRANZILA_SUPPLIER,
+        "sum": "0.10",  # Test amount in ILS
+        "currency": "1",  # 1 = ILS
+        "cred_type": "1",  # Regular credit
+        "tranmode": "AK",  # Authorization + Capture
+        "pdesc": "TalkAPI Pro Subscription",
+        "contact": full_name if full_name else user_email,
+        "email": user_email,
+        "order_id": order_id,
+        "u1": user_id,  # Custom field 1 - user ID
+        "u2": "pro",    # Custom field 2 - plan type
+        "success_url_address": f"{FRONTEND_URL}/payment/success",
+        "fail_url_address": f"{FRONTEND_URL}/payment/fail",
+        "notify_url_address": f"{BACKEND_URL}/payment/callback",
+        # Styling parameters for iframe
+        "company": "TalkAPI",  # Company name at top
+        # "lang": "il",        # Removed - Tranzila auto-detects from IP
+        "nologo": "0",         # Show Tranzila logo (use "1" to hide)
+    }
+
+    # 5) Tranzila iframe URL
+    payment_url = f"https://direct.tranzila.com/{TRANZILA_SUPPLIER}/iframenew.php"
+
+    logger.info(f"✅ Created hosted payment for user {user_id}, order {order_id}")
+
+    return jsonify({
+        "status": "success",
+        "payment_url": payment_url,
+        "payment_data": payment_data,
+        "order_id": order_id,
+    }), 200
+
 
 @payment_bp.route("/payment/pay", methods=["POST", "OPTIONS"])
 def make_initial_payment():
@@ -79,11 +150,14 @@ def make_initial_payment():
 
     # 2) Validate client payload
     params = request.get_json(silent=True) or {}
+    logger.info(f"[Payment] Received params: {params}")
+
     for field in ["card_number", "expire_month", "expire_year"]:
         if not params.get(field):
+            logger.warning(f"[Payment] Missing field: {field}")
             return jsonify({"status": "error", "message": f"Missing field: {field}"}), 400
 
-    # 3) One-time charge
+    # 3) One-time charge using Tranzila REST API v1
     try:
         url = "https://api.tranzila.com/v1/transaction/credit_card/create"
         payload = format_payload_initial(params)
@@ -91,18 +165,37 @@ def make_initial_payment():
 
         logger.info(f"[Charge] URL: {url}")
         logger.info(f"[Charge] Payload: {payload}")
+        logger.info(f"[Charge] Headers keys: {list(headers.keys())}")
 
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        logger.info(f"[Charge] Response status: {resp.status_code}")
+        logger.info(f"[Charge] Response text: {resp.text[:500]}")
+
         resp.raise_for_status()
         data = resp.json()
 
         trx = data.get("transaction_result") or {}
         if trx.get("processor_response_code") != "000":
-            logger.error(f"Charge failed: {data}")
-            return jsonify({"status": "error", "message": "Payment failed"}), 400
+            error_msg = trx.get("processor_response_text", "Payment failed")
+            logger.error(f"[Charge] Payment failed with code {trx.get('processor_response_code')}: {error_msg}")
+            logger.error(f"[Charge] Full response: {data}")
+            return jsonify({
+                "status": "error",
+                "message": error_msg,
+                "error_code": trx.get("processor_response_code")
+            }), 400
 
+        logger.info(f"✅ [Charge] Payment successful! Transaction: {trx}")
+
+    except ValueError as e:
+        logger.error(f"[Charge] Validation error: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except requests.exceptions.HTTPError as e:
+        logger.exception(f"[Charge] HTTP error: {str(e)}")
+        error_detail = resp.text if 'resp' in locals() else str(e)
+        return jsonify({"status": "error", "message": f"Payment gateway error: {error_detail}"}), 500
     except Exception as e:
-        logger.exception("Error in initial payment")
+        logger.exception("[Charge] Unexpected error in initial payment")
         return jsonify({"status": "error", "message": str(e)}), 500
 
     # 4) Create recurring (STO)
@@ -270,13 +363,21 @@ def payment_callback():
         return "", 204
 
     try:
-        transaction_id = request.values.get("transaction_id")
+        # Log ALL parameters received from Tranzila
+        logger.info(f"🔔 Payment callback received!")
+        logger.info(f"🔔 Method: {request.method}")
+        logger.info(f"🔔 All request.values: {dict(request.values)}")
+        logger.info(f"🔔 Form data: {dict(request.form)}")
+        logger.info(f"🔔 Query params: {dict(request.args)}")
+
+        transaction_id = request.values.get("transaction_id") or request.values.get("index")
         status_code = request.values.get("Response")
         user_id = request.values.get("user_id") or request.values.get("u1")
         plan = (request.values.get("plan") or request.values.get("u2") or "pro").lower()
         amount = request.values.get("sum")
+        order_id = request.values.get("order_id")
 
-        logger.info(f"🔔 Callback trx={transaction_id} status={status_code} user={user_id} plan={plan}")
+        logger.info(f"🔔 Parsed - trx={transaction_id} status={status_code} user={user_id} plan={plan} order={order_id}")
 
         if status_code == "000":
             # Mark as Pro (note: quotas are handled elsewhere or on next /pay)

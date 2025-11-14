@@ -5,36 +5,53 @@ const backendUrl = import.meta.env.VITE_BACKEND_URL;
 export async function handleRecurringPayment(cardNumber, expiryMonth, expiryYear, cvv, fullName) {
     console.log('🚀 Processing payment for:', fullName);
     console.log('🚀 Card ending in: ****' + cardNumber.slice(-4));
-    
+
     // Get auth token
     const session = authProxy.getSession();
     if (!session?.access_token) {
-        throw new Error('Authentication required for payment processing');
+        console.error('❌ Authentication required');
+        return { data: null, status: 'error', message: 'Authentication required for payment processing' };
     }
-    
-    const response = await fetch(`${backendUrl}/payment/pay`, {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-            card_number: cardNumber,
-            expire_month: expiryMonth,
-            expire_year: expiryYear,
-            cvv,
-            full_name: fullName,
-        })
-    });
 
-    const data = await response.json();
-    console.log("🚀 ~ handleRecurringPayment ~ response status:", response.status, "success:", response.ok && !data.error);
+    try {
+        const response = await fetch(`${backendUrl}/payment/pay`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+                card_number: cardNumber,
+                expire_month: expiryMonth,
+                expire_year: expiryYear,
+                cvv,
+                full_name: fullName,
+            })
+        });
 
-    if (!response.ok || data.error) {
-        throw new Error(data.error || data.message || 'Payment processing failed');
+        const data = await response.json();
+        console.log("🚀 ~ handleRecurringPayment ~ response status:", response.status);
+        console.log("🚀 ~ handleRecurringPayment ~ response data:", data);
+
+        if (!response.ok || data.error || data.status === 'error') {
+            console.error('❌ Payment failed:', data.message || data.error);
+            return {
+                data: null,
+                status: 'error',
+                message: data.message || data.error || 'Payment processing failed'
+            };
+        }
+
+        console.log('✅ Payment successful');
+        return { data, status: 'success' };
+    } catch (error) {
+        console.error('❌ Payment error:', error);
+        return {
+            data: null,
+            status: 'error',
+            message: error.message || 'Payment processing failed'
+        };
     }
-    
-    return data;
 }
 
 export async function cancelSubscription() {

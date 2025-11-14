@@ -79,17 +79,26 @@ export const auth = {
 
   // Sign in with email and password
   signIn: async (email, password) => {
-    console.log("🚀 ~ password:", password)
-    console.log("🚀 ~ email:", email)
+    console.log("🔐 Attempting signIn...")
+    console.log("📧 Email:", email)
+    console.log("🔑 Password length:", password?.length || 0)
     try {
+      console.log("📡 Calling Supabase signInWithPassword...")
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
-      console.log("🚀 ~ data:", data)
+      console.log("📦 signInWithPassword response - data:", data)
+      console.log("❌ signInWithPassword response - error:", error)
+
+      if (error) {
+        console.error("🚨 Sign in FAILED:", error.message)
+        console.error("🚨 Error details:", JSON.stringify(error, null, 2))
+        return { data, error }
+      }
 
       const { data: { session } } = await supabase.auth.getSession()
-      console.log("🚀 ~ session:", session)
+      console.log("🎫 Session after signIn:", session ? "✅ EXISTS" : "❌ NULL")
       if (data?.user && !error) {
         console.log('User signed in successfully:', data.user.id)
 
@@ -128,10 +137,77 @@ export const auth = {
     }
   },
 
+  // Reset password
+  resetPassword: async (email) => {
+    try {
+      console.log('🔐 Requesting password reset for:', email)
+
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (error) {
+        console.error('❌ Password reset error:', error)
+        return { data: null, error }
+      }
+
+      console.log('✅ Password reset email sent')
+      return { data, error: null }
+    } catch (err) {
+      console.error('❌ Error requesting password reset:', err)
+      return { data: null, error: err }
+    }
+  },
+
   // Sign out
   signOut: async () => {
-    const { error } = await supabase.auth.signOut()
-    return { error }
+    try {
+      console.log('🚪 Starting sign out process...')
+
+      // Clear localStorage FIRST (most important step)
+      const sessionKey = `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token`
+      console.log('🗑️ Clearing session from localStorage:', sessionKey)
+      localStorage.removeItem(sessionKey)
+
+      // Also clear any other auth-related items
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.includes('sb-') && key.includes('-auth-token')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => {
+        console.log('🗑️ Clearing additional auth key:', key)
+        localStorage.removeItem(key)
+      })
+
+      console.log('✅ localStorage cleared')
+
+      // Try to call Supabase signOut but with timeout and don't wait for it
+      // This is fire-and-forget - we don't care if it succeeds or fails
+      const signOutPromise = supabase.auth.signOut()
+
+      // Set a timeout - if Supabase doesn't respond in 2 seconds, we continue anyway
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          console.log('⏱️ Supabase signOut timeout - continuing anyway')
+          resolve({ error: null })
+        }, 2000)
+      })
+
+      // Race between signOut and timeout
+      await Promise.race([signOutPromise, timeoutPromise])
+
+      console.log('✅ Sign out completed')
+      return { error: null }
+    } catch (err) {
+      console.error('❌ Error during sign out:', err)
+
+      // Even on error, localStorage is already cleared above
+      console.log('✅ Continuing with sign out despite error (localStorage already cleared)')
+      return { error: null } // Return success anyway since localStorage is cleared
+    }
   },
 
   // Get current user

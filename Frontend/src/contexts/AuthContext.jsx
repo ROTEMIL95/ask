@@ -265,32 +265,75 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  // Reset password function
+  const resetPassword = async (email) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      console.log('🔐 Requesting password reset for:', email)
+
+      const { error } = await auth.resetPassword(email)
+
+      if (error) {
+        console.error('Password reset error:', error)
+        const sanitizedError = sanitizeErrorMessage(error.message)
+        setError(sanitizedError)
+        return { success: false, error: sanitizedError }
+      }
+
+      console.log('✅ Password reset email sent')
+      return { success: true, message: 'Password reset email sent! Please check your inbox.' }
+    } catch (err) {
+      console.error('Password reset error:', err)
+      const sanitizedError = sanitizeErrorMessage(err.message)
+      setError(sanitizedError)
+      return { success: false, error: sanitizedError }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Sign out function
   const signOut = async () => {
     try {
       setLoading(true)
       setError(null)
-      
-      const { error } = await authProxy.signOut()
-      
+
+      console.log('🚪 AuthContext: Starting signOut...')
+
+      // Add timeout to authProxy.signOut - don't wait forever
+      const signOutPromise = authProxy.signOut()
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          console.log('⏱️ AuthContext: signOut timeout reached')
+          resolve({ error: null })
+        }, 3000) // 3 second timeout
+      })
+
+      const { error } = await Promise.race([signOutPromise, timeoutPromise])
+
       if (error) {
         console.error('Sign out error:', error)
-        const sanitizedError = sanitizeErrorMessage(error.message)
-        setError(sanitizedError)
-        return { success: false, error: sanitizedError }
+        // Don't fail the logout just because of an error
+        // Clear the state anyway
       }
-      
-      // Update AuthContext state after successful signout
+
+      // Update AuthContext state (clear user) - THIS IS THE MOST IMPORTANT PART
       setUser(null)
       setError(null)
-      console.log('User signed out and AuthContext state cleared')
-      
+      console.log('✅ AuthContext: User state cleared')
+
       return { success: true }
     } catch (err) {
       console.error('Sign out error:', err)
-      const sanitizedError = sanitizeErrorMessage(err.message)
-      setError(sanitizedError)
-      return { success: false, error: sanitizedError }
+
+      // Even on error, clear the user state
+      setUser(null)
+      setError(null)
+      console.log('✅ AuthContext: User state cleared (despite error)')
+
+      return { success: true } // Return success anyway since state is cleared
     } finally {
       setLoading(false)
     }
@@ -306,15 +349,16 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     error,
-    
+
     // Actions
     signUp,
     signIn,
     signInWithGoogle,
     signOut,
+    resetPassword,
     clearError,
     loadUserFromProxy,
-    
+
     // Computed values
     isAuthenticated: !!user,
     userId: user?.id,

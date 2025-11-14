@@ -13,6 +13,7 @@ import { initializeCookieConsent } from '@/utils/cookieConsent';
 export default function Layout({ children }) {
     const { user, loading, isAuthenticated, signOut } = useAuth();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -42,16 +43,32 @@ export default function Layout({ children }) {
         window.location.href = createPageUrl("Login");
     };
     const handleLogout = async () => {
+        // Prevent multiple simultaneous logout attempts
+        if (isLoggingOut) {
+            console.log('⏳ Logout already in progress...');
+            return;
+        }
+
         try {
+            setIsLoggingOut(true);
+            console.log('🚪 Starting logout...');
+
             const result = await signOut();
+
             if (result.success) {
-                console.log('Successfully signed out');
+                console.log('✅ Successfully signed out');
                 navigate(createPageUrl("Home"));
             } else {
-                console.error('Error signing out:', result.error);
+                console.error('❌ Error signing out:', result.error);
+                // Even if there's an error, navigate to home
+                navigate(createPageUrl("Home"));
             }
         } catch (e) {
-            console.error('Error during logout:', e);
+            console.error('❌ Error during logout:', e);
+            // Even on error, navigate to home to reset the UI
+            navigate(createPageUrl("Home"));
+        } finally {
+            setIsLoggingOut(false);
         }
     };
 
@@ -106,8 +123,20 @@ export default function Layout({ children }) {
                                     <Link to={createPageUrl("Account")} className="flex items-center gap-2 text-gray-300 hover:text-white">
                                         <UserCircle className="w-4 h-4" /> My Account
                                     </Link>
-                                    <button onClick={handleLogout} className="flex items-center gap-2 text-gray-300 hover:text-white">
-                                        <LogOut className="w-4 h-4" /> Logout
+                                    <button
+                                        onClick={handleLogout}
+                                        disabled={isLoggingOut}
+                                        className="flex items-center gap-2 text-gray-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isLoggingOut ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" /> Logging out...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <LogOut className="w-4 h-4" /> Logout
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             ) : (
@@ -172,17 +201,26 @@ export default function Layout({ children }) {
                                                 <LayoutDashboard className="w-4 h-4" /> Admin
                                             </Link>
                                         )}
-                                        <Link 
-                                            to={createPageUrl("Account")} 
+                                        <Link
+                                            to={createPageUrl("Account")}
                                             className="flex items-center gap-2 text-gray-300 hover:text-white py-2"
                                         >
                                             <UserCircle className="w-4 h-4" /> My Account
                                         </Link>
-                                        <button 
-                                            onClick={handleLogout} 
-                                            className="flex items-center gap-2 text-gray-300 hover:text-white py-2 text-left"
+                                        <button
+                                            onClick={handleLogout}
+                                            disabled={isLoggingOut}
+                                            className="flex items-center gap-2 text-gray-300 hover:text-white py-2 text-left disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            <LogOut className="w-4 h-4" /> Logout
+                                            {isLoggingOut ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin" /> Logging out...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <LogOut className="w-4 h-4" /> Logout
+                                                </>
+                                            )}
                                         </button>
                                     </>
                                 ) : (
