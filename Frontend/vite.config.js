@@ -6,7 +6,10 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: true
+    allowedHosts: true,
+    // Uncomment below to enable HTTPS in development (optional - removes browser warnings for payment forms)
+    // https: true,
+    // port: 5173,
   },
   resolve: {
     alias: {

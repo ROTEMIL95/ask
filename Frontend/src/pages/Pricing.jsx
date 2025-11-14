@@ -186,10 +186,14 @@ const Pricing = () => {
                 }
                 return (
                   <Button
-                    disabled={true}
-                    className="w-full py-3 rounded-lg font-semibold transition bg-gradient-to-r from-purple-500 to-pink-500 text-white opacity-50 cursor-not-allowed"
+                    onClick={() => handlePaidPlanClick('pro')}
+                    disabled={buttonState.disabled}
+                    className="w-full py-3 rounded-lg font-semibold transition bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Coming Soon
+                    {buttonState.type === 'upgrade' ? 'Upgrade to Pro' :
+                     buttonState.type === 'downgrade' ? 'Downgrade to Pro' :
+                     buttonState.type === 'loading' ? 'Loading...' :
+                     'Get Started with Pro'}
                   </Button>
                 );
               })()}
