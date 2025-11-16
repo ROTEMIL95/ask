@@ -103,32 +103,24 @@ export default function Checkout() {
         return
       }
 
-      // Build iframe URL with query parameters
-      const params = new URLSearchParams(data.payment_data)
-      const iframeUrl = `${data.payment_url}?${params.toString()}`
+      // Create hidden form and redirect to Tranzila (test terminals don't support iframe)
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = data.payment_url
+      form.style.display = 'none'
 
-      console.log("🎨 Creating iframe for Tranzila payment...")
+      // Add all payment parameters as hidden fields
+      Object.entries(data.payment_data).forEach(([key, value]) => {
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = key
+        input.value = value
+        form.appendChild(input)
+      })
 
-      // Create iframe element
-      const iframe = document.createElement('iframe')
-      iframe.src = iframeUrl
-      iframe.style.width = '100%'
-      iframe.style.height = '600px'
-      iframe.style.border = 'none'
-      iframe.style.borderRadius = '12px'
-      iframe.style.marginTop = '16px'
-      iframe.allow = 'payment'
-      iframe.name = 'tranzila-payment'
-
-      // Replace the form with iframe
-      const formElement = document.querySelector('form')
-      if (formElement) {
-        formElement.style.display = 'none'
-        formElement.parentElement.appendChild(iframe)
-      }
-
-      setStatus("idle")
-      console.log("✅ Iframe loaded successfully")
+      document.body.appendChild(form)
+      console.log("🚀 Redirecting to Tranzila payment page...")
+      form.submit()
 
     } catch (error) {
       console.error("❌ Payment error:", error)

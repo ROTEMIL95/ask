@@ -90,23 +90,27 @@ def create_hosted_payment():
         "currency": "1",  # 1 = ILS
         "cred_type": "1",  # Regular credit
         "tranmode": "AK",  # Authorization + Capture
+        "maxpay": "1",     # Single payment (no installments) - REQUIRED to show form correctly
         "pdesc": "TalkAPI Pro Subscription",
         "contact": full_name if full_name else user_email,
         "email": user_email,
         "order_id": order_id,
         "u1": user_id,  # Custom field 1 - user ID
         "u2": "pro",    # Custom field 2 - plan type
+        # Callback URLs for Tranzila notifications
+        # Note: These won't work on localhost due to browser security (private network access blocked)
+        # Test in production environment or use ngrok for local testing
         "success_url_address": f"{FRONTEND_URL}/payment/success",
         "fail_url_address": f"{FRONTEND_URL}/payment/fail",
         "notify_url_address": f"{BACKEND_URL}/payment/callback",
-        # Styling parameters for iframe
+        # Styling parameters
         "company": "TalkAPI",  # Company name at top
         # "lang": "il",        # Removed - Tranzila auto-detects from IP
         "nologo": "0",         # Show Tranzila logo (use "1" to hide)
     }
 
-    # 5) Tranzila iframe URL
-    payment_url = f"https://direct.tranzila.com/{TRANZILA_SUPPLIER}/iframenew.php"
+    # 5) Tranzila URL - using regular page for test terminal (iframe may not be supported)
+    payment_url = f"https://direct.tranzila.com/{TRANZILA_SUPPLIER}/"
 
     logger.info(f"✅ Created hosted payment for user {user_id}, order {order_id}")
 
@@ -380,15 +384,17 @@ def payment_callback():
         logger.info(f"🔔 Parsed - trx={transaction_id} status={status_code} user={user_id} plan={plan} order={order_id}")
 
         if status_code == "000":
-            # Mark as Pro (note: quotas are handled elsewhere or on next /pay)
+            # Mark as Pro with updated limits
             if user_id:
                 try:
                     supabase_manager.update_user_profile(
                         user_id,
                         {
                             "plan_type": "pro",
+                            "daily_limit": 100,  # Pro plan daily limit
                             "last_payment_date": datetime.now().isoformat(),
                             "payment_status": "active",
+                            "subscription_status": "active",
                         },
                     )
                     supabase_manager.save_api_history(
