@@ -1,57 +1,121 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { handleRecurringPayment } from "@/services/payment.service";
-import ReactInputMask from "react-input-mask";
-import { formatPaymentData } from "@/utils/util.service";
+import {
+  createHostedFields,
+  chargePayment,
+  setupEventListeners,
+  getErrorMessage
+} from "@/lib/tranzilaHostedFields";
 
 export default function Checkout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { fullName, profile, loading: profileLoading } = useUserProfile();
+
   const [status, setStatus] = useState(false);
   const [errMsg, setErrMsg] = useState("");
+  const [fieldsReady, setFieldsReady] = useState(false);
+  const [fieldValidity, setFieldValidity] = useState({
+    credit_card_number: false,
+    cvv: false,
+    expiry: false,
+    card_holder_id_number: false
+  });
 
   const [formData, setFormData] = useState({
     fullName: "",
-    email: "",
-    cardNumber: "",
-    expiry: "",
-    cvv: ""
-  })
-  console.log("🚀 ~ Checkout ~ formData:", formData)
+    email: ""
+  });
 
+  const hostedFieldsRef = useRef(null);
   const plan = searchParams.get('plan') || 'pro';
   const userId = searchParams.get('user_id');
-  
+
   // Price configuration
-  const sum = plan === 'pro' ? 1 : 19.99;
+  const sum = plan === 'pro' ? "0.10" : "19.99"; // Test amount for pro
 
-  // const origin = import.meta.env.VITE_PUBLIC_BASE_URL || window.location.origin;
-  // const SUCCESS = `${origin}/success?user_id=${userId}&plan=${plan}`;
-  // const FAIL = `${origin}/fail?user_id=${userId}&plan=${plan}`;
-
+  // Initialize Hosted Fields
   useEffect(() => {
     if (authLoading || profileLoading) {
       return;
     }
+
     if (!isAuthenticated) {
       navigate(`/login?returnTo=/checkout&plan=${plan}&user_id=${userId}`);
       return;
     }
-    
-    // Populate email from user data
+
+    // Populate user data
     if (user?.email) {
-      editFormData('email', user.email);
+      setFormData(prev => ({ ...prev, email: user.email }));
     }
-    
-    // Populate full name - prefer profile data over user metadata
+
     const userName = fullName || user?.user_metadata?.full_name || '';
     if (userName) {
-      editFormData('fullName', userName);
+      setFormData(prev => ({ ...prev, fullName: userName }));
     }
+
+    // Initialize Tranzila Hosted Fields
+    console.log('🔧 Initializing Tranzila Hosted Fields...');
+
+    try {
+      const hf = createHostedFields({
+        fields: {
+          credit_card_number: {
+            selector: '#card-number',
+            placeholder: '1234 5678 9012 3456',
+            tabindex: 3
+          },
+          cvv: {
+            selector: '#cvv',
+            placeholder: '123',
+            tabindex: 5
+          },
+          expiry: {
+            selector: '#expiry',
+            placeholder: 'MM/YY',
+            tabindex: 4
+          },
+          card_holder_id_number: {
+            selector: '#israeli-id',
+            placeholder: '123456789 (Israeli ID)',
+            tabindex: 6
+          }
+        }
+      });
+
+      hostedFieldsRef.current = hf;
+
+      // Setup event listeners
+      setupEventListeners(hf, {
+        onReady: () => {
+          console.log('✅ Hosted fields ready');
+          setFieldsReady(true);
+        },
+        onValidityChange: (event) => {
+          console.log(`Field ${event.field} is ${event.isValid ? 'valid' : 'invalid'}`);
+          setFieldValidity(prev => ({
+            ...prev,
+            [event.field]: event.isValid
+          }));
+        },
+        onCardTypeChange: (event) => {
+          console.log(`Card type: ${event.cardType}`);
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Failed to initialize hosted fields:', error);
+      setErrMsg('Failed to load payment form. Please refresh the page.');
+    }
+
+    // Cleanup on unmount
+    return () => {
+      hostedFieldsRef.current = null;
+    };
   }, [isAuthenticated, authLoading, profileLoading, user, fullName, navigate, plan, userId]);
 
   function editFormData(key, value) {
@@ -59,75 +123,65 @@ export default function Checkout() {
   }
 
   async function onHandlePay(e) {
-    e.preventDefault()
+    e.preventDefault();
 
-    // For hosted payment, we only need name and email
+    // Validate required fields
     if (!formData.fullName || !formData.email) {
-      setErrMsg('Please enter your name and email')
-      setStatus("error")
-      return
+      setErrMsg('Please enter your name and email');
+      setStatus("error");
+      return;
     }
 
-    setStatus("loading")
-    setErrMsg("")  // Clear previous errors
-
-    try {
-      // Call backend to get Tranzila hosted payment URL and data
-      const backendUrl = import.meta.env.VITE_BACKEND_URL
-      const session = JSON.parse(localStorage.getItem(`sb-${import.meta.env.VITE_SUPABASE_URL.split('//')[1]?.split('.')[0]}-auth-token`))
-
-      if (!session?.access_token) {
-        setErrMsg('Please log in to continue')
-        setStatus("error")
-        return
-      }
-
-      console.log("🌐 Creating hosted payment...")
-      const response = await fetch(`${backendUrl}/payment/create-hosted-payment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          full_name: formData.fullName
-        })
-      })
-
-      const data = await response.json()
-      console.log("🌐 Hosted payment response:", data)
-
-      if (!response.ok || data.status === 'error') {
-        setErrMsg(data.message || "Failed to create payment. Please try again")
-        setStatus("error")
-        return
-      }
-
-      // Create hidden form and redirect to Tranzila (test terminals don't support iframe)
-      const form = document.createElement('form')
-      form.method = 'POST'
-      form.action = data.payment_url
-      form.style.display = 'none'
-
-      // Add all payment parameters as hidden fields
-      Object.entries(data.payment_data).forEach(([key, value]) => {
-        const input = document.createElement('input')
-        input.type = 'hidden'
-        input.name = key
-        input.value = value
-        form.appendChild(input)
-      })
-
-      document.body.appendChild(form)
-      console.log("🚀 Redirecting to Tranzila payment page...")
-      form.submit()
-
-    } catch (error) {
-      console.error("❌ Payment error:", error)
-      setErrMsg(error.message || "Payment failed, please try again")
-      setStatus("error")
+    if (!hostedFieldsRef.current) {
+      setErrMsg('Payment form not initialized. Please refresh the page.');
+      setStatus("error");
+      return;
     }
+
+    setStatus("loading");
+    setErrMsg("");
+
+    // Prepare payment parameters
+    const paymentParams = {
+      terminal_name: 'fxpsharon333',
+      sum: sum,
+      currency: '1', // ILS
+      cred_type: '1', // Regular credit
+      tranmode: 'AK', // Authorization + Capture
+      contact: formData.fullName,
+      email: formData.email,
+      pdesc: 'TalkAPI Pro Subscription'
+    };
+
+    console.log('💳 Initiating payment with params:', paymentParams);
+
+    // Charge using hosted fields
+    chargePayment(hostedFieldsRef.current, paymentParams, (err, response) => {
+      setStatus(false);
+
+      if (err) {
+        console.error('❌ Payment failed:', err);
+        setErrMsg(getErrorMessage(err));
+        setStatus("error");
+        return;
+      }
+
+      console.log('✅ Payment successful!', response);
+
+      // Extract transaction details
+      const transactionId = response.ConfirmationCode || response.index || '';
+      const orderId = response.order_id || '';
+
+      // Redirect to success page
+      const successUrl = `/payment/success?transaction_id=${transactionId}&order_id=${orderId}`;
+      console.log('🎉 Redirecting to:', successUrl);
+      navigate(successUrl);
+    });
   }
+
+  // Check if all required fields are valid
+  const allFieldsValid = fieldValidity.credit_card_number &&
+                         fieldValidity.card_holder_id_number;
 
   return (
     <div
@@ -143,7 +197,7 @@ export default function Checkout() {
         <p style={{ opacity: 0.85, marginBottom: 18, color: "#fff" }}>
           Card fields are securely hosted by Tranzila. We never store card data.
         </p>
-        
+
         <div style={{
           background: "rgba(234, 179, 8, 0.1)",
           border: "1px solid rgba(234, 179, 8, 0.3)",
@@ -154,7 +208,7 @@ export default function Checkout() {
           fontSize: 14,
           textAlign: "center"
         }}>
-          ⚠️ <strong>Live Payment:</strong> This is a real payment. You will be charged ${sum}.
+          ⚠️ <strong>Test Payment:</strong> This is a test. Amount: ${sum}
         </div>
 
         <div
@@ -182,15 +236,45 @@ export default function Checkout() {
             </div>
           </div>
 
-          <form
-            // onSubmit={handlePay}
-            onSubmit={onHandlePay}
-          >
+          <form onSubmit={onHandlePay}>
             <label style={lbl}>Full name</label>
-            <input value={formData.fullName} onChange={(e) => editFormData('fullName', e.target.value)} placeholder="Jane Doe" style={inp} required />
+            <input
+              value={formData.fullName}
+              onChange={(e) => editFormData('fullName', e.target.value)}
+              placeholder="Jane Doe"
+              style={inp}
+              tabIndex={1}
+              required
+            />
 
             <label style={lbl}>Email</label>
-            <input type="email" value={formData.email} onChange={(e) => editFormData('email', e.target.value)} placeholder="jane@example.com" style={inp} required />
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => editFormData('email', e.target.value)}
+              placeholder="jane@example.com"
+              style={inp}
+              tabIndex={2}
+              required
+            />
+
+            {/* Hosted Fields - Tranzila iframes will be injected here */}
+            <label style={lbl}>Card Number</label>
+            <div id="card-number" style={hfBox} className="hosted-field"></div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={lbl}>Expiry Date</label>
+                <div id="expiry" style={hfBox} className="hosted-field"></div>
+              </div>
+              <div>
+                <label style={lbl}>CVV</label>
+                <div id="cvv" style={hfBox} className="hosted-field"></div>
+              </div>
+            </div>
+
+            <label style={lbl}>Israeli ID Number (תעודת זהות)</label>
+            <div id="israeli-id" style={hfBox} className="hosted-field"></div>
 
             <div style={{
               background: "rgba(59, 130, 246, 0.1)",
@@ -201,32 +285,78 @@ export default function Checkout() {
               color: "#60a5fa",
               fontSize: 14,
             }}>
-              ℹ️ You'll enter your card details securely on Tranzila's payment page
+              ℹ️ Your card details are entered directly into Tranzila's secure fields
             </div>
 
-            {errMsg ? <div style={{ marginTop: 10, color: "#ff8b8b" }}>{errMsg}</div> : null}
+            {errMsg && (
+              <div style={{
+                marginTop: 10,
+                color: "#ff8b8b",
+                background: "rgba(239, 68, 68, 0.1)",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                borderRadius: 8,
+                padding: 12
+              }}>
+                {errMsg}
+              </div>
+            )}
 
             <button
               type="submit"
-              disabled={status === "loading"}
+              disabled={status === "loading" || !fieldsReady}
               style={{
                 width: "100%", marginTop: 14, border: 0, color: "#fff",
                 fontWeight: 800, fontSize: 16, padding: "14px 16px",
                 borderRadius: 12, cursor: "pointer",
                 background: "linear-gradient(135deg,#3b82f6,#8b5cf6)",
-                opacity: status === "loading" ? 0.6 : 1
+                opacity: (status === "loading" || !fieldsReady) ? 0.6 : 1
               }}
-              onClick={onHandlePay}
             >
-              {status === "loading" ? "Processing…" : `Pay $${sum}`}
+              {status === "loading" ? "Processing…" : !fieldsReady ? "Loading…" : `Pay $${sum}`}
             </button>
           </form>
         </div>
       </div>
+
+      {/* CSS for hosted fields */}
+      <style>{`
+        .hosted-field {
+          transition: border-color 0.2s ease;
+        }
+        .hosted-field.hosted-fields-valid {
+          border-color: rgba(16, 185, 129, 0.5) !important;
+        }
+        .hosted-field.hosted-fields-invalid {
+          border-color: rgba(239, 68, 68, 0.5) !important;
+        }
+        .hosted-field iframe {
+          border: none !important;
+        }
+      `}</style>
     </div>
   );
 }
 
-const lbl = { display: "block", margin: "10px 0 6px", color: "#dce6ff" };
-const inp = { width: "100%", background: "#0e1736", color: "#fff", border: "1px solid rgba(162,179,214,.18)", padding: "12px 12px", borderRadius: 12, outline: "none", fontSize: 15 };
-const hfBox = { width: "100%", color: '#fff', background: "#0e1736", border: "1px solid rgba(162,179,214,.18)", borderRadius: 12, height: 44, display: "flex", alignItems: "center", padding: "0 12px" };
+const lbl = { display: "block", margin: "10px 0 6px", color: "#dce6ff", fontSize: 14 };
+const inp = {
+  width: "100%",
+  background: "#0e1736",
+  color: "#fff",
+  border: "1px solid rgba(162,179,214,.18)",
+  padding: "12px 12px",
+  borderRadius: 12,
+  outline: "none",
+  fontSize: 15
+};
+const hfBox = {
+  width: "100%",
+  color: '#fff',
+  background: "#0e1736",
+  border: "1px solid rgba(162,179,214,.18)",
+  borderRadius: 12,
+  minHeight: 44,
+  display: "flex",
+  alignItems: "center",
+  padding: "0 12px",
+  overflow: "hidden"
+};
