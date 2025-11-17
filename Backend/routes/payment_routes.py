@@ -207,22 +207,26 @@ def upgrade_after_hosted_payment():
             limits=PRO_LIMITS,  # 500/2000 monthly
         )
 
-        # 4) Log to API history
-        supabase_manager.save_api_history(
-            user_id=user_id,
-            user_query="Hosted Fields Payment: upgrade to Pro",
-            generated_code=None,
-            endpoint="/payment/upgrade-after-hosted-payment",
-            status="Success" if updated else "Failed",
-            execution_result={
-                "transaction_id": transaction_id,
-                "amount": amount,
-                "currency_code": currency_code,
-                "plan": "pro",
-                "limits": PRO_LIMITS,
-                "payment_method": "hosted_fields"
-            },
-        )
+        # 4) Log to API history (non-critical, don't fail if this errors)
+        try:
+            supabase_manager.save_api_history(
+                user_id=user_id,
+                user_query="Hosted Fields Payment: upgrade to Pro",
+                generated_code=None,
+                endpoint="/payment/upgrade-after-hosted-payment",
+                status="Success" if updated else "Failed",
+                execution_result={
+                    "transaction_id": transaction_id,
+                    "amount": amount,
+                    "currency_code": currency_code,
+                    "plan": "pro",
+                    "limits": PRO_LIMITS,
+                    "payment_method": "hosted_fields"
+                },
+            )
+        except Exception as history_error:
+            # Log the error but don't fail the payment upgrade
+            logger.warning(f"⚠️ Failed to save API history (non-critical): {str(history_error)}")
 
         if updated:
             logger.info(f"✅ User {user_id} upgraded to Pro successfully")
