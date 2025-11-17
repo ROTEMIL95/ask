@@ -41,11 +41,9 @@ const Pricing = () => {
     if (!isAuthenticated) {
       return { type: 'login', disabled: false };
     }
-    
-    if (profileLoading) {
-      return { type: 'loading', disabled: true };
-    }
-    
+
+    // Use planType directly instead of waiting for profileLoading
+    // If planType is undefined, default to 'free'
     const currentPlan = planType || 'free';
     
     if (currentPlan === plan) {
@@ -192,7 +190,6 @@ const Pricing = () => {
                   >
                     {buttonState.type === 'upgrade' ? 'Upgrade to Pro' :
                      buttonState.type === 'downgrade' ? 'Downgrade to Pro' :
-                     buttonState.type === 'loading' ? 'Loading...' :
                      'Get Started with Pro'}
                   </Button>
                 );
