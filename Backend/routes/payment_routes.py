@@ -154,6 +154,99 @@ def create_handshake():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@payment_bp.route("/payment/upgrade-after-hosted-payment", methods=["POST", "OPTIONS"])
+def upgrade_after_hosted_payment():
+    """
+    Upgrade user to Pro after successful Hosted Fields payment.
+
+    This endpoint is called by the frontend immediately after a successful
+    Hosted Fields payment to update the user's profile in the database.
+
+    No recurring payment (STO) is created for Hosted Fields one-time payments.
+    """
+    logger.info("🎉 /payment/upgrade-after-hosted-payment called")
+
+    if request.method == "OPTIONS":
+        return "", 200
+
+    # 1) Authorization
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning("Missing/invalid Authorization header")
+        return jsonify({"status": "error", "message": "Authentication required"}), 401
+
+    token = auth_header.split(" ")[1]
+    user_data = supabase_manager.verify_token(token)
+    user_id = user_data.get("sub") if user_data else None
+    user_email = user_data.get("email") if user_data else None
+
+    if not user_id:
+        logger.error("Invalid user token")
+        return jsonify({"status": "error", "message": "Invalid user token"}), 401
+
+    # 2) Get payment details from request
+    params = request.get_json(silent=True) or {}
+    transaction_id = params.get("transaction_id")
+    amount = params.get("amount")
+    currency_code = params.get("currency_code")
+    card_last_4 = params.get("card_last_4")
+
+    logger.info(f"💳 Upgrading user {user_id} ({user_email}) to Pro")
+    logger.info(f"   Transaction ID: {transaction_id}")
+    logger.info(f"   Amount: {amount} {currency_code}")
+    logger.info(f"   Card: ****{card_last_4}")
+
+    # 3) Update user_profiles in Supabase
+    try:
+        updated = supabase_manager.update_subscription_after_payment(
+            user_id=user_id,
+            sto_id=None,  # No STO for Hosted Fields one-time payment
+            plan_type="pro",
+            user_email=user_email,
+            user_token=token,
+            limits=PRO_LIMITS,  # 500/2000 monthly
+        )
+
+        # 4) Log to API history
+        supabase_manager.save_api_history(
+            user_id=user_id,
+            user_query="Hosted Fields Payment: upgrade to Pro",
+            generated_code=None,
+            endpoint="/payment/upgrade-after-hosted-payment",
+            status="Success" if updated else "Failed",
+            execution_result={
+                "transaction_id": transaction_id,
+                "amount": amount,
+                "currency_code": currency_code,
+                "plan": "pro",
+                "limits": PRO_LIMITS,
+                "payment_method": "hosted_fields"
+            },
+        )
+
+        if updated:
+            logger.info(f"✅ User {user_id} upgraded to Pro successfully")
+            return jsonify({
+                "status": "success",
+                "message": "Account upgraded to Pro",
+                "plan_type": "pro",
+                "limits": PRO_LIMITS
+            }), 200
+        else:
+            logger.error(f"❌ Failed to update user {user_id} profile")
+            return jsonify({
+                "status": "error",
+                "message": "Failed to upgrade account. Please contact support."
+            }), 500
+
+    except Exception as e:
+        logger.exception(f"❌ Error upgrading user {user_id} to Pro: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error. Please contact support."
+        }), 500
+
+
 @payment_bp.route("/payment/pay", methods=["POST", "OPTIONS"])
 def make_initial_payment():
     """

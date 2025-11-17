@@ -311,13 +311,62 @@ export default function Checkout() {
 
       // Extract transaction details from transaction_response
       const txn = response.transaction_response || {};
-      const transactionId = txn.ConfirmationCode || txn.index || '';
+      const transactionId = txn.transaction_id || txn.ConfirmationCode || txn.index || '';
       const orderId = txn.order_id || '';
 
-      // Redirect to success page
-      const successUrl = `/payment/success?transaction_id=${transactionId}&order_id=${orderId}`;
-      console.log('🎉 Redirecting to:', successUrl);
-      navigate(successUrl);
+      // Step 4: Upgrade user to Pro in database BEFORE redirecting
+      console.log('💾 Step 4: Upgrading user to Pro in database...');
+
+      (async () => {
+        try {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+          // Get token from Supabase session
+          const sessionKey = `sb-${import.meta.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0]}-auth-token`;
+          const sessionStr = localStorage.getItem(sessionKey);
+          const session = sessionStr ? JSON.parse(sessionStr) : null;
+          const token = session?.access_token;
+
+          if (!token) {
+            console.error('⚠️ No token found, cannot upgrade user');
+          } else {
+            console.log('🔑 Token found, calling upgrade endpoint...');
+
+            const upgradeResponse = await fetch(`${API_URL}/payment/upgrade-after-hosted-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                transaction_id: transactionId,
+                amount: txn.amount,
+                currency_code: txn.currency_code,
+                card_last_4: txn.credit_card_last_4_digits,
+                plan_type: 'pro'
+              })
+            });
+
+            const upgradeData = await upgradeResponse.json();
+
+            if (!upgradeResponse.ok) {
+              console.error('⚠️ Failed to upgrade user, but payment succeeded');
+              console.error('   Response:', upgradeData);
+            } else {
+              console.log('✅ User upgraded to Pro successfully!');
+              console.log('   Response:', upgradeData);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error upgrading user:', error);
+        } finally {
+          // Redirect to success page regardless of upgrade status
+          // (payment was successful, user can contact support if upgrade failed)
+          const successUrl = `/payment/success?transaction_id=${transactionId}&order_id=${orderId}`;
+          console.log('🎉 Redirecting to:', successUrl);
+          navigate(successUrl);
+        }
+      })();
     });
   }
 
