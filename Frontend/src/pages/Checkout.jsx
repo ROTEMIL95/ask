@@ -35,7 +35,8 @@ export default function Checkout() {
   const userId = searchParams.get('user_id');
 
   // Price configuration
-  const sum = plan === 'pro' ? "0.10" : "19.99"; // Test amount for pro
+  // Note: Tranzila expects sum as string, keep consistent format
+  const sum = plan === 'pro' ? "0.1" : "19.99"; // Test amount for pro (0.1 ILS)
 
   // Populate user data
   useEffect(() => {
@@ -188,6 +189,8 @@ export default function Checkout() {
         return;
       }
 
+      console.log('🤝 Creating handshake with sum:', sum, 'type:', typeof sum);
+
       const handshakeResponse = await fetch(`${API_URL}/payment/create-handshake`, {
         method: 'POST',
         headers: {
@@ -198,6 +201,8 @@ export default function Checkout() {
           sum: sum
         })
       });
+
+      console.log('🤝 Handshake request body:', JSON.stringify({ sum: sum }));
 
       const handshakeData = await handshakeResponse.json();
 
@@ -226,10 +231,9 @@ export default function Checkout() {
     // Step 2: Prepare payment parameters WITH handshake token
     const paymentParams = {
       terminal_name: 'fxpsharon333', // Production terminal
-      sum: sum,
-      currency: '1', // ILS
-      cred_type: '1', // Regular credit
-      tranmode: 'AK', // Authorization + Capture
+      amount: sum,                    // Changed from 'sum' to 'amount' (Tranzila API requirement)
+      currency_code: '1',             // Changed from 'currency' to 'currency_code', 1=ILS
+      tran_mode: 'A',                 // Changed from 'tranmode' to 'tran_mode', A=debit
       contact: formData.fullName,
       email: formData.email,
       pdesc: 'TalkAPI Pro Subscription',
@@ -239,7 +243,9 @@ export default function Checkout() {
 
     console.log('💳 Step 2: Initiating payment with params:');
     console.log('   terminal_name:', paymentParams.terminal_name);
-    console.log('   sum:', paymentParams.sum);
+    console.log('   amount:', paymentParams.amount);
+    console.log('   currency_code:', paymentParams.currency_code);
+    console.log('   tran_mode:', paymentParams.tran_mode);
     console.log('   thtk:', paymentParams.thtk);
     console.log('   new_process:', paymentParams.new_process);
     console.log('   Full params:', paymentParams);
