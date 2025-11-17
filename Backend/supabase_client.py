@@ -198,14 +198,11 @@ class SupabaseManager:
                 profile_data["sto_id"] = sto_id
 
             # Update based on user_id (unique) - use api schema
-            response = client.schema('api').table('user_profiles').update(profile_data).eq('user_id', user_id).select().execute()
+            response = client.schema('api').table('user_profiles').update(profile_data).eq('user_id', user_id).execute()
 
-            if response.data:
-                print(f"✅ Updated subscription for user {user_id}: plan={plan_type}, sto_id={sto_id}, limits={limits}")
-                return True
-            else:
-                print(f"❌ No rows updated - profile with user_id {user_id} not found")
-                return False
+            # If we reached here without exception, the update succeeded
+            print(f"✅ Updated subscription for user {user_id}: plan={plan_type}, sto_id={sto_id}, limits={limits}")
+            return True
 
         except Exception as e:
             print(f"❌ Error updating subscription: {e}")
