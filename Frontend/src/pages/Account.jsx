@@ -78,6 +78,10 @@ export default function AccountPage() {
                 console.log('[Account] Step 2: User found:', currentUser?.email);
                 setUser(currentUser);
 
+                console.log('[Account] Step 2.5: Refreshing profile from database...');
+                const profileRefreshed = await refreshProfile();
+                console.log('[Account] Step 2.5: Profile refreshed:', profileRefreshed);
+
                 console.log('[Account] Step 3: Loading usage...');
                 await loadUsage();
                 console.log('[Account] Step 3: Usage loaded successfully');
