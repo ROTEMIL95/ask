@@ -39,6 +39,7 @@ payment_bp = Blueprint("payment", __name__)
 
 # --- Environment (Tranzila credentials) ---
 TRANZILA_SUPPLIER = os.getenv("TRANZILA_SUPPLIER")
+TRANZILA_TERMINAL_PASSWORD = os.getenv("TRANZILA_TERMINAL_PASSWORD")
 TRANZILA_PUBLIC_API_KEY = os.getenv("TRANZILA_PUBLIC_API_KEY")
 TRANZILA_SECRET_API_KEY = os.getenv("TRANZILA_SECRET_API_KEY")
 
@@ -49,6 +50,94 @@ FREE_LIMITS = {"total_limit": 50}                       # combined monthly quota
 # Get frontend URL for callbacks
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5000")
+
+
+@payment_bp.route("/payment/create-handshake", methods=["POST", "OPTIONS"])
+def create_handshake():
+    """
+    Create Tranzila handshake token before payment (fraud prevention).
+    This token must be sent with the Hosted Fields charge request.
+
+    Handshake validates that the payment amount hasn't changed between
+    initialization and charge.
+
+    Token is valid for 20 minutes.
+    """
+    logger.info("🤝 /payment/create-handshake called")
+
+    if request.method == "OPTIONS":
+        return "", 200
+
+    # 1) Authorization
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning("Missing/invalid Authorization header")
+        return jsonify({"status": "error", "message": "Authentication required"}), 401
+
+    auth_token = auth_header.split(" ")[1]
+    user_data = supabase_manager.verify_token(auth_token)
+    user_id = user_data.get("sub") if user_data else None
+
+    if not user_id:
+        return jsonify({"status": "error", "message": "Invalid user token"}), 401
+
+    # 2) Get payment amount from request
+    params = request.get_json(silent=True) or {}
+    sum_amount = params.get("sum")
+
+    if not sum_amount:
+        logger.warning("Missing sum parameter")
+        return jsonify({"status": "error", "message": "Missing payment amount"}), 400
+
+    # 3) Call Tranzila handshake API
+    try:
+        url = "https://api.tranzila.com/v1/handshake/create"
+        handshake_params = {
+            "supplier": TRANZILA_SUPPLIER,
+            "sum": sum_amount,
+            "TranzilaPW": TRANZILA_TERMINAL_PASSWORD
+        }
+
+        logger.info(f"🤝 Calling Tranzila handshake API")
+        logger.info(f"   URL: {url}")
+        logger.info(f"   Params: supplier={TRANZILA_SUPPLIER}, sum={sum_amount}")
+
+        response = requests.get(url, params=handshake_params, timeout=10)
+        logger.info(f"🤝 Handshake response status: {response.status_code}")
+        logger.info(f"🤝 Handshake response text: {response.text}")
+
+        response.raise_for_status()
+
+        # Parse response - could be JSON or query string format
+        try:
+            data = response.json()
+        except:
+            # Parse as query string if not JSON
+            from urllib.parse import parse_qs
+            parsed = parse_qs(response.text)
+            data = {k: v[0] if len(v) == 1 else v for k, v in parsed.items()}
+
+        thtk = data.get("thtk")
+
+        if not thtk:
+            logger.error(f"No thtk in handshake response: {data}")
+            return jsonify({"status": "error", "message": "Failed to create handshake token"}), 500
+
+        logger.info(f"✅ Handshake token created: {thtk}")
+
+        return jsonify({
+            "status": "success",
+            "thtk": thtk,
+            "valid_for": "20 minutes"
+        }), 200
+
+    except requests.exceptions.HTTPError as e:
+        logger.exception(f"HTTP error creating handshake: {str(e)}")
+        error_detail = response.text if 'response' in locals() else str(e)
+        return jsonify({"status": "error", "message": f"Handshake failed: {error_detail}"}), 500
+    except Exception as e:
+        logger.exception("Unexpected error creating handshake")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @payment_bp.route("/payment/pay", methods=["POST", "OPTIONS"])

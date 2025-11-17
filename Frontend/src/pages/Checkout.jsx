@@ -165,22 +165,63 @@ export default function Checkout() {
     setStatus("loading");
     setErrMsg("");
 
-    // Prepare payment parameters
+    // Step 1: Create handshake token (fraud prevention)
+    console.log('🤝 Step 1: Creating handshake token...');
+    let handshakeToken;
+
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('token');
+
+      const handshakeResponse = await fetch(`${API_URL}/payment/create-handshake`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sum: sum
+        })
+      });
+
+      const handshakeData = await handshakeResponse.json();
+
+      if (!handshakeResponse.ok || !handshakeData.thtk) {
+        console.error('❌ Handshake failed:', handshakeData);
+        setErrMsg(handshakeData.message || 'Failed to initialize payment');
+        setStatus("error");
+        return;
+      }
+
+      handshakeToken = handshakeData.thtk;
+      console.log('✅ Handshake token received:', handshakeToken);
+      console.log('   Valid for:', handshakeData.valid_for);
+
+    } catch (error) {
+      console.error('❌ Handshake error:', error);
+      setErrMsg('Failed to initialize payment. Please try again.');
+      setStatus("error");
+      return;
+    }
+
+    // Step 2: Prepare payment parameters WITH handshake token
     const paymentParams = {
-      terminal_name: 'fxpsharon333',
+      terminal_name: 'fxpsharon333', // Production terminal
       sum: sum,
       currency: '1', // ILS
       cred_type: '1', // Regular credit
       tranmode: 'AK', // Authorization + Capture
       contact: formData.fullName,
       email: formData.email,
-      pdesc: 'TalkAPI Pro Subscription'
+      pdesc: 'TalkAPI Pro Subscription',
+      thtk: handshakeToken,  // ✨ Handshake token (required)
+      new_process: '1'        // ✨ Required for handshake validation
     };
 
-    console.log('💳 Initiating payment with params:', paymentParams);
+    console.log('💳 Step 2: Initiating payment with params:', paymentParams);
     console.log('🎯 About to call chargePayment...');
 
-    // Charge using hosted fields
+    // Step 3: Charge using hosted fields
     chargePayment(hostedFieldsRef.current, paymentParams, (err, response) => {
       console.log('🎯 CALLBACK RECEIVED!');
       console.log('  📦 Error:', err);
