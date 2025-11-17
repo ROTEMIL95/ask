@@ -30,6 +30,7 @@ import requests
 
 from services.payment_service import create_recurring_payment, format_payload_initial
 from services.tranzila_service import generate_tranzila_headers
+from services import billing_service, email_service
 from supabase_client import supabase_manager
 
 logging.basicConfig(level=logging.INFO)
@@ -230,11 +231,53 @@ def upgrade_after_hosted_payment():
 
         if updated:
             logger.info(f"✅ User {user_id} upgraded to Pro successfully")
+
+            # 5) Create invoice (non-critical - don't fail if this errors)
+            invoice_url = None
+            try:
+                logger.info(f"📄 Creating invoice for user {user_id}")
+                invoice = billing_service.create_invoice(
+                    user_email=user_email,
+                    user_name=user_data.get('full_name') or user_email,
+                    amount=amount or 19.00,  # Default to $19 if not provided
+                    currency_code=currency_code or "ILS",
+                    card_last_4=card_last_4,
+                    transaction_id=transaction_id,
+                    plan_name="TalkAPI Pro Monthly Subscription"
+                )
+                invoice_url = invoice.get('document_url')
+                logger.info(f"✅ Invoice created: {invoice.get('document_number')}")
+                if invoice_url:
+                    logger.info(f"   PDF URL: {invoice_url}")
+            except Exception as invoice_error:
+                logger.warning(f"⚠️ Failed to create invoice (non-critical): {str(invoice_error)}")
+
+            # 6) Send payment confirmation email (non-critical - don't fail if this errors)
+            try:
+                logger.info(f"📧 Sending payment confirmation email to {user_email}")
+                email_sent = email_service.send_payment_success_email(
+                    user_email=user_email,
+                    user_name=user_data.get('full_name') or user_email,
+                    amount=amount or 19.00,
+                    plan_type="pro",
+                    transaction_id=transaction_id or "N/A",
+                    invoice_url=invoice_url,
+                    daily_limit=100,
+                    monthly_limit=2000
+                )
+                if email_sent:
+                    logger.info(f"✅ Payment confirmation email sent successfully")
+                else:
+                    logger.warning(f"⚠️ Failed to send payment confirmation email")
+            except Exception as email_error:
+                logger.warning(f"⚠️ Failed to send email (non-critical): {str(email_error)}")
+
             return jsonify({
                 "status": "success",
                 "message": "Account upgraded to Pro",
                 "plan_type": "pro",
-                "limits": PRO_LIMITS
+                "limits": PRO_LIMITS,
+                "invoice_url": invoice_url  # Optional: frontend can display this
             }), 200
         else:
             logger.error(f"❌ Failed to update user {user_id} profile")
@@ -474,6 +517,17 @@ def cancel_payment():
                 "status": "success",
                 "message": "Subscription cancelled, but account update failed. Please contact support.",
             }), 200
+
+        # Send cancellation confirmation email (non-critical)
+        try:
+            logger.info(f"📧 Sending cancellation confirmation email to {user_email}")
+            email_service.send_subscription_cancelled_email(
+                user_email=user_email,
+                user_name=user_data.get('name') or user_email
+            )
+            logger.info(f"✅ Cancellation email sent successfully")
+        except Exception as email_error:
+            logger.warning(f"⚠️ Failed to send cancellation email (non-critical): {str(email_error)}")
 
         return jsonify({
             "status": "success",
