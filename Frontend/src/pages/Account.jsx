@@ -63,39 +63,49 @@ export default function AccountPage() {
     const { profile, planType, fullName, loading: profileLoading, refreshProfile } = useUserProfile();
 
     useEffect(() => {
+        console.log('[Account] useEffect triggered - starting loadAccountData');
         const loadAccountData = async () => {
             try {
+                console.log('[Account] Step 1: Getting current user...');
                 const { user: currentUser, error } = await auth.getCurrentUser();
                 if (error) {
-                    console.error('Error getting current user:', error);
+                    console.error('[Account] Error getting current user:', error);
                     // Redirect to login if not authenticated
                     window.location.href = createPageUrl('Login');
                     return;
                 }
-                
+
+                console.log('[Account] Step 2: User found:', currentUser?.email);
                 setUser(currentUser);
+
+                console.log('[Account] Step 3: Loading usage...');
                 await loadUsage();
-                
+                console.log('[Account] Step 3: Usage loaded successfully');
+
                 // Load recent API call history and favorites with error handling
+                console.log('[Account] Step 4: Loading history...');
                 setHistoryLoading(true);
                 try {
                     // For now, we'll skip history loading since we need to implement it with Supabase
                     // TODO: Implement history loading with Supabase
                     setRecentHistory([]);
                     setFavorites([]);
+                    console.log('[Account] Step 4: History set to empty (not implemented)');
                 } catch (historyError) {
-                    console.error('Failed to load history:', historyError);
+                    console.error('[Account] Failed to load history:', historyError);
                     // Don't block the page if history fails to load
                     setRecentHistory([]);
                     setFavorites([]); // Ensure favorites are also reset on error
                 } finally {
                     setHistoryLoading(false);
+                    console.log('[Account] Step 4: History loading completed');
                 }
             } catch (e) {
-                console.error('Error loading account data:', e);
+                console.error('[Account] Error loading account data:', e);
                 // Redirect to login if not authenticated
                 window.location.href = createPageUrl('Login');
             } finally {
+                console.log('[Account] Step 5: Setting loading to FALSE');
                 setLoading(false);
             }
         };
