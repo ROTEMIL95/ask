@@ -105,8 +105,10 @@ class SupabaseManager:
                 'execution_result': json.dumps(execution_result) if execution_result else None,
                 'is_favorite': False
             }
-            
-            self.client.table('api_history').insert(history_data).execute()
+
+            # Use admin client for write operations to bypass RLS
+            client = self.admin_client or self.client
+            client.schema('api').table('api_history').insert(history_data).execute()
             return True
         except Exception as e:
             print(f"Error saving API history: {e}")
