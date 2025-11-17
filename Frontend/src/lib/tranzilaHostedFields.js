@@ -118,7 +118,7 @@ export const chargePayment = (hostedFields, params, callback) => {
   const paymentParams = {
     terminal_name: params.terminal_name,
     amount: params.amount, // Changed from 'sum' to match Tranzila API docs
-    currency_code: params.currency_code || 1, // MUST be number! 1=ILS
+    currency_code: params.currency_code || "ILS", // ISO code string: ILS, USD, EUR
     tran_mode: params.tran_mode || 'A', // Changed from 'tranmode', A=debit
     contact: params.contact,
     email: params.email,

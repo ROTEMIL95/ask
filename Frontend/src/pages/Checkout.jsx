@@ -232,7 +232,7 @@ export default function Checkout() {
     const paymentParams = {
       terminal_name: 'fxpsharon333', // Production terminal
       amount: sum,                    // Changed from 'sum' to 'amount' (Tranzila API requirement)
-      currency_code: 1,               // MUST be number, not string! 1=ILS
+      currency_code: "ILS",           // ISO code string (not number!) - ILS, USD, EUR
       tran_mode: 'A',                 // Changed from 'tranmode' to 'tran_mode', A=debit
       contact: formData.fullName,
       email: formData.email,
