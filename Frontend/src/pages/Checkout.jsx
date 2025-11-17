@@ -347,11 +347,23 @@ export default function Checkout() {
               })
             });
 
-            const upgradeData = await upgradeResponse.json();
+            let upgradeData;
+            try {
+              upgradeData = await upgradeResponse.json();
+            } catch (jsonError) {
+              console.error('❌ Failed to parse upgrade response as JSON');
+              console.error('   Status:', upgradeResponse.status);
+              console.error('   Status Text:', upgradeResponse.statusText);
+              upgradeData = { message: `Server error: ${upgradeResponse.status} ${upgradeResponse.statusText}` };
+            }
 
             if (!upgradeResponse.ok) {
               console.error('⚠️ Failed to upgrade user, but payment succeeded');
-              console.error('   Response:', upgradeData);
+              console.error('   Status Code:', upgradeResponse.status);
+              console.error('   Response Status:', upgradeResponse.statusText);
+              console.error('   Response Data:', upgradeData);
+              console.error('   Error Message:', upgradeData.message || 'No error message');
+              console.error('   Full Object:', JSON.stringify(upgradeData, null, 2));
             } else {
               console.log('✅ User upgraded to Pro successfully!');
               console.log('   Response:', upgradeData);
