@@ -105,25 +105,39 @@ def create_handshake():
         response = requests.get(url, params=handshake_params, timeout=10)
         logger.info(f"🤝 Handshake response status: {response.status_code}")
         logger.info(f"🤝 Handshake response text: {response.text}")
+        logger.info(f"🤝 Handshake response headers: {dict(response.headers)}")
 
         response.raise_for_status()
 
         # Parse response - could be JSON or query string format
         try:
             data = response.json()
+            logger.info(f"🤝 Parsed handshake response (JSON): {data}")
         except:
             # Parse as query string if not JSON
             from urllib.parse import parse_qs
             parsed = parse_qs(response.text)
             data = {k: v[0] if len(v) == 1 else v for k, v in parsed.items()}
+            logger.info(f"🤝 Parsed handshake response (query string): {data}")
+
+        # Check for errors in response
+        if 'error' in data or 'Error' in data:
+            error_msg = data.get('error') or data.get('Error')
+            logger.error(f"❌ Handshake returned error: {error_msg}")
+            logger.error(f"❌ Full response: {data}")
+            return jsonify({"status": "error", "message": f"Handshake error: {error_msg}"}), 500
 
         thtk = data.get("thtk")
 
         if not thtk:
-            logger.error(f"No thtk in handshake response: {data}")
+            logger.error(f"❌ No thtk in handshake response!")
+            logger.error(f"❌ Full response data: {data}")
+            logger.error(f"❌ Response keys: {list(data.keys())}")
             return jsonify({"status": "error", "message": "Failed to create handshake token"}), 500
 
-        logger.info(f"✅ Handshake token created: {thtk}")
+        logger.info(f"✅ Handshake token created successfully!")
+        logger.info(f"   thtk: {thtk}")
+        logger.info(f"   All response data: {data}")
 
         return jsonify({
             "status": "success",

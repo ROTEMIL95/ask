@@ -209,8 +209,12 @@ export default function Checkout() {
       }
 
       handshakeToken = handshakeData.thtk;
-      console.log('✅ Handshake token received:', handshakeToken);
+      console.log('✅ Handshake token received!');
+      console.log('   thtk:', handshakeToken);
+      console.log('   thtk length:', handshakeToken?.length);
+      console.log('   thtk type:', typeof handshakeToken);
       console.log('   Valid for:', handshakeData.valid_for);
+      console.log('   Full handshake response:', handshakeData);
 
     } catch (error) {
       console.error('❌ Handshake error:', error);
@@ -233,7 +237,12 @@ export default function Checkout() {
       new_process: '1'        // ✨ Required for handshake validation
     };
 
-    console.log('💳 Step 2: Initiating payment with params:', paymentParams);
+    console.log('💳 Step 2: Initiating payment with params:');
+    console.log('   terminal_name:', paymentParams.terminal_name);
+    console.log('   sum:', paymentParams.sum);
+    console.log('   thtk:', paymentParams.thtk);
+    console.log('   new_process:', paymentParams.new_process);
+    console.log('   Full params:', paymentParams);
     console.log('🎯 About to call chargePayment...');
 
     // Step 3: Charge using hosted fields
