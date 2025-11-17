@@ -188,9 +188,14 @@ export default function Checkout() {
       console.log('  📦 Response type:', typeof response);
       console.log('  📦 Response keys:', response ? Object.keys(response) : 'null');
 
+      // Log errors array if exists
+      if (response?.errors) {
+        console.log('  📦 Response.errors:', response.errors);
+      }
+
       setStatus(false);
 
-      // Check for error
+      // Check for error parameter
       if (err || !response) {
         console.error('❌ Payment failed - error or no response');
         setErrMsg(getErrorMessage(err) || 'No response from payment gateway');
@@ -198,7 +203,24 @@ export default function Checkout() {
         return;
       }
 
-      // Check for error in response object (Tranzila might put error in response)
+      // Check for errors array (Tranzila Hosted Fields format)
+      if (response.errors && response.errors.length > 0) {
+        console.error('❌ Payment failed - errors in response:', response.errors);
+        const errorMessage = response.errors.map(e => e.error_message || e.message || JSON.stringify(e)).join(', ');
+        setErrMsg(errorMessage || 'Payment failed. Please check your card details.');
+        setStatus("error");
+        return;
+      }
+
+      // Check if transaction_response is null (means no transaction occurred)
+      if (!response.transaction_response) {
+        console.error('❌ Payment failed - no transaction response');
+        setErrMsg('Payment failed. No transaction was created. Please check your card details.');
+        setStatus("error");
+        return;
+      }
+
+      // Check for error in response object (legacy format)
       if (response.err || response.error) {
         console.error('❌ Payment error in response:', response.err || response.error);
         setErrMsg(response.err || response.error || 'Payment failed');
@@ -207,18 +229,19 @@ export default function Checkout() {
       }
 
       // Check Tranzila response code (000 = success)
-      if (response.Response && response.Response !== '000') {
-        console.error('❌ Payment failed with Tranzila code:', response.Response);
-        setErrMsg(`Payment failed. Error code: ${response.Response}`);
+      if (response.transaction_response?.Response && response.transaction_response.Response !== '000') {
+        console.error('❌ Payment failed with Tranzila code:', response.transaction_response.Response);
+        setErrMsg(`Payment failed. Error code: ${response.transaction_response.Response}`);
         setStatus("error");
         return;
       }
 
       console.log('✅ Payment successful!', response);
 
-      // Extract transaction details
-      const transactionId = response.ConfirmationCode || response.index || '';
-      const orderId = response.order_id || '';
+      // Extract transaction details from transaction_response
+      const txn = response.transaction_response || {};
+      const transactionId = txn.ConfirmationCode || txn.index || '';
+      const orderId = txn.order_id || '';
 
       // Redirect to success page
       const successUrl = `/payment/success?transaction_id=${transactionId}&order_id=${orderId}`;
