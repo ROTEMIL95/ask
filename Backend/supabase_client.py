@@ -178,17 +178,10 @@ class SupabaseManager:
                 'daily_limit': 100 if plan_type == 'pro' else 50  # Pro gets 100/day
             }
 
-            # Create authenticated client using user's JWT token if provided
-            if user_token:
-                print(f"Using user token to authenticate update for {user_email}")
-                from supabase import create_client
-                authenticated_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-                authenticated_client.auth.set_session(user_token, None)
-                client = authenticated_client
-            else:
-                # Fall back to admin client or regular client
-                print("Using admin/anon client for update")
-                client = self.admin_client or self.client
+            # Always use admin client for subscription updates to bypass RLS
+            # User token is not needed since admin client has full access
+            print(f"Using admin client to update subscription for {user_email}")
+            client = self.admin_client or self.client
 
             # Update with correct column names
             profile_data = {
