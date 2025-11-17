@@ -124,6 +124,9 @@ export const chargePayment = (hostedFields, params, callback) => {
     contact: params.contact,
     email: params.email,
     pdesc: params.pdesc || 'Payment',
+    // Include handshake token and validation flag if provided
+    ...(params.thtk && { thtk: params.thtk }),
+    ...(params.new_process && { new_process: params.new_process }),
     ...params.extra // Any additional parameters
   };
 
