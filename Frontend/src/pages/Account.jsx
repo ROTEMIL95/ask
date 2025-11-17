@@ -102,8 +102,8 @@ export default function AccountPage() {
         loadAccountData();
     }, []); // Run only once on mount - avoid infinite loop from function dependency
 
-    // Check both loading states
-    if (loading || profileLoading) {
+    // Only check local loading state - profileLoading can cause infinite loop
+    if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900">
                 <div className="text-center">

@@ -44,21 +44,24 @@ export const useUserProfile = () => {
     try {
       setLoading(true)
       setError(null)
-      
+
+      console.log('[useUserProfile] Fetching profile for user:', userId)
       const { data, error } = await userProfile.getProfile(userId)
-      
+
       if (error) {
         console.error('Error fetching profile:', error)
         setError(sanitizeErrorMessage(error.message))
         return null
       }
-      
+
+      console.log('[useUserProfile] Profile fetched successfully:', data?.plan_type)
       return data
     } catch (err) {
       console.error('Error in fetchProfile:', err)
       setError(sanitizeErrorMessage(err.message))
       return null
     } finally {
+      console.log('[useUserProfile] Setting loading to false')
       setLoading(false)
     }
   }
