@@ -37,7 +37,7 @@ export default function Checkout() {
   // Price configuration
   const sum = plan === 'pro' ? "0.10" : "19.99"; // Test amount for pro
 
-  // Initialize Hosted Fields
+  // Populate user data
   useEffect(() => {
     if (authLoading || profileLoading) {
       return;
@@ -48,7 +48,6 @@ export default function Checkout() {
       return;
     }
 
-    // Populate user data
     if (user?.email) {
       setFormData(prev => ({ ...prev, email: user.email }));
     }
@@ -57,66 +56,78 @@ export default function Checkout() {
     if (userName) {
       setFormData(prev => ({ ...prev, fullName: userName }));
     }
+  }, [isAuthenticated, authLoading, profileLoading, user, fullName, navigate, plan, userId]);
 
-    // Initialize Tranzila Hosted Fields
-    console.log('🔧 Initializing Tranzila Hosted Fields...');
-
-    try {
-      const hf = createHostedFields({
-        fields: {
-          credit_card_number: {
-            selector: '#card-number',
-            placeholder: '1234 5678 9012 3456',
-            tabindex: 3
-          },
-          cvv: {
-            selector: '#cvv',
-            placeholder: '123',
-            tabindex: 5
-          },
-          expiry: {
-            selector: '#expiry',
-            placeholder: 'MM/YY',
-            tabindex: 4
-          },
-          card_holder_id_number: {
-            selector: '#israeli-id',
-            placeholder: '123456789 (Israeli ID)',
-            tabindex: 6
-          }
-        }
-      });
-
-      hostedFieldsRef.current = hf;
-
-      // Setup event listeners
-      setupEventListeners(hf, {
-        onReady: () => {
-          console.log('✅ Hosted fields ready');
-          setFieldsReady(true);
-        },
-        onValidityChange: (event) => {
-          console.log(`Field ${event.field} is ${event.isValid ? 'valid' : 'invalid'}`);
-          setFieldValidity(prev => ({
-            ...prev,
-            [event.field]: event.isValid
-          }));
-        },
-        onCardTypeChange: (event) => {
-          console.log(`Card type: ${event.cardType}`);
-        }
-      });
-
-    } catch (error) {
-      console.error('❌ Failed to initialize hosted fields:', error);
-      setErrMsg('Failed to load payment form. Please refresh the page.');
+  // Initialize Hosted Fields (separate effect, runs only once)
+  useEffect(() => {
+    // Don't initialize if already initialized
+    if (hostedFieldsRef.current) {
+      console.log('⚠️ Hosted fields already initialized, skipping');
+      return;
     }
 
-    // Cleanup on unmount
+    console.log('🔧 Initializing Tranzila Hosted Fields...');
+
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      try {
+        const hf = createHostedFields({
+          fields: {
+            credit_card_number: {
+              selector: '#card-number',
+              placeholder: '1234 5678 9012 3456',
+              tabindex: 3
+            },
+            cvv: {
+              selector: '#cvv',
+              placeholder: '123',
+              tabindex: 5
+            },
+            expiry: {
+              selector: '#expiry',
+              placeholder: 'MM/YY',
+              tabindex: 4
+            },
+            card_holder_id_number: {
+              selector: '#israeli-id',
+              placeholder: '123456789 (Israeli ID)',
+              tabindex: 6
+            }
+          }
+        });
+
+        hostedFieldsRef.current = hf;
+        console.log('✅ Hosted fields instance stored in ref');
+
+        // Setup event listeners
+        setupEventListeners(hf, {
+          onReady: () => {
+            console.log('✅ Hosted fields ready');
+            setFieldsReady(true);
+          },
+          onValidityChange: (event) => {
+            console.log(`🔍 Field ${event.field} validity: ${event.isValid}`);
+            setFieldValidity(prev => ({
+              ...prev,
+              [event.field]: event.isValid
+            }));
+          },
+          onCardTypeChange: (event) => {
+            console.log(`💳 Card type detected: ${event.cardType}`);
+          }
+        });
+
+      } catch (error) {
+        console.error('❌ Failed to initialize hosted fields:', error);
+        setErrMsg('Failed to load payment form. Please refresh the page.');
+      }
+    }, 100); // Small delay for DOM to be ready
+
+    // Cleanup
     return () => {
-      hostedFieldsRef.current = null;
+      clearTimeout(timer);
     };
-  }, [isAuthenticated, authLoading, profileLoading, user, fullName, navigate, plan, userId]);
+  }, []); // Empty deps - run only once
 
   function editFormData(key, value) {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -135,12 +146,20 @@ export default function Checkout() {
       return;
     }
 
+    // Debug: Check ref state
+    console.log('🔍 hostedFieldsRef.current:', hostedFieldsRef.current);
+    console.log('🔍 fieldsReady:', fieldsReady);
+
     if (!hostedFieldsRef.current) {
       console.error('❌ Hosted fields not initialized');
+      console.error('   This usually means the fields did not load properly.');
+      console.error('   Try refreshing the page.');
       setErrMsg('Payment form not initialized. Please refresh the page.');
       setStatus("error");
       return;
     }
+
+    console.log('✅ Hosted fields ref exists!');
 
     console.log('✅ Validation passed, setting loading state');
     setStatus("loading");
