@@ -197,14 +197,14 @@ class SupabaseManager:
             if sto_id is not None:
                 profile_data["sto_id"] = sto_id
 
-            # Update based on email - use api schema
-            response = client.schema('api').table('user_profiles').update(profile_data).eq('email', user_email).execute()
+            # Update based on user_id (unique) - use api schema
+            response = client.schema('api').table('user_profiles').update(profile_data).eq('user_id', user_id).select().execute()
 
             if response.data:
                 print(f"✅ Updated subscription for user {user_id}: plan={plan_type}, sto_id={sto_id}, limits={limits}")
                 return True
             else:
-                print(f"❌ No rows updated - profile with email {user_email} not found")
+                print(f"❌ No rows updated - profile with user_id {user_id} not found")
                 return False
 
         except Exception as e:
