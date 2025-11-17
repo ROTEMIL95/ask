@@ -171,7 +171,22 @@ export default function Checkout() {
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const token = localStorage.getItem('token');
+
+      // Get token from Supabase session
+      const sessionKey = `sb-${import.meta.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0]}-auth-token`;
+      const sessionStr = localStorage.getItem(sessionKey);
+      const session = sessionStr ? JSON.parse(sessionStr) : null;
+      const token = session?.access_token;
+
+      console.log('🔑 Session found:', !!session);
+      console.log('🔑 Token found:', !!token);
+
+      if (!token) {
+        console.error('❌ No authentication token found');
+        setErrMsg('Please log in to continue with payment');
+        setStatus("error");
+        return;
+      }
 
       const handshakeResponse = await fetch(`${API_URL}/payment/create-handshake`, {
         method: 'POST',
