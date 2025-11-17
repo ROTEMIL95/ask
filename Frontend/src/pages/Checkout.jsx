@@ -123,21 +123,26 @@ export default function Checkout() {
   }
 
   async function onHandlePay(e) {
+    console.log('🎯 onHandlePay called!');
     e.preventDefault();
+    console.log('🎯 preventDefault done');
 
     // Validate required fields
     if (!formData.fullName || !formData.email) {
+      console.warn('⚠️ Validation failed: missing name or email');
       setErrMsg('Please enter your name and email');
       setStatus("error");
       return;
     }
 
     if (!hostedFieldsRef.current) {
+      console.error('❌ Hosted fields not initialized');
       setErrMsg('Payment form not initialized. Please refresh the page.');
       setStatus("error");
       return;
     }
 
+    console.log('✅ Validation passed, setting loading state');
     setStatus("loading");
     setErrMsg("");
 
@@ -154,14 +159,38 @@ export default function Checkout() {
     };
 
     console.log('💳 Initiating payment with params:', paymentParams);
+    console.log('🎯 About to call chargePayment...');
 
     // Charge using hosted fields
     chargePayment(hostedFieldsRef.current, paymentParams, (err, response) => {
+      console.log('🎯 CALLBACK RECEIVED!');
+      console.log('  📦 Error:', err);
+      console.log('  📦 Response:', response);
+      console.log('  📦 Response type:', typeof response);
+      console.log('  📦 Response keys:', response ? Object.keys(response) : 'null');
+
       setStatus(false);
 
-      if (err) {
-        console.error('❌ Payment failed:', err);
-        setErrMsg(getErrorMessage(err));
+      // Check for error
+      if (err || !response) {
+        console.error('❌ Payment failed - error or no response');
+        setErrMsg(getErrorMessage(err) || 'No response from payment gateway');
+        setStatus("error");
+        return;
+      }
+
+      // Check for error in response object (Tranzila might put error in response)
+      if (response.err || response.error) {
+        console.error('❌ Payment error in response:', response.err || response.error);
+        setErrMsg(response.err || response.error || 'Payment failed');
+        setStatus("error");
+        return;
+      }
+
+      // Check Tranzila response code (000 = success)
+      if (response.Response && response.Response !== '000') {
+        console.error('❌ Payment failed with Tranzila code:', response.Response);
+        setErrMsg(`Payment failed. Error code: ${response.Response}`);
         setStatus("error");
         return;
       }
@@ -236,7 +265,11 @@ export default function Checkout() {
             </div>
           </div>
 
-          <form onSubmit={onHandlePay}>
+          <form onSubmit={(e) => {
+            console.log('📝 Form submitted');
+            onHandlePay(e);
+            return false;
+          }}>
             <label style={lbl}>Full name</label>
             <input
               value={formData.fullName}
@@ -288,6 +321,20 @@ export default function Checkout() {
               ℹ️ Your card details are entered directly into Tranzila's secure fields
             </div>
 
+            {status === "loading" && (
+              <div style={{
+                marginTop: 10,
+                color: "#60a5fa",
+                background: "rgba(59, 130, 246, 0.1)",
+                border: "1px solid rgba(59, 130, 246, 0.3)",
+                borderRadius: 8,
+                padding: 12,
+                textAlign: "center"
+              }}>
+                ⏳ Processing payment with Tranzila...
+              </div>
+            )}
+
             {errMsg && (
               <div style={{
                 marginTop: 10,
@@ -331,6 +378,17 @@ export default function Checkout() {
         }
         .hosted-field iframe {
           border: none !important;
+          width: 100% !important;
+          height: 44px !important;
+          max-height: 44px !important;
+          display: block !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        .container-for-hostedfield {
+          height: 44px !important;
+          max-height: 44px !important;
+          overflow: hidden !important;
         }
       `}</style>
     </div>
@@ -354,9 +412,12 @@ const hfBox = {
   background: "#0e1736",
   border: "1px solid rgba(162,179,214,.18)",
   borderRadius: 12,
+  height: 44,
   minHeight: 44,
+  maxHeight: 44,
   display: "flex",
   alignItems: "center",
-  padding: "0 12px",
-  overflow: "hidden"
+  padding: "0",
+  overflow: "hidden",
+  position: "relative"
 };

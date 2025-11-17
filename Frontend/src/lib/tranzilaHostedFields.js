@@ -107,7 +107,10 @@ export const createHostedFields = (options = {}) => {
  * @param {Function} callback - Callback function (err, response)
  */
 export const chargePayment = (hostedFields, params, callback) => {
+  console.log('🔵 chargePayment function called');
+
   if (!hostedFields) {
+    console.error('❌ Hosted Fields instance not initialized in chargePayment');
     callback(new Error('Hosted Fields instance not initialized'), null);
     return;
   }
@@ -125,19 +128,25 @@ export const chargePayment = (hostedFields, params, callback) => {
   };
 
   console.log('💳 Charging payment with params:', paymentParams);
+  console.log('🔵 Calling hostedFields.charge...');
 
   try {
     hostedFields.charge(paymentParams, (err, response) => {
+      console.log('🔵 Tranzila SDK callback triggered');
+      console.log('  🔍 err:', err);
+      console.log('  🔍 response:', response);
+
       if (err) {
-        console.error('❌ Payment failed:', err);
+        console.error('❌ Payment failed with error:', err);
         callback(err, null);
       } else {
-        console.log('✅ Payment successful:', response);
+        console.log('✅ Payment successful, calling parent callback:', response);
         callback(null, response);
       }
     });
+    console.log('🔵 hostedFields.charge called successfully (waiting for callback)');
   } catch (error) {
-    console.error('❌ Charge error:', error);
+    console.error('❌ Exception in hostedFields.charge:', error);
     callback(error, null);
   }
 };

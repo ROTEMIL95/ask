@@ -10,7 +10,7 @@ export default function PaymentSuccess() {
   const [isRefreshing, setIsRefreshing] = useState(true);
 
   useEffect(() => {
-    // Refresh user profile to get updated plan status
+    // Refresh user profile to get updated plan status (run only once on mount)
     const fetchUpdatedProfile = async () => {
       setIsRefreshing(true);
       console.log("🔄 Refreshing user profile after payment success...");
@@ -24,7 +24,7 @@ export default function PaymentSuccess() {
     };
 
     fetchUpdatedProfile();
-  }, [refreshProfile]);
+  }, []); // Empty dependency array - run only once on mount
 
   useEffect(() => {
     // Redirect to home after showing success for 5 seconds
