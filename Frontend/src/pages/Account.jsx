@@ -100,7 +100,7 @@ export default function AccountPage() {
             }
         };
         loadAccountData();
-    }, [loadUsage]);
+    }, []); // Run only once on mount - avoid infinite loop from function dependency
 
     // Check both loading states
     if (loading || profileLoading) {
