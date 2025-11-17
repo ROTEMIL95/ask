@@ -10,17 +10,40 @@ export default function PaymentSuccess() {
   const [isRefreshing, setIsRefreshing] = useState(true);
 
   useEffect(() => {
-    // Refresh user profile to get updated plan status (run only once on mount)
+    // Refresh user profile to get updated plan status with retry logic
     const fetchUpdatedProfile = async () => {
       setIsRefreshing(true);
       console.log("🔄 Refreshing user profile after payment success...");
 
-      // Wait a bit for Tranzila callback to complete
+      // Wait a bit for backend to update database
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      await refreshProfile();
+      // Try up to 5 times with 1.5 second intervals to get updated profile
+      let attempts = 0;
+      const maxAttempts = 5;
+
+      while (attempts < maxAttempts) {
+        console.log(`📡 Attempt ${attempts + 1}/${maxAttempts} to refresh profile...`);
+        await refreshProfile();
+
+        // Check if profile was updated to Pro
+        if (profile?.plan_type === 'pro' || profile?.daily_limit === 100) {
+          console.log("✅ Profile updated successfully to Pro!");
+          break;
+        }
+
+        attempts++;
+        if (attempts < maxAttempts) {
+          console.log("⏳ Profile not updated yet, retrying in 1.5 seconds...");
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+      }
+
       setIsRefreshing(false);
-      console.log("✅ Profile refreshed successfully");
+
+      if (profile?.plan_type !== 'pro') {
+        console.warn("⚠️ Profile may not have updated after payment. Please refresh the page if needed.");
+      }
     };
 
     fetchUpdatedProfile();
