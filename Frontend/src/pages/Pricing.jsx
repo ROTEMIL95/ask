@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
@@ -11,6 +11,22 @@ const Pricing = () => {
   const { isAuthenticated } = useAuth();
   const { planType, profile, loading: profileLoading } = useUserProfile();
   const navigate = useNavigate();
+
+  // Cache the planType to avoid flickering when navigating back
+  const [cachedPlanType, setCachedPlanType] = useState(
+    () => localStorage.getItem('user_plan_type') || 'free'
+  );
+
+  // Update cache when planType changes
+  useEffect(() => {
+    if (planType && planType !== cachedPlanType) {
+      setCachedPlanType(planType);
+      localStorage.setItem('user_plan_type', planType);
+    }
+  }, [planType, cachedPlanType]);
+
+  // Use cached plan for immediate UI, fallback to actual planType
+  const displayPlanType = planType || cachedPlanType;
 
   const handlePaidPlanClick = (plan) => {
     if (!isAuthenticated) {
@@ -42,9 +58,8 @@ const Pricing = () => {
       return { type: 'login', disabled: false };
     }
 
-    // Use planType directly instead of waiting for profileLoading
-    // If planType is undefined, default to 'free'
-    const currentPlan = planType || 'free';
+    // Use displayPlanType (cached) for immediate UI response
+    const currentPlan = displayPlanType || 'free';
     
     if (currentPlan === plan) {
       return { type: 'current', disabled: true };
@@ -69,8 +84,8 @@ const Pricing = () => {
       <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
 
         {/* Free Plan */}
-        <div className={`text-card-foreground shadow relative bg-[#0B1535] rounded-xl overflow-hidden border ${
-          planType === 'free' ? 'border-green-500 ring-2 ring-green-500/20' : 'border-white/10'
+        <div className={`text-card-foreground shadow relative bg-[#0B1535] rounded-xl overflow-hidden border transition-all duration-300 ${
+          displayPlanType === 'free' ? 'border-green-500 ring-2 ring-green-500/20' : 'border-white/10'
         }`}>
           <div className="flex flex-col space-y-1.5 p-6">
             <div className="tracking-tight text-2xl font-bold text-white">Free Plan</div>
@@ -127,11 +142,11 @@ const Pricing = () => {
         </div>
 
         {/* Pro Plan */}
-        <div className={`text-card-foreground relative bg-[#0B1535] rounded-xl overflow-hidden shadow-lg scale-[1.02] border ${
-          planType === 'pro' ? 'border-purple-400 ring-2 ring-purple-500/20' : 'border-purple-500'
+        <div className={`text-card-foreground relative bg-[#0B1535] rounded-xl overflow-hidden shadow-lg scale-[1.02] border transition-all duration-300 ${
+          displayPlanType === 'pro' ? 'border-purple-400 ring-2 ring-purple-500/20' : 'border-purple-500'
         }`}>
-          <div className="absolute top-5 right-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow whitespace-nowrap">
-            {planType === 'pro' ? 'Your Plan' : 'Most Popular'}
+          <div className="absolute top-5 right-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow whitespace-nowrap transition-all duration-300">
+            {displayPlanType === 'pro' ? 'Your Plan' : 'Most Popular'}
           </div>
           <div className="flex flex-col space-y-1.5 p-6">
             <div className="tracking-tight text-2xl font-bold text-purple-300">Pro</div>
@@ -199,11 +214,11 @@ const Pricing = () => {
         </div>
 
         {/* Enterprise Plan */}
-        <div className={`text-card-foreground shadow relative bg-[#0B1535] rounded-xl overflow-hidden border ${
-          planType === 'enterprise' ? 'border-yellow-500 ring-2 ring-yellow-500/20' : 'border-white/10'
+        <div className={`text-card-foreground shadow relative bg-[#0B1535] rounded-xl overflow-hidden border transition-all duration-300 ${
+          displayPlanType === 'enterprise' ? 'border-yellow-500 ring-2 ring-yellow-500/20' : 'border-white/10'
         }`}>
-          {planType === 'enterprise' && (
-            <div className="absolute top-5 right-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow whitespace-nowrap">
+          {displayPlanType === 'enterprise' && (
+            <div className="absolute top-5 right-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow whitespace-nowrap transition-all duration-300">
               Your Plan
             </div>
           )}
