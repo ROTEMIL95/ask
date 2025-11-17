@@ -193,13 +193,16 @@ class SupabaseManager:
             # Update with correct column names
             profile_data = {
                 "plan_type": plan_type,
-                "sto_id": sto_id,
                 "subscription_status": "active",
                 "subscription_start_date": update_data['subscription_start_date'],
                 "last_payment_date": update_data['last_payment_date'],
                 "payment_method": "credit_card",
                 "daily_limit": update_data['daily_limit']
             }
+
+            # Only include sto_id if it's not None (for Hosted Fields payments, sto_id is None)
+            if sto_id is not None:
+                profile_data["sto_id"] = sto_id
 
             # Update based on email - use api schema
             response = client.schema('api').table('user_profiles').update(profile_data).eq('email', user_email).execute()
