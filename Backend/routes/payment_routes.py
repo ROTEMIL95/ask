@@ -560,13 +560,18 @@ def cancel_payment():
         # Send cancellation confirmation email (non-critical)
         try:
             logger.info(f"📧 Sending cancellation confirmation email to {user_email}")
+            # Get user name from token (try full_name from user_metadata, fallback to email)
+            user_name = user_data.get('full_name') or user_data.get('user_metadata', {}).get('full_name') or user_email.split('@')[0]
+            logger.info(f"   Sending to: {user_email}, Name: {user_name}")
+
             email_service.send_subscription_cancelled_email(
                 user_email=user_email,
-                user_name=user_data.get('name') or user_email
+                user_name=user_name
             )
             logger.info(f"✅ Cancellation email sent successfully")
         except Exception as email_error:
             logger.warning(f"⚠️ Failed to send cancellation email (non-critical): {str(email_error)}")
+            logger.exception(f"   Full error details:")
 
         return jsonify({
             "status": "success",
