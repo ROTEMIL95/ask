@@ -474,6 +474,8 @@ export default function Checkout() {
               placeholder="Jane Doe"
               style={inp}
               tabIndex={1}
+              name="fullName"
+              autoComplete="name"
               required
             />
 
@@ -485,6 +487,8 @@ export default function Checkout() {
               placeholder="jane@example.com"
               style={inp}
               tabIndex={2}
+              name="email"
+              autoComplete="email"
               required
             />
 
