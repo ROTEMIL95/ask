@@ -151,7 +151,7 @@ export default function PaymentSuccess() {
                   border: "1px solid rgba(59, 130, 246, 0.3)",
                   borderRadius: 8,
                   padding: 16,
-                  marginBottom: 24,
+                  marginBottom: 16,
                   fontSize: 14,
                   color: "#60a5fa"
                 }}
@@ -161,6 +161,28 @@ export default function PaymentSuccess() {
                 </div>
                 <div>
                   <strong>Daily Limit:</strong> {profile.daily_limit || 100} requests
+                </div>
+              </div>
+            )}
+
+            {profile?.sto_id && (
+              <div
+                style={{
+                  background: "rgba(16, 185, 129, 0.1)",
+                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                  borderRadius: 8,
+                  padding: 16,
+                  marginBottom: 24,
+                  fontSize: 14,
+                  color: "#10b981"
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                  ✅ Monthly Recurring Billing Enabled
+                </div>
+                <div style={{ opacity: 0.9 }}>
+                  Your subscription will automatically renew each month on the same day.
+                  You can cancel anytime from your Account page.
                 </div>
               </div>
             )}

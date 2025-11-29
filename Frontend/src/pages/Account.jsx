@@ -319,6 +319,12 @@ export default function AccountPage() {
                                                         Since: {format(new Date(profile.subscription_start_date), 'MMM dd, yyyy')}
                                                     </p>
                                                 )}
+                                                {profile?.sto_id && profile?.subscription_start_date && (
+                                                    <p className="text-xs text-green-400 mt-2 flex items-center gap-1">
+                                                        <span className="inline-block w-2 h-2 bg-green-400 rounded-full"></span>
+                                                        Recurring billing active
+                                                    </p>
+                                                )}
                                             </div>
                                         )}
                                         

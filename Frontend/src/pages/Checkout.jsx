@@ -315,7 +315,7 @@ export default function Checkout() {
       const orderId = txn.order_id || '';
 
       // Step 4: Upgrade user to Pro in database BEFORE redirecting
-      console.log('💾 Step 4: Upgrading user to Pro in database...');
+      console.log('💾 Step 4: Upgrading user to Pro and creating STO...');
 
       (async () => {
         try {
@@ -332,6 +332,20 @@ export default function Checkout() {
           } else {
             console.log('🔑 Token found, calling upgrade endpoint...');
 
+            // Parse expiry from response (format: MMYY)
+            const expiryStr = txn.expiry_date || txn.expiry || '';
+            let expireMonth = null;
+            let expireYear = null;
+
+            if (expiryStr && expiryStr.length >= 4) {
+              // Format is usually MMYY (e.g., "1225" for Dec 2025)
+              expireMonth = expiryStr.substring(0, 2);
+              expireYear = expiryStr.substring(2, 4);
+              console.log(`📅 Parsed expiry: ${expireMonth}/${expireYear}`);
+            } else {
+              console.warn('⚠️ No expiry date in response, STO creation may fail');
+            }
+
             const upgradeResponse = await fetch(`${API_URL}/payment/upgrade-after-hosted-payment`, {
               method: 'POST',
               headers: {
@@ -343,6 +357,10 @@ export default function Checkout() {
                 amount: txn.amount,
                 currency_code: txn.currency_code,
                 card_last_4: txn.credit_card_last_4_digits,
+                card_token: txn.token,  // Card token for STO creation
+                expire_month: expireMonth,  // Parsed from expiry_date
+                expire_year: expireYear,  // Parsed from expiry_date
+                full_name: formData.fullName,  // User's full name for STO
                 plan_type: 'pro'
               })
             });
@@ -367,6 +385,11 @@ export default function Checkout() {
             } else {
               console.log('✅ User upgraded to Pro successfully!');
               console.log('   Response:', upgradeData);
+              if (upgradeData.sto_id) {
+                console.log(`✅ Monthly recurring billing enabled! STO ID: ${upgradeData.sto_id}`);
+              } else {
+                console.warn('⚠️ STO was not created - recurring billing may not be enabled');
+              }
             }
           }
         } catch (error) {

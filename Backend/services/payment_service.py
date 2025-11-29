@@ -57,23 +57,27 @@ def create_recurring_payment(token, expire_month, expire_year, full_name, user_e
 
 def format_payload_recurring(token, expire_month, expire_year, full_name, user_email=None, user_id=None):
     logger.info("🔍 Starting format_payload_recurring")
-    
+
     try:
         today = date.today()
         logger.info(f"📅 Today: {today}")
-        
+
         next_month_same_day = today + relativedelta(months=1)
         logger.info(f"📅 Next month: {next_month_same_day}")
+
+        # Use the current day of the month for recurring charges
+        charge_day_of_month = today.day
+        logger.info(f"📅 Recurring billing will charge on day {charge_day_of_month} of each month")
     except Exception as e:
         logger.error(f"❌ Error in date calculation: {str(e)}")
         raise
-    
+
     return {
         "terminal_name": TRANZILA_SUPPLIER,
         "sto_payments_number": 9999,
         "first_charge_date": next_month_same_day.strftime("%Y-%m-%d"),
         "charge_frequency": "monthly",
-        "charge_dom": 27,
+        "charge_dom": charge_day_of_month,  # Dynamic: same day as purchase
         "client": {
             "internal_id": hash(user_id) % 999999 if user_id else 123456,  # Generate numeric ID from user_id
             "id": None,

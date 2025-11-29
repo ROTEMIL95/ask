@@ -161,9 +161,13 @@ def upgrade_after_hosted_payment():
     Upgrade user to Pro after successful Hosted Fields payment.
 
     This endpoint is called by the frontend immediately after a successful
-    Hosted Fields payment to update the user's profile in the database.
+    Hosted Fields payment to:
+    1. Create STO (Standing Order) for monthly recurring billing
+    2. Update user's profile in the database to Pro plan
+    3. Create invoice via Tranzila Billing API
+    4. Send payment confirmation email
 
-    No recurring payment (STO) is created for Hosted Fields one-time payments.
+    The STO ensures automatic monthly charges on the same day each month.
     """
     logger.info("🎉 /payment/upgrade-after-hosted-payment called")
 
@@ -191,28 +195,57 @@ def upgrade_after_hosted_payment():
     amount = params.get("amount")
     currency_code = params.get("currency_code")
     card_last_4 = params.get("card_last_4")
+    card_token = params.get("card_token")  # For STO creation
+    expire_month = params.get("expire_month")  # For STO creation
+    expire_year = params.get("expire_year")  # For STO creation
+    full_name = params.get("full_name") or user_data.get('full_name')  # For STO creation
 
     logger.info(f"💳 Upgrading user {user_id} ({user_email}) to Pro")
     logger.info(f"   Transaction ID: {transaction_id}")
     logger.info(f"   Amount: {amount} {currency_code}")
     logger.info(f"   Card: ****{card_last_4}")
+    logger.info(f"   Card token: {card_token[:10]}..." if card_token else "   No card token")
+    logger.info(f"   Expiry: {expire_month}/{expire_year}" if expire_month and expire_year else "   No expiry")
 
-    # 3) Update user_profiles in Supabase
+    # 3) Create STO (Standing Order) for monthly recurring billing (non-critical - don't fail if this errors)
+    sto_id = None
+    if card_token and expire_month and expire_year and full_name:
+        try:
+            logger.info(f"🔄 Creating STO for monthly recurring billing...")
+            recurring_result = create_recurring_payment(
+                token=card_token,
+                expire_month=expire_month,
+                expire_year=expire_year,
+                full_name=full_name,
+                user_email=user_email,
+                user_id=user_id,
+            )
+            sto_id = (recurring_result or {}).get("sto_id")
+            if sto_id:
+                logger.info(f"✅ STO created successfully! STO ID: {sto_id}")
+            else:
+                logger.warning(f"⚠️ STO creation returned no STO ID")
+        except Exception as sto_error:
+            logger.warning(f"⚠️ Failed to create STO (non-critical): {str(sto_error)}")
+    else:
+        logger.info(f"ℹ️ Skipping STO creation - missing required data (token, expiry, or name)")
+
+    # 4) Update user_profiles in Supabase
     try:
         updated = supabase_manager.update_subscription_after_payment(
             user_id=user_id,
-            sto_id=None,  # No STO for Hosted Fields one-time payment
+            sto_id=sto_id,  # Save STO ID if created
             plan_type="pro",
             user_email=user_email,
             user_token=token,
             limits=PRO_LIMITS,  # 500/2000 monthly
         )
 
-        # 4) Log to API history (non-critical, don't fail if this errors)
+        # 5) Log to API history (non-critical, don't fail if this errors)
         try:
             supabase_manager.save_api_history(
                 user_id=user_id,
-                user_query="Hosted Fields Payment: upgrade to Pro",
+                user_query="Hosted Fields Payment: upgrade to Pro with STO",
                 generated_code=None,
                 endpoint="/payment/upgrade-after-hosted-payment",
                 status="Success" if updated else "Failed",
@@ -222,7 +255,9 @@ def upgrade_after_hosted_payment():
                     "currency_code": currency_code,
                     "plan": "pro",
                     "limits": PRO_LIMITS,
-                    "payment_method": "hosted_fields"
+                    "payment_method": "hosted_fields",
+                    "sto_id": sto_id,
+                    "recurring_billing": "enabled" if sto_id else "disabled"
                 },
             )
         except Exception as history_error:
@@ -231,8 +266,10 @@ def upgrade_after_hosted_payment():
 
         if updated:
             logger.info(f"✅ User {user_id} upgraded to Pro successfully")
+            if sto_id:
+                logger.info(f"✅ Recurring billing enabled with STO ID: {sto_id}")
 
-            # 5) Create invoice (non-critical - don't fail if this errors)
+            # 6) Create invoice (non-critical - don't fail if this errors)
             invoice_url = None
             try:
                 logger.info(f"📄 Creating invoice for user {user_id}")
@@ -252,12 +289,12 @@ def upgrade_after_hosted_payment():
             except Exception as invoice_error:
                 logger.warning(f"⚠️ Failed to create invoice (non-critical): {str(invoice_error)}")
 
-            # 6) Send payment confirmation email (non-critical - don't fail if this errors)
+            # 7) Send payment confirmation email (non-critical - don't fail if this errors)
             try:
                 logger.info(f"📧 Sending payment confirmation email to {user_email}")
                 email_sent = email_service.send_payment_success_email(
                     user_email=user_email,
-                    user_name=user_data.get('full_name') or user_email,
+                    user_name=user_data.get('full_name') or full_name or user_email,
                     amount=amount or 19.00,
                     plan_type="pro",
                     transaction_id=transaction_id or "N/A",
@@ -274,9 +311,11 @@ def upgrade_after_hosted_payment():
 
             return jsonify({
                 "status": "success",
-                "message": "Account upgraded to Pro",
+                "message": "Account upgraded to Pro" + (" with monthly recurring billing" if sto_id else ""),
                 "plan_type": "pro",
                 "limits": PRO_LIMITS,
+                "sto_id": sto_id,  # Include STO ID in response
+                "recurring_billing": "enabled" if sto_id else "disabled",
                 "invoice_url": invoice_url  # Optional: frontend can display this
             }), 200
         else:
