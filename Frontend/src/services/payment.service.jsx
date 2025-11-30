@@ -66,19 +66,32 @@ export async function cancelSubscription() {
     try {
         const response = await fetch(`${backendUrl}/payment/cancel`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${session.access_token}`
             }
         });
 
-        const data = await response.json();
         console.log("🚀 ~ cancelSubscription ~ response status:", response.status);
+        console.log("🚀 ~ cancelSubscription ~ response ok:", response.ok);
+
+        // Check if response has content before parsing JSON
+        const text = await response.text();
+        console.log("🚀 ~ cancelSubscription ~ response text:", text);
+
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (parseError) {
+            console.error('❌ Failed to parse response as JSON:', parseError);
+            console.error('   Response text:', text);
+            throw new Error('Invalid server response');
+        }
 
         if (!response.ok || data.error) {
             throw new Error(data.error || data.message || 'Failed to cancel subscription');
         }
-        
+
         return data;
     } catch (error) {
         console.error('❌ Error cancelling subscription:', error);
