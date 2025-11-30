@@ -65,9 +65,11 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         next_month_same_day = today + relativedelta(months=1)
         logger.info(f"📅 Next month: {next_month_same_day}")
 
-        # Use the current day of the month for recurring charges
-        charge_day_of_month = today.day
+        # Use the current day of the month for recurring charges (capped at 28 per Tranzila requirement)
+        charge_day_of_month = min(today.day, 28)
         logger.info(f"📅 Recurring billing will charge on day {charge_day_of_month} of each month")
+        if today.day > 28:
+            logger.info(f"   Note: Original day {today.day} capped to 28 (Tranzila maximum)")
     except Exception as e:
         logger.error(f"❌ Error in date calculation: {str(e)}")
         raise
