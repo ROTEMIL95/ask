@@ -238,7 +238,8 @@ export default function Checkout() {
       email: formData.email,
       pdesc: 'TalkAPI Pro Subscription',
       thtk: handshakeToken,  // ✨ Handshake token (required)
-      new_process: '1'        // ✨ Required for handshake validation
+      new_process: '1',       // ✨ Required for handshake validation
+      tokenize: true          // ✨ Request card token for recurring billing (STO)
     };
 
     console.log('💳 Step 2: Initiating payment with params:');
@@ -330,18 +331,15 @@ export default function Checkout() {
           } else {
             console.log('🔑 Token found, calling upgrade endpoint...');
 
-            // Parse expiry from response (format: MMYY)
-            const expiryStr = txn.expiry_date || txn.expiry || '';
-            let expireMonth = null;
-            let expireYear = null;
+            // Get expiry from Tranzila response (returns separate month/year fields)
+            const expireMonth = txn.expiry_month || null;
+            const expireYear = txn.expiry_year || null;
 
-            if (expiryStr && expiryStr.length >= 4) {
-              // Format is usually MMYY (e.g., "1225" for Dec 2025)
-              expireMonth = expiryStr.substring(0, 2);
-              expireYear = expiryStr.substring(2, 4);
-              console.log(`📅 Parsed expiry: ${expireMonth}/${expireYear}`);
+            if (expireMonth && expireYear) {
+              console.log(`📅 Expiry from Tranzila: ${expireMonth}/${expireYear}`);
             } else {
               console.warn('⚠️ No expiry date in response, STO creation may fail');
+              console.warn(`   expiry_month: ${txn.expiry_month}, expiry_year: ${txn.expiry_year}`);
             }
 
             const upgradeResponse = await fetch(`${API_URL}/payment/upgrade-after-hosted-payment`, {
