@@ -56,13 +56,17 @@ export async function handleRecurringPayment(cardNumber, expiryMonth, expiryYear
 
 export async function cancelSubscription() {
     console.log('🚫 Cancelling subscription...');
-    
+
     // Get auth token
     const session = authProxy.getSession();
     if (!session?.access_token) {
-        throw new Error('Authentication required for cancellation');
+        console.error('❌ Authentication required');
+        return {
+            status: 'error',
+            message: 'Authentication required for cancellation'
+        };
     }
-    
+
     try {
         const response = await fetch(`${backendUrl}/payment/cancel`, {
             method: 'POST',
@@ -85,16 +89,31 @@ export async function cancelSubscription() {
         } catch (parseError) {
             console.error('❌ Failed to parse response as JSON:', parseError);
             console.error('   Response text:', text);
-            throw new Error('Invalid server response');
+            return {
+                status: 'error',
+                message: 'Invalid server response'
+            };
         }
 
         if (!response.ok || data.error) {
-            throw new Error(data.error || data.message || 'Failed to cancel subscription');
+            return {
+                status: 'error',
+                message: data.error || data.message || 'Failed to cancel subscription'
+            };
         }
 
-        return data;
+        // Return consistent format with status field (like handleRecurringPayment)
+        console.log('✅ Subscription cancelled successfully');
+        return {
+            status: data.status || 'success',
+            message: data.message || 'Subscription cancelled successfully',
+            data  // Include original data for additional info
+        };
     } catch (error) {
         console.error('❌ Error cancelling subscription:', error);
-        throw error;
+        return {
+            status: 'error',
+            message: error.message || 'Failed to cancel subscription'
+        };
     }
 }
