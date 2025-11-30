@@ -23,6 +23,7 @@ import { UsageDisplay } from '@/components/UsageTracker';
 import { useUsageTracking } from '@/hooks/useUsageTracking';
 import { auth, userProfile } from '@/lib/supabase';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import authProxy from '@/lib/authProxy';
 
 const PLAN_FEATURES = {
     free: {
@@ -66,10 +67,11 @@ export default function AccountPage() {
         console.log('[Account] useEffect triggered - starting loadAccountData');
         const loadAccountData = async () => {
             try {
-                console.log('[Account] Step 1: Getting current user...');
-                const { user: currentUser, error } = await auth.getCurrentUser();
-                if (error) {
-                    console.error('[Account] Error getting current user:', error);
+                console.log('[Account] Step 1: Getting current user from authProxy...');
+                const currentUser = authProxy.getUser();
+
+                if (!currentUser) {
+                    console.error('[Account] No user found in authProxy - session expired or not logged in');
                     // Redirect to login if not authenticated
                     window.location.href = createPageUrl('Login');
                     return;
