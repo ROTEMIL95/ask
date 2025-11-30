@@ -6,6 +6,7 @@ Handles invoice creation and management using Tranzila Billing API
 import os
 import logging
 import requests
+from datetime import datetime
 from typing import Dict, Optional
 from .tranzila_service import generate_tranzila_headers
 
@@ -48,12 +49,17 @@ def create_invoice(
     # Prepare payload according to Tranzila Billing API spec
     payload = {
         "terminal_name": TRANZILA_SUPPLIER,
+        "document_date": datetime.now().strftime("%Y-%m-%d"),  # Current date
         "document_type": "IR",  # Invoice Receipt
         "document_currency_code": currency_code,
-        "vat_percent": 17,  # Default Israeli VAT
-        "client_company": "TalkAPI",  # Your company name
+        "vat_percent": 17,  # Israeli VAT
+        "action": 1,  # 1 = create document
+
+        # Client details (removed client_company - it's for customer's company, not ours)
         "client_name": user_name,
         "client_email": user_email,
+        "client_country_code": "IL",  # Israel
+
         "document_language": "eng",  # English as requested
         "response_language": "eng",
         "created_by_system": "TalkAPI Payment System",
@@ -67,7 +73,8 @@ def create_invoice(
                 "unit_type": 1,  # Units
                 "unit_price": float(amount),
                 "price_type": "G",  # Gross (including VAT)
-                "currency_code": currency_code
+                "currency_code": currency_code,
+                "to_doc_currency_exchange_rate": 1  # 1:1 exchange rate (same currency)
             }
         ],
 
@@ -75,8 +82,10 @@ def create_invoice(
         "payments": [
             {
                 "payment_method": 1,  # Credit card
+                "payment_date": datetime.now().strftime("%Y-%m-%d"),  # Current date
                 "amount": float(amount),
-                "currency_code": currency_code
+                "currency_code": currency_code,
+                "to_doc_currency_exchange_rate": 1  # 1:1 exchange rate (same currency)
             }
         ]
     }

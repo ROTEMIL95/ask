@@ -312,7 +312,7 @@ def upgrade_after_hosted_payment():
                 email_sent = email_service.send_payment_success_email(
                     user_email=user_email,
                     user_name=user_data.get('full_name') or full_name or user_email,
-                    amount=amount or 19.00,
+                    amount=float(amount) if amount else 19.00,
                     plan_type="pro",
                     transaction_id=transaction_id or "N/A",
                     invoice_url=invoice_url,
