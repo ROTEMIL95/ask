@@ -490,7 +490,7 @@ def make_initial_payment():
         }), 200
 
 
-@payment_bp.route("/payment/cancel", methods=["POST", "OPTIONS"])
+@payment_bp.route("/payment/cancel", methods=["POST"])
 def cancel_payment():
     """
     Cancellation flow:
@@ -498,12 +498,10 @@ def cancel_payment():
       2) Deactivate the user's STO in Tranzila (if exists).
       3) Downgrade user to Free (50 total/month) in Supabase.
       4) Log to API history.
+
+    Note: OPTIONS requests are handled automatically by flask_cors in app.py
     """
     logger.info("🚫 /payment/cancel called")
-
-    if request.method == "OPTIONS":
-        logger.info("   CORS preflight (OPTIONS) - returning empty response")
-        return "", 200
 
     # 1) Authorization
     auth_header = request.headers.get("Authorization")
