@@ -311,8 +311,6 @@ export default function Checkout() {
 
       // Extract transaction details from transaction_response
       const txn = response.transaction_response || {};
-      const transactionId = txn.transaction_id || txn.ConfirmationCode || txn.index || '';
-      const orderId = txn.order_id || '';
 
       // Step 4: Upgrade user to Pro in database BEFORE redirecting
       console.log('💾 Step 4: Upgrading user to Pro and creating STO...');
@@ -353,7 +351,7 @@ export default function Checkout() {
                 'Authorization': `Bearer ${token}`
               },
               body: JSON.stringify({
-                transaction_id: transactionId,
+                transaction_id: txn.transaction_id || txn.ConfirmationCode || txn.index || '',
                 amount: txn.amount,
                 currency_code: txn.currency_code,
                 card_last_4: txn.credit_card_last_4_digits,
@@ -397,7 +395,7 @@ export default function Checkout() {
         } finally {
           // Redirect to success page regardless of upgrade status
           // (payment was successful, user can contact support if upgrade failed)
-          const successUrl = `/payment/success?transaction_id=${transactionId}&order_id=${orderId}`;
+          const successUrl = `/payment/success`;
           console.log('🎉 Redirecting to:', successUrl);
           navigate(successUrl);
         }

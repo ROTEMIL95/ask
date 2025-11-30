@@ -60,9 +60,6 @@ export default function PaymentSuccess() {
     }
   }, [navigate, isRefreshing]);
 
-  const transactionId = searchParams.get('transaction_id') || searchParams.get('index');
-  const orderId = searchParams.get('order_id');
-
   return (
     <div
       className="min-h-screen flex items-center justify-center py-12 px-4"
@@ -187,38 +184,6 @@ export default function PaymentSuccess() {
               </div>
             )}
           </>
-        )}
-
-        {transactionId && (
-          <div
-            style={{
-              background: "rgba(16, 185, 129, 0.1)",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
-              borderRadius: 8,
-              padding: 12,
-              marginBottom: 24,
-              fontSize: 14,
-              color: "#10b981"
-            }}
-          >
-            Transaction ID: {transactionId}
-          </div>
-        )}
-
-        {orderId && (
-          <div
-            style={{
-              background: "rgba(59, 130, 246, 0.1)",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
-              borderRadius: 8,
-              padding: 12,
-              marginBottom: 24,
-              fontSize: 14,
-              color: "#60a5fa"
-            }}
-          >
-            Order ID: {orderId}
-          </div>
         )}
 
         {!isRefreshing && (
