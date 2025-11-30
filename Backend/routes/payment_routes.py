@@ -502,6 +502,7 @@ def cancel_payment():
     logger.info("🚫 /payment/cancel called")
 
     if request.method == "OPTIONS":
+        logger.info("   CORS preflight (OPTIONS) - returning empty response")
         return "", 200
 
     # 1) Authorization
@@ -549,13 +550,8 @@ def cancel_payment():
 
     # 3) Downgrade to Free in Supabase
     try:
-        downgraded = supabase_manager.update_subscription_after_payment(
-            user_id=user_id,
-            sto_id=None,
-            plan_type="free",
-            user_email=user_email,
-            user_token=token,
-            limits=FREE_LIMITS,  # 50 total/month
+        downgraded = supabase_manager.cancel_user_subscription(
+            user_id=user_id
         )
 
         # Log history

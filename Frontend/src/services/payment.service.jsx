@@ -102,6 +102,15 @@ export async function cancelSubscription() {
             };
         }
 
+        // Check if we got an empty response (likely OPTIONS preflight)
+        if (!text || Object.keys(data).length === 0) {
+            console.error('❌ Received empty response - likely CORS preflight issue');
+            return {
+                status: 'error',
+                message: 'Server returned empty response. Please try again.'
+            };
+        }
+
         // Return consistent format with status field (like handleRecurringPayment)
         console.log('✅ Subscription cancelled successfully');
         return {
