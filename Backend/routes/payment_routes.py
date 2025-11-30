@@ -44,6 +44,16 @@ TRANZILA_TERMINAL_PASSWORD = os.getenv("TRANZILA_TERMINAL_PASSWORD")
 TRANZILA_PUBLIC_API_KEY = os.getenv("TRANZILA_PUBLIC_API_KEY")
 TRANZILA_SECRET_API_KEY = os.getenv("TRANZILA_SECRET_API_KEY")
 
+# --- Currency Code Mapping ---
+# Map old Tranzila numeric currency codes to ISO codes for Billing API
+CURRENCY_CODE_MAP = {
+    "1": "ILS",    # Israeli Shekel
+    "2": "USD",    # US Dollar
+    "3": "EUR",    # Euro
+    "978": "EUR",  # Alternative EUR code
+    "826": "GBP",  # British Pound
+}
+
 # --- Plan definitions ---
 PRO_LIMITS = {"convert_limit": 500, "run_limit": 2000}  # monthly quotas
 FREE_LIMITS = {"total_limit": 50}                       # combined monthly quota
@@ -273,11 +283,18 @@ def upgrade_after_hosted_payment():
             invoice_url = None
             try:
                 logger.info(f"📄 Creating invoice for user {user_id}")
+
+                # Convert numeric currency code to ISO code for Billing API
+                # Tranzila Hosted Fields returns "1" for ILS, but Billing API needs "ILS"
+                currency_code_raw = currency_code or "1"
+                currency_code_iso = CURRENCY_CODE_MAP.get(str(currency_code_raw), "ILS")
+                logger.info(f"   Currency conversion: {currency_code_raw} -> {currency_code_iso}")
+
                 invoice = billing_service.create_invoice(
                     user_email=user_email,
                     user_name=user_data.get('full_name') or user_email,
                     amount=amount or 19.00,  # Default to $19 if not provided
-                    currency_code=currency_code or "ILS",
+                    currency_code=currency_code_iso,  # Use ISO code instead of numeric
                     card_last_4=card_last_4,
                     transaction_id=transaction_id,
                     plan_name="TalkAPI Pro Monthly Subscription"
