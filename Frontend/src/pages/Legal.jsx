@@ -192,7 +192,7 @@ export default function LegalPage() {
                                     <ul className="list-disc list-inside text-sm space-y-1">
                                         <li><strong>Authentication:</strong> Supabase auth tokens stored in localStorage</li>
                                         <li><strong>Session Management:</strong> Maintains your logged-in state</li>
-                                        <li><strong>User Preferences:</strong> Beta banner dismissal, UI settings</li>
+                                        <li><strong>User Preferences:</strong> UI preferences and settings</li>
                                         <li><strong>Security:</strong> CSRF protection and secure session handling</li>
                                     </ul>
                                 </div>
@@ -221,7 +221,7 @@ export default function LegalPage() {
                             <ul className="list-disc list-inside space-y-1">
                                 <li>Storing authentication session data (Supabase auth tokens)</li>
                                 <li>Remembering your cookie consent preferences (12 months)</li>
-                                <li>Saving UI preferences (e.g., beta banner dismissal)</li>
+                                <li>Saving UI preferences</li>
                             </ul>
 
                             <h3 className="text-lg font-semibold text-white">Managing Your Cookie Preferences</h3>

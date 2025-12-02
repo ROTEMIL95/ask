@@ -234,6 +234,95 @@ const PUBLIC_APIS = [
     }
   }
 }`
+    },
+    {
+        id: 'pokeapi',
+        name: 'PokéAPI',
+        category: 'Gaming',
+        description: 'Pokémon data including species, moves, abilities, and types',
+        base_url: 'https://pokeapi.co/api/v2',
+        docs_url: 'https://pokeapi.co/docs/v2',
+        demo_key: null,
+        sample_doc: `{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PokéAPI",
+    "version": "2.0",
+    "description": "Free RESTful Pokémon API - No authentication required"
+  },
+  "paths": {
+    "/pokemon/{id}": {
+      "get": {
+        "summary": "Get Pokémon by ID or name",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Pokémon ID (1-1010) or name (e.g., pikachu, charizard)"
+          }
+        ]
+      }
+    },
+    "/pokemon-species/{id}": {
+      "get": {
+        "summary": "Get Pokémon species information",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Species ID or name"
+          }
+        ]
+      }
+    },
+    "/move/{id}": {
+      "get": {
+        "summary": "Get move information",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Move ID or name (e.g., thunder-punch)"
+          }
+        ]
+      }
+    },
+    "/ability/{id}": {
+      "get": {
+        "summary": "Get ability information",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Ability ID or name (e.g., overgrow)"
+          }
+        ]
+      }
+    },
+    "/type/{id}": {
+      "get": {
+        "summary": "Get type information",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Type ID or name (e.g., fire, water, grass)"
+          }
+        ]
+      }
+    }
+  }
+}`
     }
 ];
 
@@ -243,7 +332,8 @@ const CATEGORY_COLORS = {
     'Crypto': 'bg-yellow-600',
     'Finance': 'bg-green-600',
     'Books': 'bg-orange-600',
-    'Travel': 'bg-pink-600'
+    'Travel': 'bg-pink-600',
+    'Gaming': 'bg-red-600'
 };
 
 export default function PublicApiSelector({ onSelectApi, onClose, open }) {

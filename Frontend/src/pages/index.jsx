@@ -96,11 +96,12 @@ function PagesContent() {
                 
                     <Route path="/" element={<Home />} />
                 
-                
+
                 <Route path="/Home" element={<Home />} />
-                
-                <Route path="/Pricing" element={<Pricing />} />
-                
+
+                {/* Temporarily disabled - Pricing page */}
+                {/* <Route path="/Pricing" element={<Pricing />} /> */}
+
                 <Route path="/Legal" element={<Legal />} />
                 
                 <Route path="/Contact" element={<Contact />} />

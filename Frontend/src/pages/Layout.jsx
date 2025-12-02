@@ -5,8 +5,6 @@ import { Zap, LogIn, LogOut, UserCircle, LayoutDashboard, Loader2, Menu, X, Book
 import { Button } from '@/components/ui/button';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import BetaBanner from '@/components/BetaBanner';
-import BetaBadge from '@/components/BetaBadge';
 import CookieConsent from '@/components/CookieConsent';
 import { initializeCookieConsent } from '@/utils/cookieConsent';
 
@@ -76,9 +74,6 @@ export default function Layout({ children }) {
 
     return (
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 text-white">
-            {/* Beta Banner - Shows at very top */}
-            <BetaBanner />
-
             {/* Cookie Consent Banner */}
             <CookieConsent />
 
@@ -92,7 +87,6 @@ export default function Layout({ children }) {
                                 alt="AskAPI Logo"
                                 className="w-32 h-32 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-24 xl:w-38 xl:h-24 object-contain"
                             />
-                            <BetaBadge />
                         </Link>
                         
                         {/* Desktop Navigation */}
@@ -105,11 +99,12 @@ export default function Layout({ children }) {
                             <Link to={createPageUrl("HowItWorks")} className="text-gray-300 hover:text-white transition-colors">
                                 How It Works
                             </Link>
-                            
-                            <Link to={createPageUrl("Pricing")} className="text-gray-300 hover:text-white transition-colors">
+
+                            {/* Temporarily disabled - Pricing page */}
+                            {/* <Link to={createPageUrl("Pricing")} className="text-gray-300 hover:text-white transition-colors">
                                 Pricing
-                            </Link>
-                            
+                            </Link> */}
+
                             {loading ? (
                                 <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
                             ) : isAuthenticated ? (
@@ -171,20 +166,21 @@ export default function Layout({ children }) {
                                     Documentation
                                 </Link>
                                 
-                                <Link 
-                                    to={createPageUrl("HowItWorks")} 
+                                <Link
+                                    to={createPageUrl("HowItWorks")}
                                     className="text-gray-300 hover:text-white transition-colors py-2"
                                 >
                                     How It Works
                                 </Link>
-                                
-                                <Link 
-                                    to={createPageUrl("Pricing")} 
+
+                                {/* Temporarily disabled - Pricing page */}
+                                {/* <Link
+                                    to={createPageUrl("Pricing")}
                                     className="text-gray-300 hover:text-white transition-colors py-2"
                                 >
                                     Pricing
-                                </Link>
-                                
+                                </Link> */}
+
                                 {loading ? (
                                     <div className="flex items-center gap-2 py-2">
                                         <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
