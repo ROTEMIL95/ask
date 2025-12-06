@@ -65,16 +65,17 @@ def create_invoice(
         "created_by_system": "TalkAPI Payment System",
 
         # Items - what was purchased
+        # ALL fields must be strings per Invoice-items documentation
         "items": [
             {
-                "name": plan_name,
-                "type": "I",  # Item
-                "units_number": 1,
-                "unit_type": 1,  # Units
-                "unit_price": float(amount),
-                "price_type": "G",  # Gross (including VAT)
-                "currency_code": currency_code,
-                "to_doc_currency_exchange_rate": 1  # 1:1 exchange rate (same currency)
+                "name": plan_name,  # Required: string
+                "unit_price": str(amount),  # Required: string (not float!)
+                "type": "I",  # Optional: string - Item type
+                "price_type": "G",  # Optional: string - Gross (including VAT)
+                "units_number": "1",  # Optional: string (not int!)
+                "currency_code": currency_code,  # Optional: string
+                "to_doc_currency_exchange_rate": "1"  # Optional: string (not int!)
+                # Removed 'unit_type' - not in Invoice-items spec
             }
         ],
 
