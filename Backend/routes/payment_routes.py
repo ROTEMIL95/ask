@@ -284,9 +284,9 @@ def upgrade_after_hosted_payment():
                 logger.info(f"📄 Creating invoice for user {user_id}")
 
                 # Convert numeric currency code to ISO code for Billing API
-                # Tranzila Hosted Fields returns "1" for ILS, but Billing API needs "ILS"
-                currency_code_raw = currency_code or "1"
-                currency_code_iso = CURRENCY_CODE_MAP.get(str(currency_code_raw), "ILS")
+                # Tranzila Hosted Fields returns "2" for USD, but Billing API needs "USD"
+                currency_code_raw = currency_code or "2"
+                currency_code_iso = CURRENCY_CODE_MAP.get(str(currency_code_raw), "USD")
                 logger.info(f"   Currency conversion: {currency_code_raw} -> {currency_code_iso}")
 
                 invoice = billing_service.create_invoice(

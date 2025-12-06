@@ -22,7 +22,7 @@ def create_invoice(
     user_email: str,
     user_name: str,
     amount: float,
-    currency_code: str = "ILS",
+    currency_code: str = "USD",
     card_last_4: Optional[str] = None,
     transaction_id: Optional[str] = None,
     plan_name: str = "TalkAPI Pro Subscription"
@@ -34,7 +34,7 @@ def create_invoice(
         user_email: Customer email address
         user_name: Customer full name
         amount: Payment amount
-        currency_code: Currency (default: ILS)
+        currency_code: Currency (default: USD)
         card_last_4: Last 4 digits of credit card
         transaction_id: Transaction ID from payment
         plan_name: Name of the product/service

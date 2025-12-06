@@ -140,10 +140,7 @@ def send_payment_success_email(
                 }}
                 .plan-details h2 {{
                     margin: 0 0 20px 0;
-                    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
+                    color: #ffffff;
                     font-size: 22px;
                     font-weight: 700;
                 }}
@@ -194,12 +191,12 @@ def send_payment_success_email(
                 .cta-button {{
                     display: inline-block;
                     background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-                    color: white;
-                    padding: 16px 48px;
+                    color: #ffffff;
+                    padding: 12px 32px;
                     text-decoration: none;
                     border-radius: 10px;
                     font-weight: 600;
-                    font-size: 16px;
+                    font-size: 14px;
                     margin: 20px 0;
                     text-align: center;
                     box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
@@ -217,8 +214,8 @@ def send_payment_success_email(
                 .invoice-button {{
                     display: inline-block;
                     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                    color: white;
-                    padding: 16px 40px;
+                    color: #ffffff;
+                    padding: 12px 30px;
                     text-decoration: none;
                     border-radius: 10px;
                     font-weight: 700;
@@ -227,7 +224,7 @@ def send_payment_success_email(
                     transition: all 0.3s ease;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
-                    font-size: 15px;
+                    font-size: 14px;
                 }}
                 .footer {{
                     background: rgba(0, 0, 0, 0.3);
@@ -280,19 +277,15 @@ def send_payment_success_email(
                         <h2>📋 Payment Details</h2>
                         <div class="detail-row">
                             <span class="detail-label">Plan</span>
-                            <span class="detail-value">{plan_type.upper()} Plan</span>
+                            <span class="detail-value">TalkAPI Pro Monthly Subscription</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Amount Paid</span>
-                            <span class="detail-value">${amount:.2f}</span>
+                            <span class="detail-value">$ {amount:.2f}</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Payment Date</span>
                             <span class="detail-value">{payment_date}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Transaction ID</span>
-                            <span class="detail-value transaction-id">{transaction_id}</span>
                         </div>
                     </div>
 

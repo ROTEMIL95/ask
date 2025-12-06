@@ -42,7 +42,7 @@ const PLAN_FEATURES = {
         name: 'Pro',
         price: '$19/month',
         color: 'bg-purple-600',
-        features: ['100 API calls/day', '3000 API calls/month', 'Full history', 'Priority support', 'Team sharing']
+        features: ['100 API calls/day', '3000 API calls/month', 'Full history', 'Priority support']
     },
     enterprise: {
         name: 'Enterprise',

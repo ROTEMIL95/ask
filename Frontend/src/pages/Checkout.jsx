@@ -34,9 +34,8 @@ export default function Checkout() {
   const plan = searchParams.get('plan') || 'pro';
   const userId = searchParams.get('user_id');
 
-  // Price configuration
-  // Note: Tranzila expects sum as string, keep consistent format
-  const sum = plan === 'pro' ? "0.1" : "19.99"; // Test amount for pro (0.1 ILS)
+  // Price configuration - Production pricing
+  const sum = "19.00"; // Production price: $19/month
 
   // Populate user data
   useEffect(() => {
@@ -91,7 +90,7 @@ export default function Checkout() {
             },
             card_holder_id_number: {
               selector: '#israeli-id',
-              placeholder: '123456789 (Israeli ID)',
+              placeholder: '123456789',
               tabindex: 6
             }
           }
@@ -232,7 +231,7 @@ export default function Checkout() {
     const paymentParams = {
       terminal_name: 'fxpsharon333', // Production terminal
       amount: sum,                    // Changed from 'sum' to 'amount' (Tranzila API requirement)
-      currency_code: "ILS",           // ISO code string (not number!) - ILS, USD, EUR
+      currency_code: "USD",           // ISO code string (not number!) - ILS, USD, EUR
       tran_mode: 'A',                 // Changed from 'tranmode' to 'tran_mode', A=debit
       contact: formData.fullName,
       email: formData.email,
@@ -420,19 +419,6 @@ export default function Checkout() {
           Card fields are securely hosted by Tranzila. We never store card data.
         </p>
 
-        <div style={{
-          background: "rgba(234, 179, 8, 0.1)",
-          border: "1px solid rgba(234, 179, 8, 0.3)",
-          borderRadius: 8,
-          padding: 12,
-          marginBottom: 18,
-          color: "#eab308",
-          fontSize: 14,
-          textAlign: "center"
-        }}>
-          ⚠️ <strong>Test Payment:</strong> This is a test. Amount: ${sum}
-        </div>
-
         <div
           style={{
             background: "linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01)), #121a3a",
@@ -503,7 +489,7 @@ export default function Checkout() {
               </div>
             </div>
 
-            <label style={lbl}>Israeli ID Number (תעודת זהות)</label>
+            <label style={lbl}>ID Number</label>
             <div id="israeli-id" style={hfBox} className="hosted-field"></div>
 
             <div style={{

@@ -165,7 +165,7 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         "first_charge_date": next_month_same_day.strftime("%Y-%m-%d"),  # Optional [STOV2: lines 27-28]
         "charge_frequency": "monthly",  # Required, enum value [STOV2: lines 18-26]
         "charge_dom": charge_day_of_month,  # Required, 1-28 [STOV2: lines 38-42]
-        "currency_code": "ILS",  # Optional, default ILS [STOV2: lines 29-37]
+        "currency_code": "USD",  # Optional, default USD [STOV2: lines 29-37]
 
         # אובייקט Client (אופציונלי) [STOV2: lines 50-51, 75-108]
         "client": client_obj,
@@ -174,11 +174,11 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         # התיעוד STOV2 אומר 'item' ביחיד, אבל ה-API דורש 'items' ברשימה
         "items": [{
             "name": "Monthly TalkAPI Subscription",  # Required [STOV2: line 160]
-            "unit_price": 0.10,  # Required, min 0.01 max 99999 [STOV2: lines 135-140]
+            "unit_price": 19.00,  # Required, min 0.01 max 99999 [STOV2: lines 135-140]
             "units_number": 1,  # Optional, default 1 [STOV2: lines 141-146]
-            "price_currency": "ILS",  # Optional, enum ILS/USD/EUR [STOV2: lines 147-150, 162-171]
+            "price_currency": "USD",  # Optional, enum ILS/USD/EUR [STOV2: lines 147-150, 162-171]
             "price_type": "G",  # Optional, G=Gross/N=Net [STOV2: lines 151-152, 172-184]
-            "vat_percent": 17  # Optional, default Bank of Israel VAT [STOV2: lines 153-158]
+            "vat_percent": 0  # Optional, no VAT for USD [STOV2: lines 153-158]
         }],
 
         # אובייקט Card (חובה אם לא msv) [STOV2: lines 54-55, 185-219]
@@ -238,7 +238,7 @@ def format_payload_initial(params):
     # Build base payload without any null values
     payload = {
         "terminal_name": TRANZILA_SUPPLIER,
-        "txn_currency_code": "ILS",
+        "txn_currency_code": "USD",
         "txn_type": "debit",
         "card_number": card_number,
         "expire_month": int(params["expire_month"]),
@@ -263,12 +263,12 @@ def format_payload_initial(params):
         {
             "code": "1",
             "name": "TalkAPI Subscription",
-            "unit_price": 0.10,
+            "unit_price": 19.00,
             "type": "I",
             "units_number": 1,
             "unit_type": 1,
             "price_type": "G",
-            "currency_code": "ILS",
+            "currency_code": "USD",
             # Don't include 'attributes' if it's empty - Tranzila doesn't like empty arrays
         }
     ]
