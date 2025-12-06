@@ -118,13 +118,13 @@ def send_payment_success_email(
                 }}
                 .greeting {{
                     font-size: 20px;
-                    color: #f1f5f9;
+                    color: #ffffff;
                     margin-bottom: 20px;
                     font-weight: 600;
                 }}
                 .message {{
                     font-size: 16px;
-                    color: #cbd5e1;
+                    color: #ffffff;
                     margin-bottom: 30px;
                     line-height: 1.8;
                 }}
@@ -158,10 +158,10 @@ def send_payment_success_email(
                 }}
                 .detail-label {{
                     font-weight: 600;
-                    color: #94a3b8;
+                    color: #ffffff;
                 }}
                 .detail-value {{
-                    color: #a78bfa;
+                    color: #ffffff;
                     font-weight: 700;
                 }}
                 .features {{
@@ -172,7 +172,7 @@ def send_payment_success_email(
                     border: 1px solid rgba(255, 255, 255, 0.1);
                 }}
                 .features h3 {{
-                    color: #f1f5f9;
+                    color: #ffffff;
                     font-size: 18px;
                     margin-bottom: 15px;
                     font-weight: 600;
@@ -181,7 +181,7 @@ def send_payment_success_email(
                     padding: 10px 0;
                     padding-left: 30px;
                     position: relative;
-                    color: #cbd5e1;
+                    color: #ffffff;
                 }}
                 .feature-item:before {{
                     content: "✓";
@@ -316,8 +316,8 @@ def send_payment_success_email(
                     {f'''
                     <!-- Invoice -->
                     <div class="invoice-section">
-                        <h3 style="margin-top: 0; color: #f1f5f9; font-weight: 600;">📄 Your Invoice</h3>
-                        <p style="color: #cbd5e1; margin-bottom: 15px;">
+                        <h3 style="margin-top: 0; color: #ffffff; font-weight: 600;">📄 Your Invoice</h3>
+                        <p style="color: #ffffff; margin-bottom: 15px;">
                             Click below to download your invoice
                         </p>
                         <a href="{invoice_url}" class="invoice-button" target="_blank">
@@ -443,13 +443,13 @@ def send_subscription_cancelled_email(user_email: str, user_name: str) -> bool:
                     margin: 0;
                     font-size: 28px;
                     font-weight: 700;
-                    color: #cbd5e1;
+                    color: #ffffff;
                 }}
                 .content {{
                     padding: 40px 30px;
                     background: rgba(0, 0, 0, 0.1);
                     backdrop-filter: blur(20px);
-                    color: #cbd5e1;
+                    color: #ffffff;
                 }}
                 .content p {{
                     margin-bottom: 20px;
@@ -469,7 +469,7 @@ def send_subscription_cancelled_email(user_email: str, user_name: str) -> bool:
                 .content ul li {{
                     padding: 8px 0;
                     position: relative;
-                    color: #cbd5e1;
+                    color: #ffffff;
                 }}
                 .content ul li:before {{
                     content: "•";
@@ -521,9 +521,9 @@ def send_subscription_cancelled_email(user_email: str, user_name: str) -> bool:
                     <h2>Subscription Cancelled</h2>
                 </div>
                 <div class="content">
-                    <p style="font-size: 18px; font-weight: 600; color: #f1f5f9;">Hi {user_name},</p>
+                    <p style="font-size: 18px; font-weight: 600; color: #ffffff;">Hi {user_name},</p>
                     <p>Your TalkAPI Pro subscription has been successfully cancelled.</p>
-                    <p>You have been reverted to the <strong style="color: #60a5fa;">Free Plan</strong> with the following limits:</p>
+                    <p>You have been reverted to the <strong style="color: #ffffff;">Free Plan</strong> with the following limits:</p>
                     <ul>
                         <li>50 API requests per day</li>
                         <li>500 API requests per month</li>
