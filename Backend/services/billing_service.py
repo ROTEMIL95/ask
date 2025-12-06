@@ -173,26 +173,52 @@ def create_invoice(
         logger.info(f"📄 Invoice API Response: {data}")
 
         # Check for errors in response
-        if data.get("error_code") and data.get("error_code") != 0:
-            error_message = data.get("message", "Unknown error")
+        # Tranzila returns 'status_code' (not 'error_code')
+        # 0 = Success, anything else = Error
+        status_code = data.get("status_code")
+        if status_code is None or status_code != 0:
+            error_message = data.get("status_msg") or data.get("message", "Unknown error")
             logger.error(f"❌ Invoice creation failed: {error_message}")
+            logger.error(f"   Status Code: {status_code}")
+            logger.error(f"   Full Response: {data}")
             raise Exception(f"Invoice creation failed: {error_message}")
 
-        # Extract document details
-        document_number = data.get("document_number")
-        document_url = data.get("document_url")  # PDF URL if available
+        # Extract document details from 'document' object
+        document_data = data.get("document", {})
+        document_number = document_data.get("number")
+        document_id = document_data.get("id")
+        retrieval_key = document_data.get("retrieval_key")
+        created_at = document_data.get("created_at")
+        total_amount = document_data.get("total_charge_amount")
+        currency = document_data.get("currency")
+
+        # Build PDF URL using retrieval_key
+        # Format: https://billing5.tranzila.com/api/documents_db/get_document?retrieval_key=...
+        document_url = None
+        if retrieval_key:
+            document_url = f"https://billing5.tranzila.com/api/documents_db/get_document?retrieval_key={retrieval_key}"
 
         if not document_number:
             logger.warning("⚠️ No document number returned from Tranzila")
+            logger.warning(f"⚠️ Full response: {data}")
 
         logger.info(f"✅ Invoice created successfully!")
+        logger.info(f"   Document ID: {document_id}")
         logger.info(f"   Document Number: {document_number}")
+        logger.info(f"   Amount: {total_amount} {currency}")
+        logger.info(f"   Created At: {created_at}")
+        logger.info(f"   Retrieval Key: {retrieval_key[:20]}..." if retrieval_key else "   Retrieval Key: N/A")
         logger.info(f"   Document URL: {document_url or 'N/A'}")
 
         return {
             "success": True,
+            "document_id": document_id,
             "document_number": document_number,
             "document_url": document_url,
+            "retrieval_key": retrieval_key,
+            "total_amount": total_amount,
+            "currency": currency,
+            "created_at": created_at,
             "raw_response": data
         }
 

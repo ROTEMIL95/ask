@@ -63,7 +63,7 @@ def send_payment_success_email(
         # Format date
         payment_date = datetime.now().strftime("%B %d, %Y at %I:%M %p")
 
-        # Create beautiful HTML email
+        # Create beautiful HTML email matching website design
         html_body = f"""
         <!DOCTYPE html>
         <html>
@@ -74,21 +74,24 @@ def send_payment_success_email(
                 body {{
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
-                    background-color: #f5f5f5;
+                    color: #e2e8f0;
+                    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #581c87 100%);
                     margin: 0;
                     padding: 0;
                 }}
                 .email-wrapper {{
                     max-width: 600px;
                     margin: 40px auto;
-                    background-color: #ffffff;
-                    border-radius: 12px;
+                    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #581c87 100%);
+                    border-radius: 16px;
                     overflow: hidden;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background: rgba(0, 0, 0, 0.2);
+                    backdrop-filter: blur(10px);
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                     color: white;
                     padding: 40px 30px;
                     text-align: center;
@@ -97,124 +100,154 @@ def send_payment_success_email(
                     margin: 0;
                     font-size: 32px;
                     font-weight: 700;
+                    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
                 }}
                 .header p {{
                     margin: 10px 0 0 0;
                     font-size: 18px;
-                    opacity: 0.95;
+                    opacity: 0.9;
+                    color: #cbd5e1;
                 }}
                 .content {{
                     padding: 40px 30px;
+                    background: rgba(0, 0, 0, 0.1);
+                    backdrop-filter: blur(20px);
                 }}
                 .greeting {{
                     font-size: 20px;
-                    color: #333;
+                    color: #f1f5f9;
                     margin-bottom: 20px;
+                    font-weight: 600;
                 }}
                 .message {{
                     font-size: 16px;
-                    color: #666;
+                    color: #cbd5e1;
                     margin-bottom: 30px;
                     line-height: 1.8;
                 }}
                 .plan-details {{
-                    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-                    border-left: 4px solid #667eea;
+                    background: rgba(30, 58, 138, 0.3);
+                    border: 1px solid rgba(96, 165, 250, 0.3);
+                    border-left: 4px solid #60a5fa;
                     padding: 25px;
                     margin: 30px 0;
-                    border-radius: 8px;
+                    border-radius: 12px;
+                    backdrop-filter: blur(10px);
                 }}
                 .plan-details h2 {{
                     margin: 0 0 20px 0;
-                    color: #667eea;
+                    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
                     font-size: 22px;
+                    font-weight: 700;
                 }}
                 .detail-row {{
                     display: flex;
                     justify-content: space-between;
                     padding: 12px 0;
-                    border-bottom: 1px solid #e0e0e0;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                 }}
                 .detail-row:last-child {{
                     border-bottom: none;
                 }}
                 .detail-label {{
                     font-weight: 600;
-                    color: #555;
+                    color: #94a3b8;
                 }}
                 .detail-value {{
-                    color: #667eea;
-                    font-weight: 600;
+                    color: #60a5fa;
+                    font-weight: 700;
                 }}
                 .features {{
                     margin: 30px 0;
+                    background: rgba(0, 0, 0, 0.2);
+                    border-radius: 12px;
+                    padding: 25px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
                 }}
                 .features h3 {{
-                    color: #333;
+                    color: #f1f5f9;
                     font-size: 18px;
                     margin-bottom: 15px;
+                    font-weight: 600;
                 }}
                 .feature-item {{
                     padding: 10px 0;
                     padding-left: 30px;
                     position: relative;
-                    color: #666;
+                    color: #cbd5e1;
                 }}
                 .feature-item:before {{
                     content: "✓";
                     position: absolute;
                     left: 0;
-                    color: #10b981;
+                    color: #60a5fa;
                     font-weight: bold;
                     font-size: 18px;
                 }}
                 .cta-button {{
                     display: inline-block;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
                     color: white;
-                    padding: 15px 40px;
+                    padding: 16px 48px;
                     text-decoration: none;
-                    border-radius: 8px;
+                    border-radius: 10px;
                     font-weight: 600;
                     font-size: 16px;
                     margin: 20px 0;
                     text-align: center;
+                    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+                    transition: all 0.3s ease;
                 }}
                 .invoice-section {{
-                    background-color: #f9fafb;
-                    padding: 20px;
-                    border-radius: 8px;
+                    background: rgba(30, 58, 138, 0.2);
+                    border: 1px solid rgba(96, 165, 250, 0.2);
+                    padding: 25px;
+                    border-radius: 12px;
                     margin: 20px 0;
                     text-align: center;
+                    backdrop-filter: blur(10px);
                 }}
                 .invoice-button {{
                     display: inline-block;
-                    background-color: #10b981;
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
                     color: white;
-                    padding: 12px 30px;
+                    padding: 14px 36px;
                     text-decoration: none;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     font-weight: 600;
                     margin-top: 10px;
+                    box-shadow: 0 8px 12px -3px rgba(16, 185, 129, 0.3);
                 }}
                 .footer {{
-                    background-color: #f9fafb;
+                    background: rgba(0, 0, 0, 0.3);
+                    backdrop-filter: blur(10px);
                     padding: 30px;
                     text-align: center;
-                    color: #666;
+                    color: #94a3b8;
                     font-size: 14px;
-                    border-top: 1px solid #e5e7eb;
+                    border-top: 1px solid rgba(255, 255, 255, 0.1);
                 }}
                 .footer a {{
-                    color: #667eea;
+                    color: #60a5fa;
                     text-decoration: none;
+                }}
+                .footer a:hover {{
+                    color: #93c5fd;
                 }}
                 .transaction-id {{
                     font-family: 'Courier New', monospace;
-                    background-color: #f3f4f6;
-                    padding: 4px 8px;
-                    border-radius: 4px;
+                    background: rgba(0, 0, 0, 0.3);
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     font-size: 14px;
+                    color: #60a5fa;
+                    border: 1px solid rgba(96, 165, 250, 0.2);
                 }}
             </style>
         </head>
@@ -284,8 +317,8 @@ def send_payment_success_email(
                     {f'''
                     <!-- Invoice -->
                     <div class="invoice-section">
-                        <h3 style="margin-top: 0; color: #333;">📄 Your Invoice</h3>
-                        <p style="color: #666; margin-bottom: 15px;">
+                        <h3 style="margin-top: 0; color: #f1f5f9; font-weight: 600;">📄 Your Invoice</h3>
+                        <p style="color: #cbd5e1; margin-bottom: 15px;">
                             Click below to download your invoice (PDF)
                         </p>
                         <a href="{invoice_url}" class="invoice-button" target="_blank">
@@ -309,14 +342,14 @@ def send_payment_success_email(
                 <!-- Footer -->
                 <div class="footer">
                     <p style="margin: 0 0 10px 0;">
-                        <strong>TalkAPI</strong> - AI-Powered API Integration
+                        <strong style="color: #e2e8f0;">TalkAPI</strong> - AI-Powered API Integration
                     </p>
                     <p style="margin: 0 0 10px 0;">
                         <a href="https://talkapi.ai">talkapi.ai</a> |
                         <a href="https://talkapi.ai/account">My Account</a> |
                         <a href="mailto:{SMTP_USERNAME}">Support</a>
                     </p>
-                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #64748b;">
                         This email was sent to {user_email} because you made a purchase on TalkAPI.
                     </p>
                 </div>
@@ -384,37 +417,127 @@ def send_subscription_cancelled_email(user_email: str, user_name: str) -> bool:
         <html>
         <head>
             <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #667eea; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
-                .content {{ background: #f9f9f9; padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px; }}
-                .footer {{ margin-top: 20px; padding-top: 20px; border-top: 2px solid #667eea; font-size: 12px; color: #666; text-align: center; }}
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #e2e8f0;
+                    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #581c87 100%);
+                    margin: 0;
+                    padding: 0;
+                }}
+                .email-wrapper {{
+                    max-width: 600px;
+                    margin: 40px auto;
+                    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #581c87 100%);
+                    border-radius: 16px;
+                    overflow: hidden;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }}
+                .header {{
+                    background: rgba(0, 0, 0, 0.2);
+                    backdrop-filter: blur(10px);
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    color: white;
+                    padding: 40px 30px;
+                    text-align: center;
+                }}
+                .header h2 {{
+                    margin: 0;
+                    font-size: 28px;
+                    font-weight: 700;
+                    color: #cbd5e1;
+                }}
+                .content {{
+                    padding: 40px 30px;
+                    background: rgba(0, 0, 0, 0.1);
+                    backdrop-filter: blur(20px);
+                    color: #cbd5e1;
+                }}
+                .content p {{
+                    margin-bottom: 20px;
+                    font-size: 16px;
+                    line-height: 1.8;
+                }}
+                .content ul {{
+                    background: rgba(30, 58, 138, 0.3);
+                    border: 1px solid rgba(96, 165, 250, 0.3);
+                    border-left: 4px solid #60a5fa;
+                    padding: 20px 20px 20px 40px;
+                    margin: 20px 0;
+                    border-radius: 12px;
+                    list-style: none;
+                }}
+                .content ul li {{
+                    padding: 8px 0;
+                    position: relative;
+                    color: #cbd5e1;
+                }}
+                .content ul li:before {{
+                    content: "•";
+                    position: absolute;
+                    left: -20px;
+                    color: #60a5fa;
+                    font-weight: bold;
+                    font-size: 20px;
+                }}
+                .cta-button {{
+                    display: inline-block;
+                    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+                    color: white;
+                    padding: 14px 36px;
+                    text-decoration: none;
+                    border-radius: 10px;
+                    font-weight: 600;
+                    margin-top: 30px;
+                    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+                }}
+                .footer {{
+                    background: rgba(0, 0, 0, 0.3);
+                    backdrop-filter: blur(10px);
+                    padding: 30px;
+                    text-align: center;
+                    color: #94a3b8;
+                    font-size: 14px;
+                    border-top: 1px solid rgba(255, 255, 255, 0.1);
+                }}
+                .footer p {{
+                    margin: 5px 0;
+                }}
+                .footer a {{
+                    color: #60a5fa;
+                    text-decoration: none;
+                }}
+                .footer a:hover {{
+                    color: #93c5fd;
+                }}
             </style>
         </head>
         <body>
-            <div class="container">
+            <div class="email-wrapper">
                 <div class="header">
                     <h2>Subscription Cancelled</h2>
                 </div>
                 <div class="content">
-                    <p>Hi {user_name},</p>
+                    <p style="font-size: 18px; font-weight: 600; color: #f1f5f9;">Hi {user_name},</p>
                     <p>Your TalkAPI Pro subscription has been successfully cancelled.</p>
-                    <p>You have been reverted to the <strong>Free Plan</strong> with the following limits:</p>
+                    <p>You have been reverted to the <strong style="color: #60a5fa;">Free Plan</strong> with the following limits:</p>
                     <ul>
                         <li>50 API requests per day</li>
                         <li>500 API requests per month</li>
                         <li>Basic features</li>
                     </ul>
                     <p>We're sorry to see you go! If you change your mind, you can upgrade again anytime from your account dashboard.</p>
-                    <p style="text-align: center; margin-top: 30px;">
-                        <a href="https://talkapi.ai/pricing" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                    <p style="text-align: center;">
+                        <a href="https://talkapi.ai/pricing" class="cta-button">
                             View Plans
                         </a>
                     </p>
                 </div>
                 <div class="footer">
-                    <p><strong>TalkAPI</strong> - AI-Powered API Integration</p>
+                    <p><strong style="color: #e2e8f0;">TalkAPI</strong> - AI-Powered API Integration</p>
                     <p><a href="https://talkapi.ai">talkapi.ai</a> | <a href="mailto:{SMTP_USERNAME}">Support</a></p>
                 </div>
             </div>
