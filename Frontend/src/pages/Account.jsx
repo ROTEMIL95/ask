@@ -168,8 +168,12 @@ export default function AccountPage() {
         setCancelLoading(true);
         try {
             // Refresh session before cancellation to ensure we have the latest token
-            console.log('[Account] Refreshing session before cancellation...');
-            await authProxy.refreshSession();
+            // Note: refreshSession might fail but that's okay - we'll try with current session
+            console.log('[Account] Attempting to refresh session before cancellation...');
+            const refreshResult = await authProxy.refreshSession();
+            if (refreshResult.error) {
+                console.warn('[Account] Session refresh failed, proceeding with current session:', refreshResult.error);
+            }
 
             const result = await cancelSubscription();
 

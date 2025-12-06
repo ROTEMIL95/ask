@@ -68,17 +68,43 @@ const authProxy = {
   refreshSession: async () => {
     try {
       console.log("🔄 [authProxy] Refreshing session...")
-      const { data: { session }, error } = await supabase.auth.refreshSession()
+
+      // First try to get the current session
+      const { data: { session: currentSession }, error: getError } = await supabase.auth.getSession()
+
+      if (getError || !currentSession) {
+        console.warn("⚠️ [authProxy] No active session to refresh")
+        return { session: null, error: getError || new Error("No active session") }
+      }
+
+      // Refresh using the refresh token
+      const { data: { session }, error } = await supabase.auth.refreshSession({
+        refresh_token: currentSession.refresh_token
+      })
 
       if (error) {
         console.error("❌ [authProxy] Error refreshing session:", error)
-        return { session: null, error }
+        // If refresh fails, return the current session instead of null
+        console.log("⚠️ [authProxy] Falling back to current session")
+        return { session: currentSession, error }
       }
 
       console.log("✅ [authProxy] Session refreshed successfully")
       return { session, error: null }
     } catch (err) {
       console.error("❌ [authProxy] Exception in refreshSession:", err)
+
+      // Try to return current session as fallback
+      try {
+        const { data: { session: fallbackSession } } = await supabase.auth.getSession()
+        if (fallbackSession) {
+          console.log("⚠️ [authProxy] Using current session as fallback")
+          return { session: fallbackSession, error: err }
+        }
+      } catch (fallbackErr) {
+        console.error("❌ [authProxy] Fallback also failed:", fallbackErr)
+      }
+
       return { session: null, error: err }
     }
   },
