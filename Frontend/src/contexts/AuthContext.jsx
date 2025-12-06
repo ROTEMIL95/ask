@@ -208,17 +208,14 @@ export const AuthProvider = ({ children }) => {
       }
       
       console.log('Sign in successful:', data)
-      
+
       // Update the user state in AuthContext immediately
       if (data?.user) {
         setUser(data.user)
         console.log('✅ User state updated in AuthContext:', data.user.email)
         console.log('✅ AuthContext isAuthenticated should now be:', !!data.user)
-        
-        // Force immediate re-render with updated state
-        setLoading(false)
       }
-      
+
       return { success: true, data }
     } catch (err) {
       console.error('Sign in error:', err)
@@ -226,6 +223,7 @@ export const AuthProvider = ({ children }) => {
       setError(sanitizedError)
       return { success: false, error: sanitizedError }
     } finally {
+      // Always set loading to false at the end
       setLoading(false)
     }
   }
