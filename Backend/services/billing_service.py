@@ -50,7 +50,7 @@ def create_invoice(
     payload = {
         "terminal_name": TRANZILA_SUPPLIER,
         "document_date": datetime.now().strftime("%Y-%m-%d"),  # Current date
-        "document_type": "IR",  # Invoice Receipt
+        "document_type": "RE",  # Receipt (simpler than IR, doesn't require tax invoice settings)
         "document_currency_code": currency_code,
         "vat_percent": 17,  # Israeli VAT
         "action": 1,  # 1 = create document
