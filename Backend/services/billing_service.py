@@ -55,14 +55,21 @@ def create_invoice(
         "vat_percent": 17,  # Israeli VAT
         "action": 1,  # 1 = create document
 
-        # Client details (removed client_company - it's for customer's company, not ours)
+        # Client details
         "client_name": user_name,
         "client_email": user_email,
         "client_country_code": "IL",  # Israel
+        "client_company": "",  # Optional - can be populated from user profile later
+        "client_id": "",  # Optional - can be populated from user profile later
+        "client_address_line_1": "",  # Optional - can be populated from user profile later
+        "client_address_line_2": "",  # Optional - can be populated from user profile later
+        "client_city": "",  # Optional - can be populated from user profile later
+        "client_zip": "",  # Optional - can be populated from user profile later
 
         "document_language": "eng",  # English as requested
         "response_language": "eng",
         "created_by_system": "TalkAPI Payment System",
+        "client_receipt_paid_for": plan_name,  # Product/service name (recommended for RE type)
 
         # Items - what was purchased
         # ALL fields must be strings per Invoice-items documentation
@@ -90,9 +97,9 @@ def create_invoice(
                 "to_doc_currency_exchange_rate": "1",  # Must be string!
 
                 # Credit Card required fields (per Params-Table documentation)
-                "credit_term": "1",  # 1=Regular, 6=Credit plan, 8=Payments
-                "installments_number": "1",  # Single payment (string!)
-                "credit_card_brand": "2",  # Default to 2=Visa (will override if available)
+                "cc_credit_term": 1,  # 1=Regular, 6=Credit plan, 8=Payments (Integer!)
+                "cc_installments_number": 1,  # Single payment (Integer!)
+                "cc_brand": 2,  # Default to 2=Visa (Integer!)
             }
         ]
     }
@@ -125,6 +132,13 @@ def create_invoice(
     logger.info(f"  client_name: {payload['client_name']}")
     logger.info(f"  client_email: {payload['client_email']}")
     logger.info(f"  client_country_code: {payload['client_country_code']}")
+    logger.info(f"  client_company: {payload['client_company']}")
+    logger.info(f"  client_id: {payload['client_id']}")
+    logger.info(f"  client_address_line_1: {payload['client_address_line_1']}")
+    logger.info(f"  client_address_line_2: {payload['client_address_line_2']}")
+    logger.info(f"  client_city: {payload['client_city']}")
+    logger.info(f"  client_zip: {payload['client_zip']}")
+    logger.info(f"  client_receipt_paid_for: {payload['client_receipt_paid_for']}")
     logger.info("-" * 80)
     logger.info("ITEMS:")
     for idx, item in enumerate(payload['items']):
@@ -146,9 +160,9 @@ def create_invoice(
         logger.info(f"    amount: {payment['amount']} (type: {type(payment['amount']).__name__})")
         logger.info(f"    currency_code: {payment['currency_code']}")
         logger.info(f"    to_doc_currency_exchange_rate: {payment['to_doc_currency_exchange_rate']} (type: {type(payment['to_doc_currency_exchange_rate']).__name__})")
-        logger.info(f"    credit_term: {payment['credit_term']}")
-        logger.info(f"    installments_number: {payment['installments_number']}")
-        logger.info(f"    credit_card_brand: {payment['credit_card_brand']}")
+        logger.info(f"    cc_credit_term: {payment['cc_credit_term']} (type: {type(payment['cc_credit_term']).__name__})")
+        logger.info(f"    cc_installments_number: {payment['cc_installments_number']} (type: {type(payment['cc_installments_number']).__name__})")
+        logger.info(f"    cc_brand: {payment['cc_brand']} (type: {type(payment['cc_brand']).__name__})")
         if 'cc_last_4_digits' in payment:
             logger.info(f"    cc_last_4_digits: {payment['cc_last_4_digits']}")
         if 'txnindex' in payment:
