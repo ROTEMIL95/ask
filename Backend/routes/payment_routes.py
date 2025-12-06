@@ -59,9 +59,8 @@ PRO_LIMITS = {"convert_limit": 500, "run_limit": 2000}  # monthly quotas
 FREE_LIMITS = {"total_limit": 50}                       # combined monthly quota
 
 # Get frontend URL for callbacks
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5000")
-
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+BACKEND_URL = os.getenv("BACKEND_URL")
 
 @payment_bp.route("/payment/create-handshake", methods=["POST", "OPTIONS"])
 def create_handshake():
