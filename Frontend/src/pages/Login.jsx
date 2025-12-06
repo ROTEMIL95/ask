@@ -18,7 +18,7 @@ const GoogleIcon = () => (
 );
 
 export default function Login() {
-    const { signIn, signUp, resetPassword, loading, error: authError, clearError } = useAuth();
+    const { signIn, signUp, resetPassword, signInWithGoogle, loading, error: authError, clearError } = useAuth();
     const [searchParams] = useSearchParams();
     const returnTo = searchParams.get('returnTo');
     const planParam = searchParams.get('plan');
@@ -139,6 +139,17 @@ export default function Login() {
         } else {
             setError(result.error || 'Failed to send password reset email. Please try again.');
         }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError('');
+        const result = await signInWithGoogle();
+
+        if (!result.success && result.error) {
+            setError(result.error || 'Failed to sign in with Google. Please try again.');
+        }
+        // Note: On success, user will be redirected to Google OAuth page
+        // They will come back to /auth/callback after authentication
     };
 
     return (
@@ -267,6 +278,27 @@ export default function Login() {
                             )}
                         </Button>
                     </form>
+
+                    {/* Divider */}
+                    <div className="relative my-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-white/20"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-black/20 text-gray-400"></span>
+                        </div>
+                    </div>
+
+                    {/* Google Sign In Button */}
+                    <Button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={loading}
+                        className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium py-3 border border-gray-300 flex items-center justify-center gap-3"
+                    >
+                        <GoogleIcon />
+                        Continue with Google
+                    </Button>
 
                     {/* Toggle Mode or Register Link */}
                     <div className="mt-8 text-center">

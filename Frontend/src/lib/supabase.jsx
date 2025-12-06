@@ -243,6 +243,35 @@ export const auth = {
       console.error('Error setting up auth state listener:', err)
       return { data: { subscription: null } }
     }
+  },
+
+  // Sign in with Google OAuth
+  signInWithGoogle: async () => {
+    try {
+      console.log('🔐 Attempting to sign in with Google...')
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      })
+
+      if (error) {
+        console.error('❌ Google sign in error:', error)
+        return { data: null, error }
+      }
+
+      console.log('✅ Google sign in initiated:', data)
+      return { data, error: null }
+    } catch (err) {
+      console.error('❌ Error initiating Google sign in:', err)
+      return { data: null, error: err }
+    }
   }
 }
 

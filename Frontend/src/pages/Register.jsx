@@ -17,7 +17,7 @@ const GoogleIcon = () => (
 );
 
 export default function Register() {
-    const { signUp, loading, error: authError, clearError } = useAuth();
+    const { signUp, signInWithGoogle, loading, error: authError, clearError } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -143,7 +143,16 @@ export default function Register() {
         }
     };
 
-    // Remove Google sign up function as we're using Supabase auth
+    const handleGoogleSignUp = async () => {
+        setError('');
+        const result = await signInWithGoogle();
+
+        if (!result.success && result.error) {
+            setError(result.error || 'Failed to sign up with Google. Please try again.');
+        }
+        // Note: On success, user will be redirected to Google OAuth page
+        // They will come back to /auth/callback after authentication
+    };
 
     const getPasswordStrengthColor = () => {
         if (passwordStrength.score >= 4) return 'text-green-400';
@@ -342,6 +351,27 @@ export default function Register() {
                             )}
                         </Button>
                     </form>
+
+                    {/* Divider */}
+                    <div className="relative my-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-white/20"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-black/20 text-gray-400"></span>
+                        </div>
+                    </div>
+
+                    {/* Google Sign Up Button */}
+                    <Button
+                        type="button"
+                        onClick={handleGoogleSignUp}
+                        disabled={loading}
+                        className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium py-3 border border-gray-300 flex items-center justify-center gap-3"
+                    >
+                        <GoogleIcon />
+                        Sign up with Google
+                    </Button>
 
                     {/* Sign In Link */}
                     <div className="mt-8 text-center">
