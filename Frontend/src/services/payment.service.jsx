@@ -44,22 +44,6 @@ export async function handleRecurringPayment(cardNumber, expiryMonth, expiryYear
         }
 
         console.log('✅ Payment successful');
-
-        // Refresh session after successful payment to ensure user data is up-to-date
-        // Note: refreshSession might fail but that's okay - payment already succeeded
-        console.log('🔄 [payment.service] Refreshing session after successful payment...');
-        try {
-            const refreshResult = await authProxy.refreshSession();
-            if (refreshResult.error) {
-                console.warn('⚠️ [payment.service] Session refresh had issues (non-critical):', refreshResult.error);
-            } else {
-                console.log('✅ [payment.service] Session refreshed successfully');
-            }
-        } catch (refreshError) {
-            console.error('⚠️ [payment.service] Failed to refresh session (non-critical):', refreshError);
-            // Don't fail the payment if session refresh fails
-        }
-
         return { data, status: 'success' };
     } catch (error) {
         console.error('❌ Payment error:', error);
@@ -127,21 +111,6 @@ export async function cancelSubscription() {
                 status: 'error',
                 message: 'Server returned empty response. Please try again.'
             };
-        }
-
-        // Refresh session after successful cancellation to ensure user data is up-to-date
-        // Note: refreshSession might fail but that's okay - cancellation already succeeded
-        console.log('🔄 [payment.service] Refreshing session after successful cancellation...');
-        try {
-            const refreshResult = await authProxy.refreshSession();
-            if (refreshResult.error) {
-                console.warn('⚠️ [payment.service] Session refresh had issues (non-critical):', refreshResult.error);
-            } else {
-                console.log('✅ [payment.service] Session refreshed successfully');
-            }
-        } catch (refreshError) {
-            console.error('⚠️ [payment.service] Failed to refresh session (non-critical):', refreshError);
-            // Don't fail the cancellation if session refresh fails
         }
 
         // Return consistent format with status field (like handleRecurringPayment)
