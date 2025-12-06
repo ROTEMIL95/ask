@@ -197,8 +197,10 @@ def create_invoice(
         # Format: https://your-backend.com/payment/invoice/{retrieval_key}
         document_url = None
         if retrieval_key:
-            # Use environment variable for backend URL, fallback to localhost for development
-            backend_url = os.getenv("BACKEND_URL", "http://localhost:5000")
+            # Always use production URL for invoice links
+            # This ensures invoice links work even when emails are sent from dev environment
+            # The BACKEND_URL env var will override this in production
+            backend_url = os.getenv("BACKEND_URL", "https://askapi-0vze.onrender.com")
             document_url = f"{backend_url}/payment/invoice/{retrieval_key}"
 
         if not document_number:
