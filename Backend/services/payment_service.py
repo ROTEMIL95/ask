@@ -75,7 +75,19 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
     Raises:
         ValueError: If expire_year is outside valid range (2020-2030)
     """
+    logger.info("=" * 80)
     logger.info("🔍 Starting format_payload_recurring based on STOV2 docs")
+    logger.info("=" * 80)
+
+    # Debug: Input parameters
+    logger.info("📥 INPUT PARAMETERS:")
+    logger.info(f"   token (first 15 chars): {token[:15] if token else 'None'}...")
+    logger.info(f"   expire_month: {expire_month} (type: {type(expire_month).__name__})")
+    logger.info(f"   expire_year: {expire_year} (type: {type(expire_year).__name__})")
+    logger.info(f"   full_name: {full_name}")
+    logger.info(f"   user_email: {user_email}")
+    logger.info(f"   user_id: {user_id}")
+    logger.info("-" * 80)
 
     try:
         today = date.today()
@@ -84,6 +96,13 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
 
         # יום החיוב בחודש (מוגבל ל-28 לפי STOV2 lines 38-42)
         charge_day_of_month = min(today.day, 28)
+
+        # Debug: Date calculations
+        logger.info("📅 DATE CALCULATIONS:")
+        logger.info(f"   today: {today.strftime('%Y-%m-%d')} (day of month: {today.day})")
+        logger.info(f"   first_charge_date: {next_month_same_day.strftime('%Y-%m-%d')}")
+        logger.info(f"   charge_dom: {charge_day_of_month} (capped at 28)")
+        logger.info("-" * 80)
     except Exception as e:
         logger.error(f"❌ Error in date calculation: {str(e)}")
         raise
@@ -97,23 +116,47 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         # אין שדה internal_id בסכמה של STOV2!
         # phone_number, address - אופציונליים, לא שולחים אם ריקים
     }
+
+    # Debug: Client object
+    logger.info("👤 CLIENT OBJECT:")
+    logger.info(f"   name: {client_obj.get('name')}")
+    logger.info(f"   email: {client_obj.get('email')}")
+    logger.info(f"   (no id/phone/address - not provided)")
+    logger.info("-" * 80)
     
     # 2. בניית אובייקט ה-Card [STOV2: lines 185-219]
     # המרת שנה ל-4 ספרות ו-validation
+    logger.info("💳 CARD PROCESSING:")
+    logger.info(f"   expire_year (raw input): {expire_year}")
+
     year = int(expire_year)
+    logger.info(f"   expire_year (after int()): {year}")
+
     if year < 100:
         year = year + 2000
+        logger.info(f"   expire_year (after +2000): {year}")
 
-    # בדיקה שהשנה בטווח התקין (2020-2030) לפי STOV2 line 201-202
-    if year < 2020 or year > 2030:
-        logger.error(f"❌ Invalid expire_year: {year}. Must be between 2020-2030")
-        raise ValueError(f"Expiry year must be between 2020-2030, got {year}")
+    # בדיקה שהשנה בטווח סביר (2020-2099)
+    # הערה: STOV2 line 201-202 מציין 2030 כדוגמה, לא כהגבלה קשיחה
+    # מאפשרים עד 2099 כדי לא לחסום כרטיסים תקפים
+    if year < 2020 or year > 2099:
+        logger.error(f"❌ Invalid expire_year: {year}. Must be between 2020-2099")
+        raise ValueError(f"Expiry year must be between 2020-2099, got {year}")
+
+    logger.info(f"   ✅ expire_year validation passed: {year}")
 
     card_obj = {
         "token": token,
         "expire_month": int(expire_month),
         "expire_year": year,
     }
+
+    # Debug: Card object
+    logger.info("💳 CARD OBJECT:")
+    logger.info(f"   token (first 15 chars): {token[:15]}...")
+    logger.info(f"   expire_month: {card_obj['expire_month']}")
+    logger.info(f"   expire_year: {card_obj['expire_year']}")
+    logger.info("-" * 80)
 
     # 3. בניית ה-Payload הראשי [STOV2: lines 1-62]
     payload = {
@@ -123,7 +166,7 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         "charge_frequency": "monthly",  # Required, enum value [STOV2: lines 18-26]
         "charge_dom": charge_day_of_month,  # Required, 1-28 [STOV2: lines 38-42]
         "currency_code": "ILS",  # Optional, default ILS [STOV2: lines 29-37]
-        
+
         # אובייקט Client (אופציונלי) [STOV2: lines 50-51, 75-108]
         "client": client_obj,
 
@@ -146,6 +189,25 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         # שם המשתמש שיצר (אופציונלי) [STOV2: lines 60-62]
         "created_by_user": full_name,
     }
+
+    # Debug: Final payload overview
+    logger.info("📦 FINAL PAYLOAD FOR STO CREATION:")
+    logger.info(f"   terminal_name: {payload['terminal_name']}")
+    logger.info(f"   sto_payments_number: {payload['sto_payments_number']}")
+    logger.info(f"   first_charge_date: {payload['first_charge_date']}")
+    logger.info(f"   charge_frequency: {payload['charge_frequency']}")
+    logger.info(f"   charge_dom: {payload['charge_dom']}")
+    logger.info(f"   currency_code: {payload['currency_code']}")
+    logger.info(f"   client: {payload['client']}")
+    logger.info(f"   item: {payload['item']}")
+    logger.info(f"   card.token (first 15 chars): {payload['card']['token'][:15]}...")
+    logger.info(f"   card.expire_month: {payload['card']['expire_month']}")
+    logger.info(f"   card.expire_year: {payload['card']['expire_year']}")
+    logger.info(f"   response_language: {payload['response_language']}")
+    logger.info(f"   created_by_user: {payload['created_by_user']}")
+    logger.info("=" * 80)
+    logger.info("🚀 Payload ready to send to Tranzila STOV2 API")
+    logger.info("=" * 80)
 
     return payload
     
