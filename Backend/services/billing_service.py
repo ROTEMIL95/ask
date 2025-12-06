@@ -70,41 +70,92 @@ def create_invoice(
             {
                 "name": plan_name,  # Required: string
                 "unit_price": str(amount),  # Required: string (not float!)
-                "type": "I",  # Optional: string - Item type
-                "price_type": "G",  # Optional: string - Gross (including VAT)
+                "type": "I",  # Optional: string - I=Item, S=Shipping, C=Coupon
+                "price_type": "G",  # Optional: string - G=Gross (VAT extracted)
                 "units_number": "1",  # Optional: string (not int!)
+                "units_type": "1",  # Optional: string - 1=Unit (per Unit types table)
                 "currency_code": currency_code,  # Optional: string
                 "to_doc_currency_exchange_rate": "1"  # Optional: string (not int!)
-                # Removed 'unit_type' - not in Invoice-items spec
             }
         ],
 
         # Payment details
+        # ALL fields must be strings per Tranzila docs
         "payments": [
             {
-                "payment_method": 1,  # Credit card
-                "payment_date": datetime.now().strftime("%Y-%m-%d"),  # Current date
-                "amount": float(amount),
-                "currency_code": currency_code,
-                "to_doc_currency_exchange_rate": 1  # 1:1 exchange rate (same currency)
+                "payment_method": 1,  # Credit card (per Payment methods table: 1=CC, 3=Cheque, etc)
+                "payment_date": datetime.now().strftime("%Y-%m-%d"),  # Current date (string format)
+                "amount": str(amount),  # Must be string!
+                "currency_code": currency_code,  # String
+                "to_doc_currency_exchange_rate": "1",  # Must be string!
+
+                # Credit Card required fields (per Params-Table documentation)
+                "credit_term": "1",  # 1=Regular, 6=Credit plan, 8=Payments
+                "installments_number": "1",  # Single payment (string!)
+                "credit_card_brand": "2",  # Default to 2=Visa (will override if available)
             }
         ]
     }
 
-    # Add optional fields if available
+    # Add optional Credit Card fields if available
     if card_last_4:
         payload["payments"][0]["cc_last_4_digits"] = str(card_last_4)
 
     if transaction_id:
-        payload["payments"][0]["txnindex"] = int(transaction_id) if str(transaction_id).isdigit() else None
+        # txnindex must be integer (per documentation)
+        if str(transaction_id).isdigit():
+            payload["payments"][0]["txnindex"] = int(transaction_id)
 
     # Generate Tranzila API headers
     headers = generate_tranzila_headers(TRANZILA_PUBLIC_API_KEY, TRANZILA_SECRET_API_KEY)
 
-    logger.info(f"📡 Sending invoice creation request to Tranzila Billing")
-    logger.info(f"   URL: {url}")
-    logger.info(f"   Terminal: {TRANZILA_SUPPLIER}")
-    logger.info(f"   Customer: {user_name} ({user_email})")
+    logger.info("=" * 80)
+    logger.info("📄 INVOICE CREATION - FULL PAYLOAD DEBUG")
+    logger.info("=" * 80)
+    logger.info(f"URL: {url}")
+    logger.info(f"Terminal: {TRANZILA_SUPPLIER}")
+    logger.info(f"Customer: {user_name} ({user_email})")
+    logger.info("-" * 80)
+    logger.info("PAYLOAD STRUCTURE:")
+    logger.info(f"  document_type: {payload['document_type']}")
+    logger.info(f"  document_date: {payload['document_date']}")
+    logger.info(f"  document_currency_code: {payload['document_currency_code']}")
+    logger.info(f"  vat_percent: {payload['vat_percent']}")
+    logger.info(f"  action: {payload['action']}")
+    logger.info(f"  client_name: {payload['client_name']}")
+    logger.info(f"  client_email: {payload['client_email']}")
+    logger.info(f"  client_country_code: {payload['client_country_code']}")
+    logger.info("-" * 80)
+    logger.info("ITEMS:")
+    for idx, item in enumerate(payload['items']):
+        logger.info(f"  Item {idx + 1}:")
+        logger.info(f"    name: {item['name']}")
+        logger.info(f"    unit_price: {item['unit_price']} (type: {type(item['unit_price']).__name__})")
+        logger.info(f"    units_number: {item['units_number']} (type: {type(item['units_number']).__name__})")
+        logger.info(f"    units_type: {item['units_type']} (type: {type(item['units_type']).__name__})")
+        logger.info(f"    type: {item['type']}")
+        logger.info(f"    price_type: {item['price_type']}")
+        logger.info(f"    currency_code: {item['currency_code']}")
+        logger.info(f"    to_doc_currency_exchange_rate: {item['to_doc_currency_exchange_rate']}")
+    logger.info("-" * 80)
+    logger.info("PAYMENTS:")
+    for idx, payment in enumerate(payload['payments']):
+        logger.info(f"  Payment {idx + 1}:")
+        logger.info(f"    payment_method: {payment['payment_method']}")
+        logger.info(f"    payment_date: {payment['payment_date']}")
+        logger.info(f"    amount: {payment['amount']} (type: {type(payment['amount']).__name__})")
+        logger.info(f"    currency_code: {payment['currency_code']}")
+        logger.info(f"    to_doc_currency_exchange_rate: {payment['to_doc_currency_exchange_rate']} (type: {type(payment['to_doc_currency_exchange_rate']).__name__})")
+        logger.info(f"    credit_term: {payment['credit_term']}")
+        logger.info(f"    installments_number: {payment['installments_number']}")
+        logger.info(f"    credit_card_brand: {payment['credit_card_brand']}")
+        if 'cc_last_4_digits' in payment:
+            logger.info(f"    cc_last_4_digits: {payment['cc_last_4_digits']}")
+        if 'txnindex' in payment:
+            logger.info(f"    txnindex: {payment['txnindex']} (type: {type(payment['txnindex']).__name__})")
+    logger.info("=" * 80)
+    logger.info("📡 Sending invoice creation request to Tranzila Billing")
+    logger.info("=" * 80)
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=30)
