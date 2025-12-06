@@ -129,17 +129,18 @@ def send_payment_success_email(
                     line-height: 1.8;
                 }}
                 .plan-details {{
-                    background: rgba(30, 58, 138, 0.3);
-                    border: 1px solid rgba(96, 165, 250, 0.3);
-                    border-left: 4px solid #60a5fa;
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+                    border: 1px solid rgba(139, 92, 246, 0.4);
+                    border-left: 4px solid #8b5cf6;
                     padding: 25px;
                     margin: 30px 0;
                     border-radius: 12px;
                     backdrop-filter: blur(10px);
+                    box-shadow: 0 8px 16px -4px rgba(139, 92, 246, 0.2);
                 }}
                 .plan-details h2 {{
                     margin: 0 0 20px 0;
-                    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+                    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
@@ -160,7 +161,7 @@ def send_payment_success_email(
                     color: #94a3b8;
                 }}
                 .detail-value {{
-                    color: #60a5fa;
+                    color: #a78bfa;
                     font-weight: 700;
                 }}
                 .features {{
@@ -217,12 +218,16 @@ def send_payment_success_email(
                     display: inline-block;
                     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
                     color: white;
-                    padding: 14px 36px;
+                    padding: 16px 40px;
                     text-decoration: none;
-                    border-radius: 8px;
-                    font-weight: 600;
+                    border-radius: 10px;
+                    font-weight: 700;
                     margin-top: 10px;
-                    box-shadow: 0 8px 12px -3px rgba(16, 185, 129, 0.3);
+                    box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
+                    transition: all 0.3s ease;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    font-size: 15px;
                 }}
                 .footer {{
                     background: rgba(0, 0, 0, 0.3);
@@ -242,12 +247,12 @@ def send_payment_success_email(
                 }}
                 .transaction-id {{
                     font-family: 'Courier New', monospace;
-                    background: rgba(0, 0, 0, 0.3);
+                    background: rgba(139, 92, 246, 0.15);
                     padding: 6px 12px;
                     border-radius: 6px;
                     font-size: 14px;
-                    color: #60a5fa;
-                    border: 1px solid rgba(96, 165, 250, 0.2);
+                    color: #c4b5fd;
+                    border: 1px solid rgba(139, 92, 246, 0.3);
                 }}
             </style>
         </head>
@@ -301,16 +306,10 @@ def send_payment_success_email(
                             <strong>{monthly_limit}</strong> API requests per month
                         </div>
                         <div class="feature-item">
-                            Advanced code generation with Claude AI
-                        </div>
-                        <div class="feature-item">
                             API history & favorites
                         </div>
                         <div class="feature-item">
                             Priority email support
-                        </div>
-                        <div class="feature-item">
-                            Custom API documentation
                         </div>
                     </div>
 
@@ -319,10 +318,10 @@ def send_payment_success_email(
                     <div class="invoice-section">
                         <h3 style="margin-top: 0; color: #f1f5f9; font-weight: 600;">📄 Your Invoice</h3>
                         <p style="color: #cbd5e1; margin-bottom: 15px;">
-                            Click below to download your invoice (PDF)
+                            Click below to download your invoice
                         </p>
                         <a href="{invoice_url}" class="invoice-button" target="_blank">
-                            Download Invoice
+                            📥 Download PDF
                         </a>
                     </div>
                     ''' if invoice_url else ''}
@@ -332,10 +331,6 @@ def send_payment_success_email(
                         <a href="https://talkapi.ai/home" class="cta-button">
                             Start Using TalkAPI →
                         </a>
-                    </div>
-
-                    <div class="message" style="margin-top: 30px;">
-                        If you have any questions or need assistance, feel free to reach out to our support team.
                     </div>
                 </div>
 
@@ -462,13 +457,14 @@ def send_subscription_cancelled_email(user_email: str, user_name: str) -> bool:
                     line-height: 1.8;
                 }}
                 .content ul {{
-                    background: rgba(30, 58, 138, 0.3);
-                    border: 1px solid rgba(96, 165, 250, 0.3);
-                    border-left: 4px solid #60a5fa;
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+                    border: 1px solid rgba(139, 92, 246, 0.4);
+                    border-left: 4px solid #8b5cf6;
                     padding: 20px 20px 20px 40px;
                     margin: 20px 0;
                     border-radius: 12px;
                     list-style: none;
+                    box-shadow: 0 8px 16px -4px rgba(139, 92, 246, 0.2);
                 }}
                 .content ul li {{
                     padding: 8px 0;
@@ -479,7 +475,7 @@ def send_subscription_cancelled_email(user_email: str, user_name: str) -> bool:
                     content: "•";
                     position: absolute;
                     left: -20px;
-                    color: #60a5fa;
+                    color: #a78bfa;
                     font-weight: bold;
                     font-size: 20px;
                 }}
@@ -487,12 +483,16 @@ def send_subscription_cancelled_email(user_email: str, user_name: str) -> bool:
                     display: inline-block;
                     background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
                     color: white;
-                    padding: 14px 36px;
+                    padding: 16px 40px;
                     text-decoration: none;
                     border-radius: 10px;
-                    font-weight: 600;
+                    font-weight: 700;
                     margin-top: 30px;
-                    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+                    box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+                    transition: all 0.3s ease;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    font-size: 15px;
                 }}
                 .footer {{
                     background: rgba(0, 0, 0, 0.3);

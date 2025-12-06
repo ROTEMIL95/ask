@@ -67,18 +67,32 @@ export default function AccountPage() {
         console.log('[Account] useEffect triggered - starting loadAccountData');
         const loadAccountData = async () => {
             try {
-                console.log('[Account] Step 1: Getting current user from authProxy...');
-                const currentUser = authProxy.getUser();
+                console.log('[Account] Step 1: Getting current user from authProxy (ASYNC)...');
+
+                // Use async method for reliable session retrieval
+                // This fixes issues with page refresh, tab switching, and post-purchase scenarios
+                const currentUser = await authProxy.getUserAsync();
 
                 if (!currentUser) {
                     console.error('[Account] No user found in authProxy - session expired or not logged in');
-                    // Redirect to login if not authenticated
-                    window.location.href = createPageUrl('Login');
-                    return;
-                }
 
-                console.log('[Account] Step 2: User found:', currentUser?.email);
-                setUser(currentUser);
+                    // Add a small retry before redirecting (in case session is still loading)
+                    console.log('[Account] Retrying once after 500ms...');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    const retryUser = await authProxy.getUserAsync();
+                    if (!retryUser) {
+                        console.error('[Account] Retry failed - redirecting to login');
+                        window.location.href = createPageUrl('Login');
+                        return;
+                    }
+
+                    console.log('[Account] Retry succeeded - user found:', retryUser?.email);
+                    setUser(retryUser);
+                } else {
+                    console.log('[Account] Step 2: User found:', currentUser?.email);
+                    setUser(currentUser);
+                }
 
                 console.log('[Account] Step 2.5: Refreshing profile from database...');
                 const profileRefreshed = await refreshProfile();
@@ -153,13 +167,20 @@ export default function AccountPage() {
 
         setCancelLoading(true);
         try {
+            // Refresh session before cancellation to ensure we have the latest token
+            console.log('[Account] Refreshing session before cancellation...');
+            await authProxy.refreshSession();
+
             const result = await cancelSubscription();
-            
+
             if (result.status === 'success') {
                 alert('Your subscription has been cancelled successfully. You have been reverted to the free plan.');
-                // Refresh the user profile data 
+
+                // Refresh the user profile data
+                console.log('[Account] Refreshing profile after cancellation...');
                 await refreshProfile(); // Trigger profile refresh
                 await loadUsage(); // Also refresh usage data
+
                 // Redirect to home page
                 navigate('/home');
             } else {

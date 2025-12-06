@@ -192,11 +192,14 @@ def create_invoice(
         total_amount = document_data.get("total_charge_amount")
         currency = document_data.get("currency")
 
-        # Build PDF URL using retrieval_key
-        # Format: https://billing5.tranzila.com/api/documents_db/get_document?retrieval_key=...
+        # Build PDF URL using our proxy endpoint
+        # This allows users to download from email without authentication issues
+        # Format: https://your-backend.com/payment/invoice/{retrieval_key}
         document_url = None
         if retrieval_key:
-            document_url = f"https://billing5.tranzila.com/api/documents_db/get_document?retrieval_key={retrieval_key}"
+            # Use environment variable for backend URL, fallback to localhost for development
+            backend_url = os.getenv("BACKEND_URL", "http://localhost:5000")
+            document_url = f"{backend_url}/payment/invoice/{retrieval_key}"
 
         if not document_number:
             logger.warning("⚠️ No document number returned from Tranzila")
@@ -208,7 +211,7 @@ def create_invoice(
         logger.info(f"   Amount: {total_amount} {currency}")
         logger.info(f"   Created At: {created_at}")
         logger.info(f"   Retrieval Key: {retrieval_key[:20]}..." if retrieval_key else "   Retrieval Key: N/A")
-        logger.info(f"   Document URL: {document_url or 'N/A'}")
+        logger.info(f"   Document URL (proxy): {document_url or 'N/A'}")
 
         return {
             "success": True,
@@ -233,6 +236,63 @@ def create_invoice(
     except Exception as e:
         logger.error(f"❌ Unexpected error creating invoice: {str(e)}")
         raise
+
+
+def download_invoice_pdf(retrieval_key: str) -> Optional[bytes]:
+    """
+    Download invoice PDF from Tranzila using retrieval_key
+
+    This function downloads the PDF with proper authentication headers.
+    The retrieval_key is obtained from the invoice creation response.
+
+    Args:
+        retrieval_key: Retrieval key from invoice creation response
+
+    Returns:
+        PDF binary content or None if download fails
+    """
+    logger.info(f"📥 Downloading invoice PDF with retrieval_key: {retrieval_key[:20]}...")
+
+    # Build Tranzila get_document URL
+    url = f"https://billing5.tranzila.com/api/documents_db/get_document?retrieval_key={retrieval_key}"
+
+    # Generate authentication headers
+    headers = generate_tranzila_headers(TRANZILA_PUBLIC_API_KEY, TRANZILA_SECRET_API_KEY)
+
+    try:
+        # Make authenticated request to Tranzila
+        logger.info(f"📡 Requesting PDF from Tranzila: {url[:80]}...")
+        response = requests.get(url, headers=headers, timeout=30)
+
+        # Check response status
+        if response.status_code != 200:
+            logger.error(f"❌ Failed to download PDF: HTTP {response.status_code}")
+            logger.error(f"   Response: {response.text[:200]}")
+            return None
+
+        # Check if response is PDF
+        content_type = response.headers.get('Content-Type', '')
+        if 'pdf' not in content_type.lower():
+            logger.error(f"❌ Response is not a PDF (Content-Type: {content_type})")
+            logger.error(f"   Response preview: {response.text[:200]}")
+            return None
+
+        # Return PDF binary content
+        pdf_size = len(response.content)
+        logger.info(f"✅ PDF downloaded successfully ({pdf_size} bytes)")
+        return response.content
+
+    except requests.exceptions.Timeout:
+        logger.error("❌ PDF download timed out after 30 seconds")
+        return None
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ HTTP error downloading PDF: {str(e)}")
+        return None
+
+    except Exception as e:
+        logger.error(f"❌ Unexpected error downloading PDF: {str(e)}")
+        return None
 
 
 def get_invoice_pdf_url(document_number: str) -> Optional[str]:

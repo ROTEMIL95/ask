@@ -6,8 +6,9 @@ export async function handleRecurringPayment(cardNumber, expiryMonth, expiryYear
     console.log('🚀 Processing payment for:', fullName);
     console.log('🚀 Card ending in: ****' + cardNumber.slice(-4));
 
-    // Get auth token
-    const session = authProxy.getSession();
+    // Get auth token using async method for reliability
+    console.log('🔍 [payment.service] Getting session asynchronously...');
+    const session = await authProxy.getSessionAsync();
     if (!session?.access_token) {
         console.error('❌ Authentication required');
         return { data: null, status: 'error', message: 'Authentication required for payment processing' };
@@ -43,6 +44,17 @@ export async function handleRecurringPayment(cardNumber, expiryMonth, expiryYear
         }
 
         console.log('✅ Payment successful');
+
+        // Refresh session after successful payment to ensure user data is up-to-date
+        console.log('🔄 [payment.service] Refreshing session after successful payment...');
+        try {
+            await authProxy.refreshSession();
+            console.log('✅ [payment.service] Session refreshed successfully');
+        } catch (refreshError) {
+            console.error('⚠️ [payment.service] Failed to refresh session (non-critical):', refreshError);
+            // Don't fail the payment if session refresh fails
+        }
+
         return { data, status: 'success' };
     } catch (error) {
         console.error('❌ Payment error:', error);
@@ -57,8 +69,9 @@ export async function handleRecurringPayment(cardNumber, expiryMonth, expiryYear
 export async function cancelSubscription() {
     console.log('🚫 Cancelling subscription...');
 
-    // Get auth token
-    const session = authProxy.getSession();
+    // Get auth token using async method for reliability
+    console.log('🔍 [payment.service] Getting session asynchronously...');
+    const session = await authProxy.getSessionAsync();
     if (!session?.access_token) {
         console.error('❌ Authentication required');
         return {
@@ -109,6 +122,16 @@ export async function cancelSubscription() {
                 status: 'error',
                 message: 'Server returned empty response. Please try again.'
             };
+        }
+
+        // Refresh session after successful cancellation to ensure user data is up-to-date
+        console.log('🔄 [payment.service] Refreshing session after successful cancellation...');
+        try {
+            await authProxy.refreshSession();
+            console.log('✅ [payment.service] Session refreshed successfully');
+        } catch (refreshError) {
+            console.error('⚠️ [payment.service] Failed to refresh session (non-critical):', refreshError);
+            // Don't fail the cancellation if session refresh fails
         }
 
         // Return consistent format with status field (like handleRecurringPayment)
