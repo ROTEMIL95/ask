@@ -208,14 +208,14 @@ def create_invoice(
 
         # Build PDF URL using our proxy endpoint
         # This allows users to download from email without authentication issues
-        # Format: https://your-backend.com/payment/invoice/{retrieval_key}
+        # Format: https://your-backend.com/payment/invoice/{document_id}
         document_url = None
-        if retrieval_key:
+        if document_id:
             # Always use production URL for invoice links
             # This ensures invoice links work even when emails are sent from dev environment
             # The BACKEND_URL env var will override this in production
             backend_url = os.getenv("BACKEND_URL", "https://askapi-0vze.onrender.com")
-            document_url = f"{backend_url}/payment/invoice/{retrieval_key}"
+            document_url = f"{backend_url}/payment/invoice/{document_id}"
 
         if not document_number:
             logger.warning("⚠️ No document number returned from Tranzila")
@@ -254,31 +254,38 @@ def create_invoice(
         raise
 
 
-def download_invoice_pdf(retrieval_key: str) -> Optional[bytes]:
+def download_invoice_pdf(document_id: int) -> Optional[bytes]:
     """
-    Download invoice PDF from Tranzila using retrieval_key
+    Download invoice PDF from Tranzila using document_id
 
     This function downloads the PDF with proper authentication headers.
-    The retrieval_key is obtained from the invoice creation response.
+    The document_id is obtained from the invoice creation response.
 
     Args:
-        retrieval_key: Retrieval key from invoice creation response
+        document_id: Document ID from invoice creation response
 
     Returns:
         PDF binary content or None if download fails
     """
-    logger.info(f"📥 Downloading invoice PDF with retrieval_key: {retrieval_key[:20]}...")
+    logger.info(f"📥 Downloading invoice PDF with document_id: {document_id}")
 
-    # Build Tranzila get_document URL
-    url = f"https://billing5.tranzila.com/api/documents_db/get_document?retrieval_key={retrieval_key}"
+    # Build Tranzila get_document URL (POST request, not GET!)
+    url = "https://billing5.tranzila.com/api/documents_db/get_document"
+
+    # Prepare payload with terminal_name and document_id
+    payload = {
+        "terminal_name": TRANZILA_SUPPLIER,
+        "document_id": int(document_id)
+    }
 
     # Generate authentication headers
     headers = generate_tranzila_headers(TRANZILA_PUBLIC_API_KEY, TRANZILA_SECRET_API_KEY)
 
     try:
-        # Make authenticated request to Tranzila
-        logger.info(f"📡 Requesting PDF from Tranzila: {url[:80]}...")
-        response = requests.get(url, headers=headers, timeout=30)
+        # Make authenticated POST request to Tranzila (not GET!)
+        logger.info(f"📡 Requesting PDF from Tranzila (POST): {url}")
+        logger.info(f"   Payload: {payload}")
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
 
         # Check response status
         if response.status_code != 200:
