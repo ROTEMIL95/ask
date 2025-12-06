@@ -170,15 +170,16 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         # אובייקט Client (אופציונלי) [STOV2: lines 50-51, 75-108]
         "client": client_obj,
 
-        # אובייקט Item (חובה!) - ביחיד, לא ברשימה! [STOV2: lines 52-53, 122-161]
-        "item": {
+        # אובייקט Item (חובה!) - לפי השגיאה של טרנזילה צריך להיות 'items' ברבים!
+        # התיעוד STOV2 אומר 'item' ביחיד, אבל ה-API דורש 'items' ברשימה
+        "items": [{
             "name": "Monthly TalkAPI Subscription",  # Required [STOV2: line 160]
             "unit_price": 0.10,  # Required, min 0.01 max 99999 [STOV2: lines 135-140]
             "units_number": 1,  # Optional, default 1 [STOV2: lines 141-146]
             "price_currency": "ILS",  # Optional, enum ILS/USD/EUR [STOV2: lines 147-150, 162-171]
             "price_type": "G",  # Optional, G=Gross/N=Net [STOV2: lines 151-152, 172-184]
             "vat_percent": 17  # Optional, default Bank of Israel VAT [STOV2: lines 153-158]
-        },
+        }],
 
         # אובייקט Card (חובה אם לא msv) [STOV2: lines 54-55, 185-219]
         "card": card_obj,
@@ -199,7 +200,7 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
     logger.info(f"   charge_dom: {payload['charge_dom']}")
     logger.info(f"   currency_code: {payload['currency_code']}")
     logger.info(f"   client: {payload['client']}")
-    logger.info(f"   item: {payload['item']}")
+    logger.info(f"   items: {payload['items']}")  # Changed from 'item' to 'items'
     logger.info(f"   card.token (first 15 chars): {payload['card']['token'][:15]}...")
     logger.info(f"   card.expire_month: {payload['card']['expire_month']}")
     logger.info(f"   card.expire_year: {payload['card']['expire_year']}")
@@ -207,6 +208,7 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
     logger.info(f"   created_by_user: {payload['created_by_user']}")
     logger.info("=" * 80)
     logger.info("🚀 Payload ready to send to Tranzila STOV2 API")
+    logger.info("⚠️  NOTE: Using 'items' (plural) instead of 'item' per Tranzila API error")
     logger.info("=" * 80)
 
     return payload
