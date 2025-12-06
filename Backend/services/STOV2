@@ -1,0 +1,251 @@
+type: object
+x-stoplight:
+  id: bhtebiiea58nl
+required:
+  - terminal_name
+  - sto_payments_number
+  - charge_frequency
+  - charge_dom
+  - item
+properties:
+  terminal_name:
+    $ref: '#/definitions/terminalName'
+  sto_payments_number:
+    type: integer
+    minimum: 2
+    maximum: 9999
+    example: 12
+  charge_frequency:
+    type: string
+    enum:
+      - weekly
+      - monthly
+      - quarterly
+      - half-yearly
+      - yearly
+    example: monthly
+  first_charge_date:
+    $ref: '#/definitions/dbDate'
+  currency_code:
+    type: string
+    x-stoplight:
+      id: v3xxko00cxgfl
+    enum:
+      - ILS
+      - USD
+      - EUR
+    default: ILS
+  charge_dom:
+    type: integer
+    minimum: 1
+    maximum: 28
+    example: 25
+  vat_percent:
+    type: number
+    x-stoplight:
+      id: 0jtkn6x7quom2
+    minimum: 0
+    maximum: 100
+    default: 17
+  client:
+    $ref: '#/definitions/STOClient'
+  item:
+    $ref: '#/definitions/STOItem'
+  card:
+    $ref: '#/definitions/tokenDetails'
+  msv:
+    $ref: '#/definitions/bankDetails'
+  response_language:
+    $ref: '#/definitions/APILanguage'
+  created_by_user:
+    type: string
+    example: demo user
+definitions:
+  terminalName:
+    type: string
+    example: myterminal
+    x-stoplight:
+      id: fudk0p29xjerj
+  dbDate:
+    title: dbDate
+    x-stoplight:
+      id: 1plrbmdg1vkxf
+    type: string
+    format: date
+  STOClient:
+    type: object
+    x-stoplight:
+      id: bz2897wk2u020
+    properties:
+      name:
+        description: Client name
+        type: string
+        example: האקלברי פין
+      id:
+        description: Client Israeli ID number
+        allOf:
+          - $ref: '#/definitions/socialIDNumber'
+      email:
+        description: 'Client email address, only one can be used'
+        allOf:
+          - $ref: '#/definitions/email'
+      address:
+        description: Client one liner address
+        type: string
+        example: 'רציף 9 ושלושה רבעים, קינגס קרוס, לונדון'
+      phone_country_code:
+        description: 'Client country international access code, default is 972 for Israel'
+        type: string
+        default: '972'
+        example: '44'
+      phone_area_code:
+        description: Client phone number area code
+        type: string
+        example: '001'
+      phone_number:
+        description: Client phone number
+        type: string
+        example: 555-8965
+  socialIDNumber:
+    type: string
+    pattern: '^[0-9]{9}$'
+    example: '012345632'
+    x-stoplight:
+      id: itfukp5pyjxle
+  email:
+    type: string
+    example: mailaddress@domain.com
+    x-stoplight:
+      id: w822azlm8eu0z
+    format: email
+    pattern: mail@example.com
+  STOItem:
+    type: object
+    x-stoplight:
+      id: 8hxguzjo1isb5
+    properties:
+      code:
+        description: Item code. Also used by Tranzila invoicing service (if applicable).
+        type: string
+        example: AA-1246-974-B
+      name:
+        description: Item name. Also used by Tranzila invoicing service (if applicable).
+        type: string
+        example: מפצל HDMI
+      unit_price:
+        description: Item single unit price
+        type: number
+        minimum: 0.01
+        maximum: 99999
+        example: 230
+      units_number:
+        description: 'Item units number chraged. Total charge amount will be set to unit_price times units number. If ommited, is considered to be 1'
+        type: number
+        minimum: 0.01
+        maximum: 999
+        example: 2
+      price_currency:
+        description: 'currency supported currencies are ILS, USD, EUR'
+        allOf:
+          - $ref: '#/definitions/currency'
+      price_type:
+        $ref: '#/definitions/priceType'
+      vat_percent:
+        description: 'if omitted, current Bank Of Israel VAT will be used'
+        type: integer
+        minimum: 0
+        maxLength: 100
+        example: 17
+    required:
+      - name
+      - unit_price
+  currency:
+    title: currency
+    x-stoplight:
+      id: xvnvk2pfjyv6w
+    type: string
+    enum:
+      - ILS
+      - USD
+      - EUR
+    default: ILS
+  priceType:
+    type: string
+    default: G
+    description: |
+      if Gross, sent price/amount is processed as is, with VAT extracted from sent price/amount, if Net, VAT is added to sent amount. price type can either be
+        * `G` - Gross
+        * `N` - Net
+    enum:
+      - 'N'
+      - G
+    example: G
+    x-stoplight:
+      id: 40jhlsnmd75qw
+  tokenDetails:
+    type: object
+    properties:
+      token:
+        description: 'Credit card token to be charged. Prior to adding an STO, a merchant must tokenize used credit card'
+        type: string
+        example: f12cF45cI7898t75548
+      expire_month:
+        description: Credit card expiration month
+        type: integer
+        minimum: 1
+        maximum: 12
+        example: 4
+      expire_year:
+        description: Credit card expiration year
+        type: integer
+        minimum: 2020
+        maximum: 2030
+        example: 2024
+      card_holder_id:
+        description: 'Depending on merchant contract with credit card transactions acquirer, my be ommited or required to complete a transaction'
+        allOf:
+          - $ref: '#/definitions/socialIDNumber'
+      card_holder_name:
+        description: 'Depending on merchant contract with credit card transactions acquirer, my be ommited or required to complete a transaction'
+        type: string
+        minLength: 2
+        maxLength: 21
+        example: לובנגולו מלך זולו
+    required:
+      - token
+      - expire_month
+      - expire_year
+    x-stoplight:
+      id: bh38p7wtvbl56
+  bankDetails:
+    description: Merchant must have contract signed with MASAV in order to use this option. Please contact our sales team for further information
+    type: object
+    properties:
+      bank_code:
+        description: 'Client bank code, based on Israeli bank codes list'
+        type: integer
+        example: 12
+      branch_code:
+        description: 'Client branch code, based on Israeli bank branchs codes list'
+        type: string
+        example: '659'
+      account_number:
+        description: Client bank account to charge
+        type: string
+        example: '127963'
+    required:
+      - bank_code
+      - branch_code
+      - account_number
+    x-stoplight:
+      id: qysrn24n3hmjb
+  APILanguage:
+    title: APILanguage
+    x-stoplight:
+      id: pqp46zcg37obt
+    type: string
+    default: english
+    example: hebrew
+    enum:
+      - english
+      - hebrew
