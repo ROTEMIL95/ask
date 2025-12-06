@@ -100,10 +100,9 @@ export default function Layout({ children }) {
                                 How It Works
                             </Link>
 
-                            {/* Temporarily disabled - Pricing page */}
-                            {/* <Link to={createPageUrl("Pricing")} className="text-gray-300 hover:text-white transition-colors">
+                            <Link to={createPageUrl("Pricing")} className="text-gray-300 hover:text-white transition-colors">
                                 Pricing
-                            </Link> */}
+                            </Link>
 
                             {loading ? (
                                 <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
@@ -173,13 +172,12 @@ export default function Layout({ children }) {
                                     How It Works
                                 </Link>
 
-                                {/* Temporarily disabled - Pricing page */}
-                                {/* <Link
+                                <Link
                                     to={createPageUrl("Pricing")}
                                     className="text-gray-300 hover:text-white transition-colors py-2"
                                 >
                                     Pricing
-                                </Link> */}
+                                </Link>
 
                                 {loading ? (
                                     <div className="flex items-center gap-2 py-2">

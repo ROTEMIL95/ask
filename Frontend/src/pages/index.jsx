@@ -99,8 +99,7 @@ function PagesContent() {
 
                 <Route path="/Home" element={<Home />} />
 
-                {/* Temporarily disabled - Pricing page */}
-                {/* <Route path="/Pricing" element={<Pricing />} /> */}
+                <Route path="/Pricing" element={<Pricing />} />
 
                 <Route path="/Legal" element={<Legal />} />
                 
