@@ -68,7 +68,6 @@ const createCopyToClipboard = (setText, timeout = 2000) => {
             setText(true);
             setTimeout(() => setText(false), timeout);
         } catch (err) {
-            console.error('Failed to copy to clipboard:', err);
         }
     };
 };
@@ -87,7 +86,6 @@ const isFileSupported = (filename) => {
 };
 
 const handleError = (context, error, showAlert = false) => {
-    console.error(`❌ ${context}:`, error);
     if (showAlert) {
         alert(`${context}: ${error.message || error}`);
     }
@@ -369,41 +367,26 @@ function ApiToolSection() {
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (file) {
-            console.log('🔍 File Upload Debug: File selected:', file);
-            console.log('🔍 File Upload Debug: File details:', {
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                lastModified: file.lastModified
-            });
             
             // Check if it's a supported file type
             const isSupported = isFileSupported(file.name);
             const fileExtension = file.name.toLowerCase().split('.').pop();
-            console.log('🔍 File Upload Debug: File extension:', fileExtension);
-            console.log('🔍 File Upload Debug: Is supported file:', isSupported);
             
             if (!isSupported) {
-                console.warn('⚠️ File Upload Debug: Unsupported file type selected');
                 alert(`Please select a supported file type: PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), CSV, text files (.txt, .md, .json, .xml, .rtf), or images (PNG, JPG, GIF, BMP, WEBP)`);
                 return;
             }
             
 
             
-            console.log('✅ File Upload Debug: Starting file processing for uploaded file');
             setUploadedFile(file);
             setIsFileProcessing(true);
             setOcrText('');
 
             try {
-                console.log('🔍 File Upload Debug: Calling processFileToText...');
                 const result = await processFileToText(file);
-                console.log('🔍 File Upload Debug: File processing result received:', result);
                 
                 if (result.success) {
-                    console.log('✅ File Upload Debug: File processing successful');
-                    console.log('🔍 File Upload Debug: Text length:', result.text.length);
                     setOcrText(result.text);
                     
                             // Compose the custom prompt for Claude - API Facts Extractor
@@ -436,7 +419,6 @@ function ApiToolSection() {
                         setExtractedDocText(formattedResponse);
                         setShowDocPopup(true);
                     } catch (claudeError) {
-                        console.error('❌ Error sending to Claude:', claudeError);
                         if (claudeError.message.includes('Anonymous usage limit reached')) {
                             alert('Anonymous usage limit reached. Please log in to continue using Claude AI.');
                             setExtractedDocText(result.text); // Fallback to raw text
@@ -448,61 +430,42 @@ function ApiToolSection() {
                         setIsLoading(false);
                     }
                 } else {
-                    console.error('❌ File Upload Debug: File processing failed:', result.error);
                     alert(`File processing failed: ${result.error}`);
                 }
             } catch (error) {
-                console.error('❌ File Upload Debug: File processing error:', error);
                 alert(`File processing failed: ${error.message}`);
             } finally {
-                console.log('🔍 File Upload Debug: File processing completed');
                 setIsFileProcessing(false);
             }
         } else {
-            console.log('🔍 File Upload Debug: No file selected');
         }
     };
 
     const handleImageUpload = async (event) => {
         const file = event.target.files[0];
         if (file) {
-            console.log('🔍 Image Upload Debug: File selected:', file);
-            console.log('🔍 Image Upload Debug: File details:', {
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                lastModified: file.lastModified
-            });
             
             // Check if it's an image file
             const isImage = file.type.startsWith('image/');
-            console.log('🔍 Image Upload Debug: Is image file:', isImage);
             
             if (!isImage) {
-                console.warn('⚠️ Image Upload Debug: Non-image file selected');
                 alert('Please select an image file (PNG, JPG, JPEG, GIF, BMP, WEBP)');
                 return;
             }
 
 
 
-            console.log('✅ Image Upload Debug: Valid image file, starting OCR');
             setUploadedImage(file);
             setIsOcrProcessing(true);
             setOcrText('');
 
             try {
-                console.log('🔍 Image Upload Debug: Calling processImageOCR...');
                 const result = await processImageOCR(file);
-                console.log('🔍 Image Upload Debug: OCR result received:', result);
                 
                 if (result.success) {
-                    console.log('✅ Image Upload Debug: OCR successful');
-                    console.log('🔍 Image Upload Debug: Text length:', result.text.length);
                     setOcrText(result.text);
                     
                     // Send the extracted text to Claude with the same prompt as file upload
-                    console.log('🔍 Image Upload Debug: Sending extracted text to Claude for analysis');
                     
                     const claudePrompt = createClaudeApiPrompt(result.text);
 
@@ -510,7 +473,6 @@ function ApiToolSection() {
 
                     try {
                         const claudeResponse = await askQuestion(claudePrompt, user?.id || '', result.text, selectedApiInfo);
-                        console.log('✅ Image Upload Debug: Claude analysis completed');
                         
                         // Format the response for display
                         let formattedResponse = '';
@@ -536,7 +498,6 @@ function ApiToolSection() {
                         // Show a success message
                         alert('✅ Image processed successfully! The API documentation has been analyzed by Claude and is ready for use.');
                     } catch (claudeError) {
-                        console.error('❌ Image Upload Debug: Claude processing failed:', claudeError);
                         if (claudeError.message.includes('Anonymous usage limit reached')) {
                             alert('Anonymous usage limit reached. Please log in to continue using Claude AI.');
                             setExtractedDocText(result.text); // Fallback to raw text
@@ -550,18 +511,14 @@ function ApiToolSection() {
                     }
                     
                 } else {
-                    console.error('❌ Image Upload Debug: OCR failed:', result.error);
                     alert(`OCR failed: ${result.error}`);
                 }
             } catch (error) {
-                console.error('❌ Image Upload Debug: OCR processing error:', error);
                 alert(`OCR processing failed: ${error.message}`);
             } finally {
-                console.log('🔍 Image Upload Debug: OCR processing completed');
                 setIsOcrProcessing(false);
             }
         } else {
-            console.log('🔍 Image Upload Debug: No file selected');
         }
     };
 
@@ -597,7 +554,6 @@ function ApiToolSection() {
                 setResultCopied(true);
                 setTimeout(() => setResultCopied(false), 2000);
             } catch (err) {
-                console.error('Failed to copy result: ', err);
             }
         } else if (apiError) {
             try {
@@ -605,7 +561,6 @@ function ApiToolSection() {
                 setResultCopied(true);
                 setTimeout(() => setResultCopied(false), 2000);
             } catch (err) {
-                console.error('Failed to copy error: ', err);
             }
         }
     };
@@ -635,7 +590,6 @@ function ApiToolSection() {
                 variables[match[1]] = match[2];
             }
 
-            console.log('🔍 Extracted variables:', variables);
 
             // Replace variable references with their actual values
             for (const [varName, varValue] of Object.entries(variables)) {
@@ -651,7 +605,6 @@ function ApiToolSection() {
                 fixed = fixed.replace(regexEnd, isNumeric ? `: ${varValue}$1` : `: "${varValue}"$1`);
             }
 
-            console.log('🔍 After variable replacement:', fixed);
 
             // Try to fix common issues
             fixed = fixed
@@ -663,8 +616,6 @@ function ApiToolSection() {
                 JSON.parse(fixed);
                 return fixed;
             } catch (parseError) {
-                console.error('❌ JSON parse error after fixes:', parseError.message);
-                console.error('Body content:', fixed);
                 throw new Error(`Invalid JSON: ${parseError.message}`);
             }
         }
@@ -728,13 +679,11 @@ function ApiToolSection() {
                     const fixedJson = validateAndFixJson(jsonMatch[1]);
                     body = fixedJson;
                 } catch (e) {
-                    console.warn('Failed to parse Python JSON body');
                 }
             }
 
             return { url, method, headers, body, originalCode: code };
         } catch (e) {
-            console.error('Error parsing Python code:', e);
             return null;
         }
     };
@@ -778,14 +727,12 @@ function ApiToolSection() {
 
             return { url, method, headers, body, originalCode: code };
         } catch (e) {
-            console.error('Error parsing cURL code:', e);
             return null;
         }
     };
 
     const parseGeneratedCode = (code) => {
         try {
-            console.log('🔍 Starting to parse generated code:', code);
             
             let url = null;
             let method = 'GET'; // Default to GET
@@ -793,13 +740,10 @@ function ApiToolSection() {
             let body = null;
 
             // 1. Extract URL (Handles '...', "...", `...` including template literals)
-            console.log('🔍 Extracting URL from code...');
             const urlMatch = code.match(/fetch\s*\(\s*[`'"]([^`'"]+)[`'"]/s); // s flag for dotall
             if (urlMatch && urlMatch[1]) {
                 url = fixAnthropicPlaceholderUrl(urlMatch[1]);
-                console.log('✅ URL extracted:', url);
             } else {
-                console.log('❌ No URL found with primary pattern, trying alternatives...');
 
                 // Try alternative URL extraction patterns
                 const altUrlPatterns = [
@@ -813,7 +757,6 @@ function ApiToolSection() {
                     const match = code.match(pattern);
                     if (match && match[1]) {
                         url = fixAnthropicPlaceholderUrl(match[1].trim());
-                        console.log('✅ URL extracted with alternative pattern:', url);
                         break;
                     }
                 }
@@ -821,13 +764,11 @@ function ApiToolSection() {
 
             // If URL is a variable name, try to extract its value
             if (url && !url.startsWith('http')) {
-                console.log('🔍 URL appears to be a variable, trying to extract its value:', url);
                 // Look for variable definition like: const apiUrl = "..."
                 const varPattern = new RegExp(`(?:const|let|var)\\s+${url}\\s*=\\s*['\`"]([^'\`"]+)['\`"]`, 'g');
                 const varMatch = varPattern.exec(code);
                 if (varMatch && varMatch[1]) {
                     url = varMatch[1];
-                    console.log('✅ Extracted URL from variable definition:', url);
                 } else {
                     // Try template literal with variable interpolation
                     const templatePattern = new RegExp(`(?:const|let|var)\\s+${url}\\s*=\\s*\`([^\`]+)\``, 'g');
@@ -835,41 +776,33 @@ function ApiToolSection() {
                     if (templateMatch && templateMatch[1]) {
                         // Extract the template literal content
                         let templateUrl = templateMatch[1];
-                        console.log('🔍 Found template literal:', templateUrl);
 
                         // Extract variables used in the template
                         const templateVars = templateUrl.matchAll(/\$\{([^}]+)\}/g);
                         for (const varRef of templateVars) {
                             const varName = varRef[1].trim();
-                            console.log('🔍 Found variable reference in template:', varName);
 
                             // Try to find the variable's value
                             const valuePattern = new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\\s*['\"]([^'\"]+)['\"]`);
                             const valueMatch = code.match(valuePattern);
                             if (valueMatch && valueMatch[1]) {
-                                console.log(`✅ Replacing \${${varName}} with "${valueMatch[1]}"`);
                                 templateUrl = templateUrl.replace(`\${${varName}}`, valueMatch[1]);
                             }
                         }
                         url = templateUrl;
-                        console.log('✅ Final URL after template processing:', url);
                     }
                 }
             }
 
             if (!url) {
-                console.log('❌ Still no URL found, this might be a parsing issue');
             }
 
             // 2. Extract fetch options (the object after the URL)
-            console.log('🔍 Extracting fetch options from code');
             const optionsMatch = code.match(/fetch\s*\(\s*['"`].*?['"`]\s*,\s*(\{[\s\S]*?\})\s*\)/);
             let optionsStr = '';
             if (optionsMatch && optionsMatch[1]) {
                 optionsStr = optionsMatch[1];
-                console.log('✅ Fetch options extracted:', optionsStr);
             } else {
-                console.log('❌ No fetch options found with primary pattern, trying alternatives...');
                 
                 // Try alternative options extraction patterns
                 const altOptionsPatterns = [
@@ -882,7 +815,6 @@ function ApiToolSection() {
                     const match = code.match(pattern);
                     if (match && match[1]) {
                         optionsStr = match[1];
-                        console.log('✅ Fetch options extracted with alternative pattern:', optionsStr);
                         break;
                     }
                 }
@@ -890,7 +822,6 @@ function ApiToolSection() {
 
             // If no options object found, return with just the URL
             if (!optionsStr) {
-                console.log('🔍 No options string found, returning with just URL');
                 return { url, method, headers, body };
             }
 
@@ -903,7 +834,6 @@ function ApiToolSection() {
             // 4. Extract headers - Enhanced to handle complex expressions
             const headersMatch = optionsStr.match(/headers\s*:\s*(\{[\s\S]*?\})/);
             if (headersMatch && headersMatch[1]) {
-                console.log('🔍 Headers string found:', headersMatch[1]);
 
                 // Enhanced regex to capture entire expressions including concatenation and function calls
                 const headerPairs = headersMatch[1].matchAll(/(['"`])([^'"]+)\1\s*:\s*(.+?)(?=,\s*['"`]|\})/gs);
@@ -915,7 +845,6 @@ function ApiToolSection() {
                     // Remove trailing comma if present
                     value = value.replace(/,\s*$/, '').trim();
 
-                    console.log(`🔍 Processing header: ${key} = ${value}`);
 
                     // Handle different value formats:
 
@@ -925,7 +854,6 @@ function ApiToolSection() {
                         if (btoaMatch) {
                             // Keep the expression as-is for runtime processing
                             headers[key] = value;
-                            console.log(`🔍 btoa() expression found, keeping as-is`);
                         }
                     }
                     // 2. String concatenation - combine the parts
@@ -937,31 +865,24 @@ function ApiToolSection() {
                             return quoted ? quoted[1] : trimmed;
                         });
                         headers[key] = parts.join('');
-                        console.log(`🔍 Concatenation detected, combined to: ${headers[key]}`);
                     }
                     // 3. Template literal with variables - keep for runtime processing
                     else if (value.includes('`') && value.includes('${')) {
                         headers[key] = value;
-                        console.log(`🔍 Template literal with variables: ${value}`);
                     }
                     // 4. Simple quoted value
                     else if (value.match(/^['"`](.+?)['"`]$/)) {
                         headers[key] = value.replace(/^['"`]|['"`]$/g, '');
-                        console.log(`🔍 Simple quoted value: ${headers[key]}`);
                     }
                     // 5. Keep as-is (variable or expression)
                     else {
                         headers[key] = value;
-                        console.log(`🔍 Keeping value as-is: ${value}`);
                     }
                 }
-                console.log('🔍 Final extracted headers:', headers);
             } else {
-                console.log('🔍 No headers found in options string');
             }
             
             // 5. Extract body - SIMPLIFIED VERSION
-            console.log('🔍 Extracting body from code');
 
             // Method 1: Find JSON.stringify( and extract balanced braces
             const stringifyMatch = code.match(/body\s*:\s*JSON\.stringify\s*\(/);
@@ -1004,8 +925,6 @@ function ApiToolSection() {
 
                 if (bodyStart >= 0 && bodyEnd > bodyStart) {
                     body = code.substring(bodyStart, bodyEnd).trim();
-                    console.log('✅ Body extracted using balanced brace parser');
-                    console.log('📦 Body (first 200 chars):', body.substring(0, 200));
                 }
             }
 
@@ -1014,45 +933,33 @@ function ApiToolSection() {
                 const varMatch = code.match(/body\s*:\s*JSON\.stringify\s*\(\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\)/);
                 if (varMatch && varMatch[1]) {
                     const varName = varMatch[1];
-                    console.log('🔍 Body is a variable:', varName);
                     const varPattern = new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\\s*(\\{[\\s\\S]*?\\});`, 'i');
                     const varDefMatch = code.match(varPattern);
                     if (varDefMatch && varDefMatch[1]) {
                         body = varDefMatch[1].trim();
-                        console.log('✅ Variable definition found');
                     }
                 }
             }
 
             // Validate and fix the body JSON
             if (body) {
-                console.log('🔍 Validating body JSON...');
                 try {
                     // Try to parse as-is first
                     JSON.parse(body);
-                    console.log('✅ Body is already valid JSON');
                 } catch (e) {
-                    console.log('⚠️ Body is not valid JSON, attempting to fix...');
                     try {
                         body = validateAndFixJson(body, code);  // Pass the full code for variable extraction
-                        console.log('✅ Body fixed and validated');
                     } catch (fixError) {
-                        console.error('❌ Failed to fix body JSON:', fixError);
-                        console.error('Body content:', body);
 
                         // Use fallback body instead of null
-                        console.log('🔄 Using fallback body with user query');
                         body = getFallbackAnthropicBody(userQuery);
-                        console.log('✅ Fallback body created:', body);
                     }
                 }
             } else {
-                console.log('🔍 No body extracted');
             }
 
             // Final validation and fallback
             if (!url) {
-                console.log('❌ Failed to extract URL, creating fallback request');
                 // Create a fallback request to the current API documentation
                 url = 'https://api.anthropic.com/v1/messages';
                 method = 'POST';
@@ -1061,14 +968,10 @@ function ApiToolSection() {
                     'x-api-key': 'YOUR_API_KEY'
                 };
                 body = getFallbackAnthropicBody(userQuery);
-                console.log('✅ Created fallback request with:', { url, method, headers, body });
             }
             
-            console.log('✅ Final parsed result:', { url, method, headers, body });
             return { url, method, headers, body, originalCode: code };
         } catch (e) {
-            console.error('Error parsing generated code:', e);
-            console.log('🔧 Creating emergency fallback due to parsing error');
             
             // Emergency fallback - create a basic request
             return {
@@ -1085,18 +988,7 @@ function ApiToolSection() {
     };
 
     const executeApiCall = async (parsedCode) => {
-        console.group('🚀 API Request Debug');
-        console.log('📝 Starting API Request Execution...');
-        
-        const { url, method, headers, body, originalCode } = parsedCode;
-        
-        console.group('📋 Request Details');
-        console.log('🔗 URL:', url);
-        console.log('📮 Method:', method);
-        console.log('📑 Headers:', { ...headers, Authorization: headers.Authorization ? '***' : undefined });
-        console.log('📦 Body:', typeof body === 'string' ? JSON.parse(body) : body);
-        console.log('💻 Original Code:', originalCode);
-        console.groupEnd();
+        const { url, method, headers, body, originalCode} = parsedCode;
         
         // Track timing
         const startTime = performance.now();
@@ -1107,11 +999,9 @@ function ApiToolSection() {
         
         // Process URL to evaluate template literals with actual variable values
         let processedUrl = url;
-        console.log('🔍 Initial URL:', processedUrl);
         
         // Extract variable declarations from the code
         const extractVariableValue = (code, varName) => {
-            console.log(`🔍 Extracting variable "${varName}" from code`);
             // Look for variable declarations like: const varName = "value"; or let varName = "value";
             const patterns = [
                 new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\\s*["'\`]([^"'\`]+)["'\`]`, 'i'),
@@ -1119,43 +1009,34 @@ function ApiToolSection() {
             ];
             
             for (const pattern of patterns) {
-                console.log(`🔍 Trying pattern: ${pattern}`);
                 const match = code.match(pattern);
                 if (match && match[1]) {
-                    console.log(`✅ Found value for "${varName}": "${match[1]}"`);
                     return match[1];
                 }
             }
-            console.log(`❌ No value found for variable "${varName}"`);
             return null;
         };
         
         // Process template literals in the URL
         if (processedUrl.includes('${')) {
-            console.log('🔍 Processing template literals in URL');
             // Replace template literals with actual values from the code
             processedUrl = processedUrl.replace(/\$\{([^}]+)\}/g, (match, expression) => {
-                console.log(`🔍 Processing template literal: ${match} (expression: ${expression})`);
                 
                 // Handle encodeURIComponent() calls
                 const encodeMatch = expression.match(/encodeURIComponent\(([^)]+)\)/);
                 if (encodeMatch) {
                     const varName = encodeMatch[1].trim();
-                    console.log(`🔍 Found encodeURIComponent call for variable: ${varName}`);
                     const value = extractVariableValue(originalCode || '', varName);
                     const result = value ? encodeURIComponent(value) : match;
-                    console.log(`🔍 encodeURIComponent result: ${result}`);
                     return result;
                 }
                 
                 // Handle direct variable references
                 const varName = expression.trim();
-                console.log(`🔍 Processing direct variable reference: ${varName}`);
                 const value = extractVariableValue(originalCode || '', varName);
                 
                 // Special handling for API keys - but first check if it's already a placeholder
                 if (varName.toLowerCase().includes('api') && varName.toLowerCase().includes('key')) {
-                    console.log(`🔍 API key variable detected: ${varName}`);
                     // If it's already 'API_KEY' or similar placeholder, convert to 'YOUR_API_KEY'
                     if (varName === 'API_KEY' || varName === 'api_key' || varName === 'apiKey') {
                         return 'YOUR_API_KEY';
@@ -1166,12 +1047,9 @@ function ApiToolSection() {
                 }
                 
                 const result = value || match;
-                console.log(`🔍 Template literal replacement result: "${match}" -> "${result}"`);
                 return result;
             });
-            console.log('🔍 URL after template literal processing:', processedUrl);
         } else {
-            console.log('🔍 No template literals found in URL');
         }
 
         const fetchOptions = {
@@ -1183,56 +1061,41 @@ function ApiToolSection() {
 
         // If body exists and method is not GET/HEAD, attach it
         if (body && !['GET', 'HEAD'].includes(fetchOptions.method)) {
-            console.log('🔍 Processing request body:', body);
-            console.log('🔍 Body type:', typeof body);
             
             // Ensure body is properly formatted for JSON requests
             if (fetchOptions.headers['Content-Type'] && fetchOptions.headers['Content-Type'].includes('application/json')) {
                 // If it's supposed to be JSON but isn't already stringified, stringify it
                 if (typeof body === 'object') {
                     fetchOptions.body = JSON.stringify(body);
-                    console.log('✅ Body stringified from object:', fetchOptions.body);
                 } else if (typeof body === 'string') {
                     // Check if it's already valid JSON
                     try {
                         JSON.parse(body);
                         fetchOptions.body = body; // Already valid JSON string
-                        console.log('✅ Body is already valid JSON string');
                     } catch (e) {
-                        console.log('⚠️ Body string is not valid JSON, trying to fix it');
                         // Not valid JSON, try to fix it using the utility function
                         try {
                             const fixedBody = validateAndFixJson(body, originalCode);  // Pass original code for variable extraction
                             fetchOptions.body = fixedBody;
-                            console.log('✅ Body fixed and stringified:', fetchOptions.body);
                         } catch (parseError) {
-                            console.log('❌ Failed to fix body, using fallback');
                             // Create a basic Anthropic API call as fallback
                             fetchOptions.body = getFallbackAnthropicBody(userQuery);
                         }
                     }
                 } else {
                     fetchOptions.body = JSON.stringify(body);
-                    console.log('✅ Body stringified from other type:', fetchOptions.body);
                 }
             } else {
                 fetchOptions.body = body; // Non-JSON body, use as-is
-                console.log('✅ Body used as-is (non-JSON):', fetchOptions.body);
             }
         } else {
-            console.log('🔍 No body to process or method is GET/HEAD');
             if (!body) {
-                console.log('🔍 Body is null/undefined');
             }
             if (['GET', 'HEAD'].includes(fetchOptions.method)) {
-                console.log('🔍 Method is GET/HEAD, no body needed');
             }
         }
 
         // Special handling for API keys in different formats
-        console.log('🔍 Checking headers for API key placeholders...');
-        console.log('🔍 Current headers:', Object.keys(fetchOptions.headers)); // Don't log actual values
-        console.log('🔍 Authorization key provided:', !!authorizationKey); // Don't log actual key
         
         // 1. Authorization header (Anthropic style)
         if (fetchOptions.headers.Authorization && fetchOptions.headers.Authorization.includes('YOUR_API_KEY')) {
@@ -1270,14 +1133,12 @@ function ApiToolSection() {
         
         for (const headerKey of apiKeyHeaders) {
             if (fetchOptions.headers[headerKey] && fetchOptions.headers[headerKey].includes('YOUR_API_KEY')) {
-                console.log(`🔍 Found ${headerKey} header with placeholder`);
                 apiKeyHeaderFound = true;
                 
                 // Check if user provided an authorization key
                 if (validateApiKey(authorizationKey)) {
                     // Use the user-provided authorization key
                     fetchOptions.headers[headerKey] = authorizationKey.trim();
-                    console.log(`✅ Updated ${headerKey} header with user-provided key`); // Key value not logged for security
                 } else {
                     throw new Error(`Please enter your API key in the "Authorization Key" field. The API requires a ${headerKey} header.`);
                 }
@@ -1286,7 +1147,6 @@ function ApiToolSection() {
         }
         
         if (!apiKeyHeaderFound) {
-            console.log('🔍 No API key headers with placeholders found');
             
             // Check if this is an API that typically requires an x-api-key header
             // and if the user has provided an authorization key
@@ -1296,7 +1156,6 @@ function ApiToolSection() {
                 url.includes('openai.com') ||
                 url.includes('api.openai.com')
             )) {
-                console.log('🔍 Adding x-api-key header for API that requires it');
                 fetchOptions.headers['x-api-key'] = authorizationKey.trim();
             }
         }
@@ -1325,7 +1184,6 @@ function ApiToolSection() {
                 authHeader = authHeader.replace(/\$\{encodedCredentials\}/g, auth);
 
                 fetchOptions.headers.Authorization = authHeader;
-                console.log(`✅ Evaluated template literal: 'Authorization': '${authHeader}'`);
             } else {
                 throw new Error('This API requires Basic Authentication. Please enter your username and password, or switch authentication type.');
             }
@@ -1336,7 +1194,6 @@ function ApiToolSection() {
                 // Extract and replace btoa expression with actual encoded credentials
                 const auth = btoa(`${username.trim()}:${password.trim()}`);
                 fetchOptions.headers.Authorization = `Basic ${auth}`;
-                console.log(`✅ Replaced btoa() expression with actual Basic Auth: 'Authorization': 'Basic ${auth}'`);
             } else {
                 throw new Error('This API requires Basic Authentication. Please enter your username and password, or switch authentication type.');
             }
@@ -1351,7 +1208,6 @@ function ApiToolSection() {
                 // Create Basic Auth header with proper encoding
                 const auth = btoa(`${username.trim()}:${password.trim()}`);
                 fetchOptions.headers.Authorization = `Basic ${auth}`;
-                console.log(`✅ Updated Authorization header with Basic Auth: 'Authorization': 'Basic ${auth}'`);
             } else {
                 throw new Error('Please enter your username and password in the authentication fields for Basic Auth, or switch to API Key authentication.');
             }
@@ -1359,7 +1215,6 @@ function ApiToolSection() {
 
         // 4. URL query parameter (API key in URL)
         let finalUrl = processedUrl; // Use the processed URL that has evaluated parameters
-        console.log('🔍 URL before API key handling:', finalUrl);
         
         // Handle API key placeholders - generic for all APIs
         const apiKeyPlaceholders = ['YOUR_API_KEY', 'API_KEY', 'APIKEY'];
@@ -1367,42 +1222,34 @@ function ApiToolSection() {
         
         for (const placeholder of apiKeyPlaceholders) {
             if (finalUrl.includes(placeholder)) {
-                console.log(`🔍 Found API key placeholder: ${placeholder}`);
                 hasPlaceholder = true;
                 if (validateApiKey(authorizationKey)) {
-                    console.log(`🔍 Using user-provided authorization key`); // Key value not logged for security
                     // Use the user-provided authorization key
                     finalUrl = finalUrl.replace(new RegExp(placeholder, 'g'), authorizationKey.trim());
                 } else if (finalUrl.includes('openweathermap.org')) {
-                    console.log('🔍 Detected OpenWeatherMap API - trying to get key automatically');
                     // Special handling for OpenWeatherMap - auto-fetch key if not provided
                     try {
                         // Note: API keys should not be fetched to frontend for security
                         // This functionality should be moved to backend
                         const realApiKey = null;
                         if (realApiKey) {
-                            console.log('✅ Got OpenWeatherMap API key from backend');
                             finalUrl = finalUrl.replace(new RegExp(placeholder, 'g'), realApiKey);
                         } else {
-                            console.log('⚠️ No API key from backend, using fallback');
                             // Note: Using a demo key for testing purposes only
                             const fallbackApiKey = 'demo-key-replace-with-actual';
                             finalUrl = finalUrl.replace(new RegExp(placeholder, 'g'), fallbackApiKey);
                         }
                     } catch (error) {
-                        console.log('❌ Error getting API key, using fallback');
                         // Note: Using a demo key for testing purposes only
                         const fallbackApiKey = 'demo-key-replace-with-actual';
                         finalUrl = finalUrl.replace(new RegExp(placeholder, 'g'), fallbackApiKey);
                     }
                 } else {
-                    console.log(`❌ No authorization key provided for placeholder: ${placeholder}`);
                     throw new Error(`Please enter your API key in the "Authorization Key" field. The URL contains "${placeholder}" placeholder that needs to be replaced.`);
                 }
             }
         }
         
-        console.log('🔍 Final URL after all processing:', finalUrl);
         
         // Handle other specific API key patterns
         if (finalUrl.includes('openweathermap.org') && finalUrl.includes('appid=demo-api-key')) {
@@ -1426,13 +1273,6 @@ function ApiToolSection() {
         
         // Use the proxy API to avoid CORS issues
         try {
-            console.group('🔄 Proxy Request Details');
-            console.log('🌐 Final URL:', finalUrl);
-            console.log('📮 Method:', fetchOptions.method);
-            console.log('📑 Headers:', { ...fetchOptions.headers, Authorization: fetchOptions.headers.Authorization ? '***' : undefined });
-            console.log('📦 Body:', fetchOptions.body ? (typeof fetchOptions.body === 'string' ? JSON.parse(fetchOptions.body) : fetchOptions.body) : null);
-            console.groupEnd();
-            
             // Prepare the request data for the proxy
             const requestData = {
                 url: finalUrl,
@@ -1442,51 +1282,35 @@ function ApiToolSection() {
 
             // Add body if present (parse it back to object for the proxy)
             if (fetchOptions.body) {
-                console.log('🔍 Processing request body for proxy:', fetchOptions.body);
                 try {
                     const parsedBody = JSON.parse(fetchOptions.body);
                     // Only add body if it's not null, undefined, or empty object
                     if (parsedBody !== null && parsedBody !== undefined &&
                         (typeof parsedBody !== 'object' || Object.keys(parsedBody).length > 0)) {
                         requestData.body = parsedBody;
-                        console.log('✅ Body parsed as JSON for proxy:', requestData.body);
                     } else {
-                        console.log('⚠️ Body is null/undefined/empty object, not sending to proxy');
                         // Don't include body property at all
                     }
                 } catch (e) {
-                    console.log('⚠️ Body is not JSON, sending as string to proxy');
                     // If not JSON and not empty, send as string
                     if (fetchOptions.body.trim()) {
                         requestData.body = fetchOptions.body;
                     } else {
-                        console.log('⚠️ Body string is empty, not sending to proxy');
                         // Don't include body property at all
                     }
                 }
             } else {
-                console.log('🔍 No body to send to proxy (fetchOptions.body is empty)');
                 // Don't include body property at all - let backend handle GET/HEAD requests correctly
             }
 
-            console.log('🔍 Final request data being sent to proxy:', requestData);
 
             // Call the proxy API
-            console.log('🚀 Sending request to proxy API...');
             const proxyResponse = await proxyApiCall(requestData);
             
             // Calculate request duration
             const endTime = performance.now();
             const duration = (endTime - startTime).toFixed(2);
-            
-            console.group('✨ Response Details');
-            console.log('⏱️ Request Duration:', duration + 'ms');
-            console.log('📊 Status:', proxyResponse.status);
-            console.log('📝 Status Text:', proxyResponse.statusText);
-            console.log('📑 Response Headers:', proxyResponse.headers);
-            console.log('📦 Response Data:', proxyResponse.data);
-            console.groupEnd();
-            
+
             // Format the response to match the expected structure
             const responseData = {
                 status: proxyResponse.status,
@@ -1498,45 +1322,24 @@ function ApiToolSection() {
 
             // Check if the response indicates an error
             if (proxyResponse.status >= 400) {
-                console.group('❌ Error Response');
-                console.log('📊 Status:', proxyResponse.status);
-                console.log('📝 Status Text:', proxyResponse.statusText);
-                
                 let errorBody = responseData.data;
                 if (typeof errorBody === 'object') {
-                    console.log('📦 Error Details:', errorBody);
                     errorBody = JSON.stringify(errorBody, null, 2);
                 } else {
-                    console.log('📦 Error Body:', errorBody);
                 }
-                console.groupEnd();
-                
                 throw new Error(`API call failed with status ${proxyResponse.status}. Response: ${errorBody}`);
             }
 
-            console.log('✅ Request completed successfully!');
-            console.groupEnd(); // Close main API Request Debug group
             return responseData;
         } catch (error) {
-            console.group('❌ Error Details');
-            console.log('🔴 Error Type:', error.name);
-            console.log('❗ Error Message:', error.message);
-            console.log('📍 Stack Trace:', error.stack);
-            
             // Check if it's a proxy-specific error
             if (error.message.includes('Missing or invalid API key')) {
-                console.log('🔑 Error Type: Missing/Invalid API Key');
-                console.groupEnd();
                 throw new Error('The proxy requires an API key. Please configure the backend with a valid API key in the ALLOWED_API_KEYS environment variable.');
             }
             if (error.message.includes('Target URL not allowed')) {
-                console.log('🌐 Error Type: Domain Not Allowed');
-                console.groupEnd();
                 throw new Error(`The target domain is not allowed by the proxy. Please add the domain to ALLOWED_PROXY_DOMAINS in your backend configuration.`);
             }
-            
-            console.groupEnd();
-            console.groupEnd(); // Close main API Request Debug group
+
             throw error;
         }
 
@@ -1563,9 +1366,6 @@ function ApiToolSection() {
 
         try {
 
-            console.log('🚀 Starting Talkapi generation...');
-            console.log('❓ User Question:', userQuery);
-            console.log('📤 Sending question to backend...');
             
             // Prepare API documentation for Claude
             let enhancedApiDoc = apiDoc;
@@ -1577,7 +1377,6 @@ function ApiToolSection() {
                     const isDocsUrl = apiDoc.match(/\/(docs|swagger|openapi|spec|api-docs)/i) || apiDoc.endsWith('.json') || apiDoc.endsWith('.yaml');
 
                     if (apiDoc.startsWith('http') && isDocsUrl && !isApiEndpoint) {
-                        console.log('📝 API Doc is a documentation URL, fetching content...');
                         try {
                             // Use proxy to avoid CORS issues
                             const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -1601,22 +1400,17 @@ function ApiToolSection() {
                                     } else {
                                         enhancedApiDoc = proxyData.content;
                                     }
-                                    console.log('✅ Successfully fetched API documentation via proxy');
                                 } else {
-                                    console.warn(`⚠️ Documentation fetch returned status ${proxyData.status}, using URL as-is`);
                                     // Keep the original URL - it might be a base URL
                                 }
                             } else {
                                 const errorData = await docResponse.json().catch(() => ({}));
-                                console.warn(`⚠️ Failed to fetch API documentation: ${docResponse.status}`, errorData);
                                 // Keep the original URL - it might still be useful
                             }
                         } catch (error) {
-                            console.warn('⚠️ Failed to fetch API documentation:', error);
                             // Keep the original URL - it might still be useful
                         }
                     } else if (apiDoc.startsWith('http')) {
-                        console.log('📝 API Doc appears to be an API endpoint URL (not documentation), using as base URL');
                         // Just use the URL as-is - it's probably a base URL or endpoint
                     }
 
@@ -1647,15 +1441,12 @@ function ApiToolSection() {
 
                         // Format the documentation
                         enhancedApiDoc = JSON.stringify(docJson, null, 2);
-                        console.log('✅ Successfully formatted API documentation');
                     } catch (e) {
                         // Not JSON, check if it's YAML
                         if (enhancedApiDoc.includes('openapi:') || enhancedApiDoc.includes('swagger:')) {
-                            console.log('📝 API Doc is in YAML format');
                         }
                     }
                 } catch (e) {
-                    console.warn('⚠️ Could not process API documentation:', e);
                 }
             }
 
@@ -1692,7 +1483,6 @@ function ApiToolSection() {
                             baseUrl = baseUrl.replace('http://', 'https://');
                         }
                     } catch (error) {
-                        console.warn('Failed to parse API doc URL:', error);
                     }
                 }
                 
@@ -1702,7 +1492,6 @@ function ApiToolSection() {
             const apiBaseUrl = getBaseUrlFromDoc(apiDoc, selectedApiInfo);
             
             // Log the base URL for debugging
-            console.log('🔗 Using base URL:', apiBaseUrl);
 
             // Add API context to the question with base URL
             if (apiDoc) {
@@ -1749,7 +1538,6 @@ The code must be copy-paste executable without any modifications.
 `;
 
             // Send to Claude with proper context
-            console.log('📤 Sending to Claude with enhanced documentation...');
             const response = await askQuestion(
                 `${enhancedQuestion}\n\n${exampleCode}\n\nREMINDER: Write URLs directly in fetch() calls. Do NOT use variables or template literals for URLs. The generated code must be executable as-is.`,
                 user?.id || '',
@@ -1764,7 +1552,6 @@ The code must be copy-paste executable without any modifications.
             );
             
             // Parse and validate the response
-            console.log('✅ Backend response received:', response);
             
             if (!response || !response.snippets) {
                 throw new Error('Invalid response from Claude. Missing code snippets.');
@@ -1784,7 +1571,6 @@ The code must be copy-paste executable without any modifications.
                 baseUrl = baseUrl + '/v2';
             }
 
-            console.log('🔍 Using base URL:', baseUrl);
 
             // Validate each code snippet and ensure absolute URLs
             const languages = ['javascript', 'python', 'curl'];
@@ -1848,7 +1634,6 @@ The code must be copy-paste executable without any modifications.
             let snippets = {};
             
             if (response?.snippets) {
-                console.log('📄 Response contains snippets:', Object.keys(response.snippets));
                 snippets = {
                     javascript: response.snippets.javascript || '// JavaScript code will be generated here',
                     python: response.snippets.python || '// Python code will be generated here',
@@ -1858,26 +1643,13 @@ The code must be copy-paste executable without any modifications.
                     go: response.snippets.go || '// Go code will be generated here'
                 };
                 
-                console.log('📝 Generated snippets:', {
-                    javascript: snippets.javascript.length,
-                    python: snippets.python.length,
-                    curl: snippets.curl.length,
-                    csharp: snippets.csharp.length,
-                    java: snippets.java.length,
-                    go: snippets.go.length
-                });
 
                 setGeneratedCode(snippets);
-                console.log('✅ Code snippets set in state');
             } else {
                 // Fallback: try to extract from answer field (for backward compatibility)
-                console.log('⚠️ No snippets found, trying fallback extraction...');
             const answer = response?.answer || '';
-                console.log('📄 Response answer length:', answer.length);
-                console.log('📄 Response answer preview:', answer.substring(0, 200) + '...');
                 
                 // Extract code snippets from the response
-                console.log('🔍 Extracting code snippets...');
                 snippets = {
                 javascript: extractCodeSnippet(answer, 'javascript', 'fetch'),
                 python: extractCodeSnippet(answer, 'python', 'requests'),
@@ -1887,17 +1659,8 @@ The code must be copy-paste executable without any modifications.
                     go: extractCodeSnippet(answer, 'go', 'go')
                 };
 
-                console.log('📝 Generated snippets:', {
-                    javascript: snippets.javascript.length,
-                    python: snippets.python.length,
-                    curl: snippets.curl.length,
-                    csharp: snippets.csharp.length,
-                    java: snippets.java.length,
-                    go: snippets.go.length
-                });
 
             setGeneratedCode(snippets);
-                console.log('✅ Code snippets set in state');
             }
             
             // Auto-populate Authorization Key for OpenWeatherMap
@@ -1909,12 +1672,10 @@ The code must be copy-paste executable without any modifications.
                         setAuthorizationKey(openWeatherKey);
                     }
                 } catch (error) {
-                    console.log('Could not auto-populate OpenWeatherMap key:', error);
                 }
             }
             
         } catch (error) {
-            console.error('Error getting answer:', error);
             setApiError(`Failed to get answer: ${error.message}`);
         } finally {
             setIsLoading(false);
@@ -1922,25 +1683,18 @@ The code must be copy-paste executable without any modifications.
     };
 
     const extractCodeSnippet = (text, language, keyword) => {
-        console.log(`🔍 Extracting ${language} code snippet...`);
-        console.log(`🔍 Text length: ${text?.length || 0}`);
         
         if (!text || typeof text !== 'string') {
-            console.error('Invalid text parameter for extractCodeSnippet:', text);
             return `// ${language.toUpperCase()} code will be generated here\n// Based on your API documentation and question`;
         }
         
         // Simple extraction - look for code blocks with the specified language
         const codeBlockRegex = new RegExp(`\`\`\`${language}\\s*([\\s\\S]*?)\`\`\``, 'i');
-        console.log(`🔍 Using regex: ${codeBlockRegex}`);
         
         const match = text.match(codeBlockRegex);
-        console.log(`🔍 Regex match found: ${!!match}`);
         
         if (match) {
             let code = match[1].trim();
-            console.log(`🔍 Extracted ${language} code length: ${code.length}`);
-            console.log(`🔍 Code preview: ${code.substring(0, 100)}...`);
             
             // Fix common placeholder URLs for Anthropic API
             if (code.includes('api.example.com') || code.includes('example.com')) {
@@ -1951,7 +1705,6 @@ The code must be copy-paste executable without any modifications.
         }
         
         // Fallback: look for lines containing the keyword
-        console.log(`🔍 No code block found, trying fallback extraction for ${language}...`);
         const lines = text.split('\n');
         const relevantLines = lines.filter(line => 
             line.toLowerCase().includes(keyword.toLowerCase()) ||
@@ -1961,11 +1714,9 @@ The code must be copy-paste executable without any modifications.
             line.includes('curl')
         );
         
-        console.log(`🔍 Found ${relevantLines.length} relevant lines for ${language}`);
         
         if (relevantLines.length > 0) {
             let code = relevantLines.join('\n');
-            console.log(`🔍 Fallback ${language} code length: ${code.length}`);
             
             // Fix common placeholder URLs for Anthropic API
             if (code.includes('example.com')) {
@@ -2020,7 +1771,6 @@ The code must be copy-paste executable without any modifications.
                 throw new Error(`No ${selectedLanguage} code available to run.`);
             }
             
-            console.log(`🔍 Parsing ${selectedLanguage} code for execution:`, currentCode);
             
             let parsedCode;
             if (selectedLanguage === 'javascript') {
@@ -2033,14 +1783,12 @@ The code must be copy-paste executable without any modifications.
                 throw new Error(`Unsupported language: ${selectedLanguage}`);
             }
             
-            console.log(`🔍 Parsed code result:`, parsedCode);
             
             if (!parsedCode) {
                 throw new Error(`Failed to parse the generated ${selectedLanguage} code. Please try generating a new API call.`);
             }
             
             if (!parsedCode.url) {
-                console.log('⚠️ Parsed code missing URL, but continuing with fallback');
                 // The parseGeneratedCode function should have created a fallback, so we can continue
             }
 
@@ -2055,13 +1803,6 @@ The code must be copy-paste executable without any modifications.
             }
             
             // Execute through backend proxy to avoid CORS issues
-            console.log('🚀 Executing API call through backend proxy...');
-            console.log('📦 Request details:', {
-                url: parsedCode.url,
-                method: parsedCode.method,
-                headers: parsedCode.headers,
-                bodyLength: parsedCode.body ? parsedCode.body.length : 0
-            });
 
             // Prepare request data for proxy
             const proxyRequestData = {
@@ -2082,26 +1823,20 @@ The code must be copy-paste executable without any modifications.
                     if (bodyToSend !== null && bodyToSend !== undefined &&
                         (typeof bodyToSend !== 'object' || Object.keys(bodyToSend).length > 0)) {
                         proxyRequestData.body = bodyToSend;
-                        console.log('✅ Body added to proxy request:', proxyRequestData.body);
                     } else {
-                        console.log('⚠️ Body is empty, not adding to proxy request');
                     }
                 } catch (e) {
                     // If parsing fails, use as-is if not empty
                     if (parsedCode.body.trim && parsedCode.body.trim()) {
                         proxyRequestData.body = parsedCode.body;
-                        console.log('✅ Body added as string to proxy request');
                     } else {
-                        console.log('⚠️ Body parsing failed and is empty, not adding to proxy request');
                     }
                 }
             } else {
-                console.log('📦 No body in parsedCode, not adding to proxy request');
             }
 
             const proxyResponse = await proxyApiCall(proxyRequestData);
 
-            console.log('📡 Proxy response received:', proxyResponse);
 
             // Format the result for display
             const result = {
@@ -2112,7 +1847,6 @@ The code must be copy-paste executable without any modifications.
                 data: proxyResponse.data || proxyResponse
             };
 
-            console.log('✅ Final result:', result);
             setApiResult(result);
             if (user && user.isLoggedIn) { // Check if user is logged in
                 historyEntry = {
@@ -2156,7 +1890,6 @@ The code must be copy-paste executable without any modifications.
                     setCurrentHistoryId(newHistory.id);
                     setIsFavorited(newHistory.isFavorite || false); // Ensure favorite status is set
                 } catch (e) {
-                    console.error("Failed to save history:", e);
                 }
             }
         }
@@ -2169,7 +1902,6 @@ The code must be copy-paste executable without any modifications.
             await History.update(currentHistoryId, { isFavorite: newFavoriteStatus });
             setIsFavorited(newFavoriteStatus);
         } catch (e) {
-            console.error("Failed to update favorite status:", e);
             alert("Could not update favorite status. Please try again.");
         }
     };

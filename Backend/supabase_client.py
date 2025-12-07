@@ -42,7 +42,6 @@ class SupabaseManager:
             }).execute()
             return True
         except Exception as e:
-            print(f"Error tracking API usage: {e}")
             return False
     
     def get_user_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
@@ -55,7 +54,6 @@ class SupabaseManager:
                 return response.data[0]
             return None
         except Exception as e:
-            print(f"Error getting user profile: {e}")
             return None
     
     def create_user_profile(self, user_id: str, email: str, username: str = None, full_name: str = None) -> bool:
@@ -77,7 +75,6 @@ class SupabaseManager:
             client.schema('api').table('user_profiles').insert(profile_data).execute()
             return True
         except Exception as e:
-            print(f"Error creating user profile: {e}")
             return False
     
     def update_user_profile(self, user_id: str, updates: Dict[str, Any]) -> bool:
@@ -88,7 +85,6 @@ class SupabaseManager:
             client.schema('api').table('user_profiles').update(updates).eq('user_id', user_id).execute()
             return True
         except Exception as e:
-            print(f"Error updating user profile: {e}")
             return False
     
     def save_api_history(self, user_id: str, user_query: str, generated_code: str = None, 
@@ -111,7 +107,6 @@ class SupabaseManager:
             client.schema('api').table('api_history').insert(history_data).execute()
             return True
         except Exception as e:
-            print(f"Error saving API history: {e}")
             return False
     
     def get_api_history(self, user_id: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
@@ -120,7 +115,6 @@ class SupabaseManager:
             response = self.client.table('api_history').select('*').eq('user_id', user_id).order('created_at', desc=True).range(offset, offset + limit - 1).execute()
             return response.data
         except Exception as e:
-            print(f"Error getting API history: {e}")
             return []
     
     def toggle_favorite(self, history_id: str, user_id: str) -> bool:
@@ -139,7 +133,6 @@ class SupabaseManager:
             self.client.table('api_history').update({'is_favorite': new_status}).eq('id', history_id).eq('user_id', user_id).execute()
             return True
         except Exception as e:
-            print(f"Error toggling favorite: {e}")
             return False
     
     def get_favorites(self, user_id: str) -> List[Dict[str, Any]]:
@@ -148,7 +141,6 @@ class SupabaseManager:
             response = self.client.table('api_history').select('*').eq('user_id', user_id).eq('is_favorite', True).order('created_at', desc=True).execute()
             return response.data
         except Exception as e:
-            print(f"Error getting favorites: {e}")
             return []
     
     def delete_api_history(self, history_id: str, user_id: str) -> bool:
@@ -157,7 +149,6 @@ class SupabaseManager:
             self.client.table('api_history').delete().eq('id', history_id).eq('user_id', user_id).execute()
             return True
         except Exception as e:
-            print(f"Error deleting API history: {e}")
             return False
     
     # Subscription Management Functions
@@ -182,7 +173,6 @@ class SupabaseManager:
 
             # Always use admin client for subscription updates to bypass RLS
             # User token is not needed since admin client has full access
-            print(f"Using admin client to update subscription for {user_email}")
             client = self.admin_client or self.client
 
             # Update with correct column names
@@ -203,11 +193,9 @@ class SupabaseManager:
             response = client.schema('api').table('user_profiles').update(profile_data).eq('user_id', user_id).execute()
 
             # If we reached here without exception, the update succeeded
-            print(f"✅ Updated subscription for user {user_id}: plan={plan_type}, sto_id={sto_id}, limits={limits}")
             return True
 
         except Exception as e:
-            print(f"❌ Error updating subscription: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -224,7 +212,6 @@ class SupabaseManager:
             return None
             
         except Exception as e:
-            print(f"Error getting STO ID: {e}")
             return None
     
     def cancel_user_subscription(self, user_id: str) -> bool:
@@ -245,12 +232,10 @@ class SupabaseManager:
             response = client.schema('api').table('user_profiles').update(update_data).eq('user_id', user_id).execute()
             
             if response.data:
-                print(f"Cancelled subscription for user {user_id}")
                 return True
             return False
             
         except Exception as e:
-            print(f"❌ Error cancelling subscription: {e}")
             return False
     
     def get_usage_stats(self, user_id: str) -> Dict[str, Any]:
@@ -273,7 +258,6 @@ class SupabaseManager:
                 'plan_type': profile['plan_type'] if profile else 'free'
             }
         except Exception as e:
-            print(f"Error getting usage stats: {e}")
             return {
                 'calls_today': 0,
                 'daily_limit': 50,
@@ -287,7 +271,6 @@ class SupabaseManager:
             stats = self.get_usage_stats(user_id)
             return stats['remaining_calls'] > 0
         except Exception as e:
-            print(f"Error checking rate limit: {e}")
             return False
     
     def verify_token(self, access_token: str) -> Optional[Dict[str, Any]]:
@@ -299,7 +282,6 @@ class SupabaseManager:
             # Decode without verification first to get user info
             # Since this is just for extracting user data and Supabase handles the security
             decoded_token = jwt.decode(access_token, options={"verify_signature": False})
-            print(f"JWT decoded successfully: {decoded_token.get('email')}")
             
             return {
                 'sub': decoded_token.get('sub'),
@@ -309,7 +291,6 @@ class SupabaseManager:
             }
                 
         except Exception as e:
-            print(f"Error decoding JWT token: {e}")
             
             # Fallback to the old method
             try:
@@ -324,15 +305,11 @@ class SupabaseManager:
                 
                 if response.status_code == 200:
                     user_data = response.json()
-                    print(f"Token verified for user via API: {user_data.get('email')}")
                     return user_data
                 else:
-                    print(f"Token verification failed: {response.status_code}")
-                    print(f"Response text: {response.text}")
                     return None
                     
             except Exception as fallback_error:
-                print(f"Fallback verification also failed: {fallback_error}")
                 return None
 
 # Create a global instance

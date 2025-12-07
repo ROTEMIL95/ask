@@ -46,7 +46,6 @@ def send_payment_success_email(
     Returns:
         True if email sent successfully, False otherwise
     """
-    logger.info(f"📧 Sending payment success email to {user_email}")
 
     # Validate SMTP configuration
     if not all([SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD]):
@@ -350,7 +349,6 @@ def send_payment_success_email(
         msg.attach(MIMEText(html_body, "html"))
 
         # Send email via SMTP
-        logger.info(f"📡 Connecting to SMTP server: {SMTP_SERVER}:{SMTP_PORT}")
 
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.ehlo()
@@ -358,10 +356,8 @@ def send_payment_success_email(
             server.ehlo()
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
 
-            logger.info(f"📤 Sending payment success email to: {user_email}")
             server.send_message(msg)
 
-        logger.info(f"✅ Payment success email sent successfully to {user_email}")
         return True
 
     except smtplib.SMTPAuthenticationError as e:
@@ -388,7 +384,6 @@ def send_subscription_cancelled_email(user_email: str, user_name: str) -> bool:
     Returns:
         True if sent successfully
     """
-    logger.info(f"📧 Sending cancellation email to {user_email}")
 
     if not all([SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD]):
         logger.error("❌ SMTP configuration incomplete")
@@ -547,7 +542,6 @@ def send_subscription_cancelled_email(user_email: str, user_name: str) -> bool:
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
             server.send_message(msg)
 
-        logger.info(f"✅ Cancellation email sent to {user_email}")
         return True
 
     except Exception as e:

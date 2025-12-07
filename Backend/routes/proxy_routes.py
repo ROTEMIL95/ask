@@ -92,19 +92,14 @@ def proxy_api():
 
         # Parse and validate target URL
         data = request.get_json()
-        print(f"🔍 Proxy request received:")
-        print(f"🔍 Request data: {data}")
     except Exception as e:
-        print(f"❌ Error in proxy_api initial setup: {str(e)}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Internal error: {str(e)}'}), 500
     
     if not data:
         return jsonify({'error': 'Request data is required'}), 400
 
     url = data.get('url')
-    print(f"🔍 Target URL: {url}")
     
     if not url:
         return jsonify({'error': 'URL is required'}), 400
@@ -113,9 +108,6 @@ def proxy_api():
     headers = data.get('headers', {})
     body = data.get('body')
     
-    print(f"🔍 Method: {method}")
-    print(f"🔍 Headers: {list(headers.keys()) if headers else 'None'}")
-    print(f"🔍 Body type: {type(body).__name__}")
 
     # 1. SSRF Protection - validate URL is safe
     # In development mode, allow localhost for testing
@@ -124,64 +116,48 @@ def proxy_api():
     flask_debug = os.getenv('FLASK_DEBUG')
     is_dev_mode = flask_env == 'development' or flask_debug == '1'
     
-    print(f"🔍 Environment check:")
-    print(f"   FLASK_ENV: {flask_env}")
-    print(f"   FLASK_DEBUG: {flask_debug}")
-    print(f"   is_dev_mode: {is_dev_mode}")
     
     url_safe, url_message = is_safe_url(url)
-    print(f"🔍 URL safety check result: safe={url_safe}, message={url_message}")
     
     # Check if URL is localhost/127.0.0.1 and we're in dev mode
     is_localhost_url = any(host in url.lower() for host in ['localhost', '127.0.0.1', '0.0.0.0'])
-    print(f"🔍 Is localhost URL: {is_localhost_url}")
     
     if not url_safe:
         # If it's a localhost URL and we're in dev mode, allow it
         if is_localhost_url and is_dev_mode:
-            print(f"⚠️ DEVELOPMENT MODE: Allowing localhost URL: {url}")
         else:
-            print(f"🚫 Blocked unsafe URL: {url} - Reason: {url_message}")
-            print(f"🚫 Dev mode: {is_dev_mode}, Localhost: {is_localhost_url}")
             return jsonify({
                 'error': 'URL blocked for security reasons',
                 'details': url_message,
                 'suggestion': 'Ensure you are not trying to access localhost, private networks, or metadata services'
             }), 403
 
-    print(f"✅ URL security check passed: {url}")
 
     # 2. Validate request body size
     body_valid, body_message = validate_request_size(body)
     if not body_valid:
-        print(f"🚫 Request body too large: {body_message}")
         return jsonify({
             'error': 'Request body too large',
             'details': body_message,
             'suggestion': 'Reduce the size of your request body'
         }), 413
 
-    print(f"✅ Request size check passed: {body_message}")
 
     # 3. Validate headers
     headers_valid, headers_message = validate_headers(headers)
     if not headers_valid:
-        print(f"🚫 Invalid headers: {headers_message}")
         return jsonify({
             'error': 'Invalid request headers',
             'details': headers_message,
             'suggestion': 'Check your headers for invalid characters or excessive length'
         }), 400
 
-    print(f"✅ Headers validation passed")
 
     # Auto-inject API keys for known services
     if 'api.anthropic.com' in url:
-        print(f"🔍 Anthropic API detected. Original headers: {headers}")
         # Inject Anthropic API key from environment
         anthropic_key = os.getenv('ANTHROPIC_API_KEY')
         if anthropic_key:
-            print(f"✅ Anthropic API key found (length: {len(anthropic_key)})")
 
             # Check for x-api-key with different casing
             api_key_header = None
@@ -215,20 +191,16 @@ def proxy_api():
 
                 if is_valid_key:
                     # User provided their own valid API key, use it!
-                    print(f"✅ Using user-provided API key (length: {len(original_key)})")
                     # Keep the user's key as-is
                 elif original_key in placeholders or not original_key or len(original_key) < 20:
                     # Placeholder or invalid key, use server's key
                     headers[api_key_header] = anthropic_key
-                    print(f"🔄 Replaced placeholder/invalid '{original_key}' with server's API key")
                 else:
                     # Suspicious key that doesn't match our patterns, use server's key for safety
                     headers[api_key_header] = anthropic_key
-                    print(f"⚠️ Suspicious key detected, using server's API key instead")
             else:
                 # Add the API key if not present
                 headers['x-api-key'] = anthropic_key
-                print(f"➕ Added x-api-key header")
 
             # Ensure required Anthropic headers
             anthropic_version_header = None
@@ -239,11 +211,8 @@ def proxy_api():
 
             if not anthropic_version_header:
                 headers['anthropic-version'] = '2023-06-01'
-                print(f"➕ Added anthropic-version header")
 
-            print(f"📤 Final headers for Anthropic: {list(headers.keys())}")
         else:
-            print(f"❌ ANTHROPIC_API_KEY not found in environment")
             return jsonify({'error': 'Anthropic API key not configured on server'}), 500
 
     # Prepare request
@@ -253,12 +222,9 @@ def proxy_api():
     }
 
     if body is not None and method.upper() not in ['GET', 'HEAD']:
-        print(f"📦 Processing request body (type: {type(body).__name__})")
 
         # Enhanced logging: Show body content
         body_preview = str(body)[:500] if body else 'None'
-        print(f"📄 Body content (first 500 chars): {body_preview}")
-        print(f"📏 Body length: {len(str(body)) if body else 0}")
 
         # Check if body is effectively empty
         is_empty_body = False
@@ -270,59 +236,37 @@ def proxy_api():
             is_empty_body = len(body) == 0
 
         if is_empty_body:
-            print(f"⚠️ Body is empty (empty string or empty dict), skipping body in request")
         else:
             # If body is a string, try to parse it as JSON
             if isinstance(body, str):
-                print(f"🔍 Body is a string, attempting JSON parse...")
                 try:
                     parsed_body = _json.loads(body)
                     # Only add body if it's not None and not empty
                     if parsed_body is not None and (not isinstance(parsed_body, dict) or len(parsed_body) > 0):
                         request_kwargs['json'] = parsed_body
-                        print(f"✅ Body parsed from string to JSON: {type(parsed_body).__name__}")
-                        print(f"📊 Parsed body keys: {list(parsed_body.keys()) if isinstance(parsed_body, dict) else 'N/A'}")
                     else:
-                        print(f"⚠️ Parsed body is None or empty, skipping body in request")
                 except _json.JSONDecodeError as e:
-                    print(f"❌ JSON parse error: {str(e)}")
-                    print(f"❌ Error at position: {e.pos if hasattr(e, 'pos') else 'unknown'}")
-                    print(f"❌ Problematic section: {body[max(0, e.pos-50):min(len(body), e.pos+50)] if hasattr(e, 'pos') else 'N/A'}")
-                    print(f"⚠️ Sending as raw data instead")
                     request_kwargs['data'] = body
             elif isinstance(body, dict):
                 # Only add body if dict is not empty
                 if len(body) > 0:
                     request_kwargs['json'] = body
-                    print(f"✅ Body is already a dict, using json parameter")
-                    print(f"📊 Body keys: {list(body.keys())}")
                 else:
-                    print(f"⚠️ Body dict is empty, skipping body in request")
             else:
                 request_kwargs['data'] = body
-                print(f"⚠️ Body is neither string nor dict (type: {type(body).__name__}), using data parameter")
     else:
         if body is None:
-            print(f"📦 No body provided (body is None)")
         else:
-            print(f"📦 Skipping body for {method.upper()} request")
     
     try:
-        print(f"🚀 Making request to: {url}")
-        print(f"📮 Method: {method.upper()}")
-        print(f"📑 Request kwargs: {list(request_kwargs.keys())}")
 
         response = requests.request(method.upper(), url, **request_kwargs)
 
-        print(f"📡 Response status: {response.status_code}")
-        print(f"📊 Response headers: {list(response.headers.keys())}")
 
         try:
             response_data = response.json()
-            print(f"✅ Response is JSON")
         except:
             response_data = response.text
-            print(f"📄 Response is text (length: {len(response_data)})")
 
         result = {
             'status': response.status_code,
@@ -332,17 +276,12 @@ def proxy_api():
             'url': url
         }
 
-        print(f"📤 Returning proxy response")
         return jsonify(result)
     except requests.exceptions.RequestException as e:
-        print(f"❌ Request exception: {str(e)}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Request failed: {str(e)}'}), 500
     except Exception as e:
-        print(f"❌ Proxy error: {str(e)}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Proxy error: {str(e)}'}), 500
 
 
@@ -362,7 +301,6 @@ def proxy_openai_completions():
     try:
         # Log the exact JSON string the frontend sent
         frontend_raw = request.get_data(as_text=True) or ''
-        print("[OpenAI Proxy] Frontend JSON (raw):", frontend_raw)
 
         # Parse into Python dict
         payload = request.get_json(silent=True)
@@ -381,7 +319,6 @@ def proxy_openai_completions():
             forward_payload.pop('temperature', None)
 
         # Log the dict we'll forward
-        print("[OpenAI Proxy] Forward payload (dict):", forward_payload)
 
         # Quick structural diff vs. expected Postman shape
         def _short_diff(a: dict, b: dict):
@@ -413,7 +350,6 @@ def proxy_openai_completions():
         }
         diffs = _short_diff(forward_payload, expected_shape)
         if diffs:
-            print('[OpenAI Proxy] Shape diff vs Postman JSON:', ', '.join(diffs))
 
         # Prepare OpenAI call
         openai_key = os.getenv('OPENAI_API_KEY')
@@ -460,18 +396,15 @@ def proxy_docs():
         # SSRF Protection - validate URL is safe
         url_safe, url_message = is_safe_url(url)
         if not url_safe:
-            print(f"🚫 Blocked unsafe URL in /proxy-docs: {url} - Reason: {url_message}")
             return jsonify({
                 'error': 'URL blocked for security reasons',
                 'details': url_message
             }), 403
 
-        print(f"📚 Fetching documentation from: {url}")
 
         # Fetch the documentation
         response = requests.get(url, timeout=30, allow_redirects=True)
 
-        print(f"📡 Response status: {response.status_code}")
 
         # Handle non-200 responses gracefully
         content_type = response.headers.get('content-type', '')
@@ -486,18 +419,14 @@ def proxy_docs():
         })
 
     except requests.exceptions.Timeout as e:
-        print(f"⏱️ Timeout fetching documentation from {url}: {str(e)}")
         return jsonify({'error': 'Request timed out while fetching documentation'}), 504
     except requests.exceptions.RequestException as e:
-        print(f"❌ Request exception in /proxy-docs: {str(e)}")
         return jsonify({
             'error': f'Failed to fetch documentation: {str(e)}',
             'url': url
         }), 500
     except Exception as e:
-        print(f"❌ Unexpected error in /proxy-docs: {str(e)}")
         import traceback
-        print(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Proxy error: {str(e)}'}), 500
 
 @proxy_bp.route('/feedback', methods=['POST'])
@@ -536,5 +465,4 @@ def feedback():
         })
         
     except Exception as e:
-        print(f"Error in /feedback endpoint: {e}")
         return jsonify({'error': 'Failed to submit feedback'}), 500

@@ -52,7 +52,6 @@ def signin():
         if supabase_response.status_code == 200:
             # Success - return the response data
             response_data = supabase_response.json()
-            logger.info(f"User signed in successfully: {email}")
             return jsonify(response_data), 200
         else:
             # Error - return error details
@@ -100,7 +99,6 @@ def signup():
         if supabase_response.status_code in [200, 201]:
             # Success - return the response data
             response_data = supabase_response.json()
-            logger.info(f"User signed up successfully: {email}")
             return jsonify(response_data), supabase_response.status_code
         else:
             # Error - return error details
@@ -135,7 +133,6 @@ def signout():
             }
         )
         
-        logger.info("User signed out successfully")
         return jsonify({'message': 'Signed out successfully'}), 200
             
     except Exception as e:

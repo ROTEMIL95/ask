@@ -36,7 +36,6 @@ def create_app() -> Flask:
 
     # Logging
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-    app.logger.info("Booting TalkAPI backend...")
 
     # CORS - Dynamic configuration based on environment
     # Default production origins
@@ -66,7 +65,6 @@ def create_app() -> Flask:
             "http://127.0.0.1:8080"
         ]
         allowed_origins.extend(localhost_origins)
-        app.logger.info("Development mode detected - adding localhost origins")
     
     # Remove duplicates while preserving order
     allowed_origins = list(dict.fromkeys(allowed_origins))
@@ -92,13 +90,11 @@ def create_app() -> Flask:
              }
          })
     
-    app.logger.info(f"CORS configured for origins: {allowed_origins}")
 
     # Rate limiter
     if USE_LIMITER:
         try:
             limiter = get_limiter(app)
-            app.logger.info("Rate limiter attached.")
         except Exception as e:
             app.logger.warning(f"Rate limiter not attached: {e}")
 
@@ -152,13 +148,10 @@ def create_app() -> Flask:
                 f.write(data)
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
             _ = vision.ImageAnnotatorClient()
-            app.logger.info("Google Vision client initialized from VISION_KEY_B64.")
         else:
-            app.logger.info("VISION_KEY_B64 not set; OCR will use default credentials (if any).")
     except Exception as e:
         app.logger.warning(f"OCR init skipped: {e}")
 
-    app.logger.info("TalkAPI backend is ready.")
     return app
 
 

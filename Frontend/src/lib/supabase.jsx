@@ -5,9 +5,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.s
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
 
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-  console.warn('Supabase credentials not found. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file')
-  console.warn('Using placeholder values - authentication will not work until proper credentials are set')
-  console.warn('See SUPABASE_SETUP.md for detailed setup instructions')
+  // Supabase credentials not configured
 }
 
 // Create Supabase client
@@ -26,18 +24,15 @@ export const getAccessToken = async () => {
     const { data: { session }, error } = await supabase.auth.getSession()
 
     if (error) {
-      console.error('Error getting session:', error)
       return { token: null, error }
     }
 
     if (!session) {
-      console.log('No active session found')
       return { token: null, error: { message: 'No active session found', status: 401 } }
     }
 
     return { token: session.access_token, error: null }
   } catch (err) {
-    console.error('Error in getAccessToken:', err)
     return { token: null, error: err }
   }
 }
@@ -47,12 +42,6 @@ export const auth = {
   // Sign up with email and password
   signUp: async (email, password, name) => {
     try {
-      console.log('Supabase signUp called with:', {
-        email: email,
-        name: name,
-        password: password ? 'Yes (length: ' + password.length + ')' : 'No'
-      })
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -63,76 +52,46 @@ export const auth = {
         }
       })
 
-      console.log('data:', data)
-      if (data?.user && !error) {
-        console.log('User created successfully:', data.user.id)
-        // Profile will be created on first login instead of during signup
-        // This avoids any potential database errors during signup
-      }
-
       return { data, error }
     } catch (err) {
-      console.error('Sign up error:', err)
       return { data: null, error: err }
     }
   },
 
   // Sign in with email and password
   signIn: async (email, password) => {
-    console.log("🔐 Attempting signIn...")
-    console.log("📧 Email:", email)
-    console.log("🔑 Password length:", password?.length || 0)
     try {
-      console.log("📡 Calling Supabase signInWithPassword...")
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
-      console.log("📦 signInWithPassword response - data:", data)
-      console.log("❌ signInWithPassword response - error:", error)
 
       if (error) {
-        console.error("🚨 Sign in FAILED:", error.message)
-        console.error("🚨 Error details:", JSON.stringify(error, null, 2))
         return { data, error }
       }
 
       const { data: { session } } = await supabase.auth.getSession()
-      console.log("🎫 Session after signIn:", session ? "✅ EXISTS" : "❌ NULL")
       if (data?.user && !error) {
-        console.log('User signed in successfully:', data.user.id)
-
         // Get or create user profile
         try {
           const { data: profile, error: profileError } = await userProfile.getProfile(data.user.id)
 
           if (!profile && !profileError) {
             // Profile doesn't exist, create it
-            const { error: createError } = await userProfile.createProfile(
+            await userProfile.createProfile(
               data.user.id,
               data.user.email,
               data.user.user_metadata?.username,
               data.user.user_metadata?.full_name
             )
-
-            if (createError) {
-              console.error('Error creating user profile:', createError)
-            } else {
-              console.log('User profile created during sign in')
-            }
-          } else if (profileError) {
-            console.error('Error getting user profile:', profileError)
-          } else {
-            console.log('User profile loaded successfully')
           }
         } catch (profileErr) {
-          console.error('Error handling user profile:', profileErr)
+          // Silent error handling
         }
       }
 
       return { data, error }
     } catch (err) {
-      console.error('Sign in error:', err)
       return { data: null, error: err }
     }
   },
@@ -140,21 +99,16 @@ export const auth = {
   // Reset password
   resetPassword: async (email) => {
     try {
-      console.log('🔐 Requesting password reset for:', email)
-
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       })
 
       if (error) {
-        console.error('❌ Password reset error:', error)
         return { data: null, error }
       }
 
-      console.log('✅ Password reset email sent')
       return { data, error: null }
     } catch (err) {
-      console.error('❌ Error requesting password reset:', err)
       return { data: null, error: err }
     }
   },
@@ -162,11 +116,8 @@ export const auth = {
   // Sign out
   signOut: async () => {
     try {
-      console.log('🚪 Starting sign out process...')
-
       // Clear localStorage FIRST (most important step)
       const sessionKey = `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token`
-      console.log('🗑️ Clearing session from localStorage:', sessionKey)
       localStorage.removeItem(sessionKey)
 
       // Also clear any other auth-related items
@@ -178,20 +129,15 @@ export const auth = {
         }
       }
       keysToRemove.forEach(key => {
-        console.log('🗑️ Clearing additional auth key:', key)
         localStorage.removeItem(key)
       })
 
-      console.log('✅ localStorage cleared')
-
       // Try to call Supabase signOut but with timeout and don't wait for it
-      // This is fire-and-forget - we don't care if it succeeds or fails
       const signOutPromise = supabase.auth.signOut()
 
       // Set a timeout - if Supabase doesn't respond in 2 seconds, we continue anyway
       const timeoutPromise = new Promise((resolve) => {
         setTimeout(() => {
-          console.log('⏱️ Supabase signOut timeout - continuing anyway')
           resolve({ error: null })
         }, 2000)
       })
@@ -199,13 +145,9 @@ export const auth = {
       // Race between signOut and timeout
       await Promise.race([signOutPromise, timeoutPromise])
 
-      console.log('✅ Sign out completed')
       return { error: null }
     } catch (err) {
-      console.error('❌ Error during sign out:', err)
-
       // Even on error, localStorage is already cleared above
-      console.log('✅ Continuing with sign out despite error (localStorage already cleared)')
       return { error: null } // Return success anyway since localStorage is cleared
     }
   },
@@ -216,21 +158,17 @@ export const auth = {
       const { data: { user }, error } = await supabase.auth.getUser()
 
       if (error) {
-        // Don't log errors for normal "no session" scenarios
+        // Silent error handling for normal "no session" scenarios
         const errorMessage = error.message?.toLowerCase() || ''
         if (errorMessage.includes('user from sub claim in jwt does not exist') ||
           errorMessage.includes('invalid jwt') ||
           errorMessage.includes('no session')) {
-          console.log('No active user session - this is normal for new users')
           return { user: null, error: { message: 'No session' } }
-        } else {
-          console.error('Error getting current user:', error)
         }
       }
 
       return { user, error }
     } catch (err) {
-      console.error('Error getting current user:', err)
       return { user: null, error: err }
     }
   },
@@ -240,7 +178,6 @@ export const auth = {
     try {
       return supabase.auth.onAuthStateChange(callback)
     } catch (err) {
-      console.error('Error setting up auth state listener:', err)
       return { data: { subscription: null } }
     }
   },
@@ -248,8 +185,6 @@ export const auth = {
   // Sign in with Google OAuth
   signInWithGoogle: async () => {
     try {
-      console.log('🔐 Attempting to sign in with Google...')
-
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -262,14 +197,11 @@ export const auth = {
       })
 
       if (error) {
-        console.error('❌ Google sign in error:', error)
         return { data: null, error }
       }
 
-      console.log('✅ Google sign in initiated:', data)
       return { data, error: null }
     } catch (err) {
-      console.error('❌ Error initiating Google sign in:', err)
       return { data: null, error: err }
     }
   }
@@ -361,12 +293,10 @@ export const userProfile = {
       const { token, error: tokenError } = await getAccessToken()
 
       if (tokenError) {
-        console.error('Error getting access token:', tokenError)
         return { data: null, error: tokenError }
       }
 
       if (!token) {
-        console.error('No access token available')
         return { data: null, error: { message: 'No active session found', status: 401 } }
       }
 
@@ -382,12 +312,10 @@ export const userProfile = {
       })
 
       if (response.status === 401) {
-        console.error('Unauthorized access to user profile')
         return { data: null, error: { message: 'Unauthorized access', status: 401 } }
       }
 
       if (!response.ok) {
-        console.error('Error fetching user profile:', response.status, response.statusText)
         return { data: null, error: { message: `HTTP ${response.status}: ${response.statusText}`, status: response.status } }
       }
 
@@ -395,13 +323,11 @@ export const userProfile = {
 
       // If no profile exists, return null data (not an error)
       if (!data || data.length === 0) {
-        console.log('No user profile found for user:', userId)
         return { data: null, error: null }
       }
 
       return { data: data[0], error: null }
     } catch (err) {
-      console.error('Error in getProfile:', err)
       return { data: null, error: err }
     }
   },
@@ -413,12 +339,10 @@ export const userProfile = {
       const { token, error: tokenError } = await getAccessToken()
 
       if (tokenError) {
-        console.error('Error getting access token:', tokenError)
         return { data: null, error: tokenError }
       }
 
       if (!token) {
-        console.error('No access token available')
         return { data: null, error: { message: 'No active session found', status: 401 } }
       }
 
@@ -447,19 +371,16 @@ export const userProfile = {
       })
 
       if (response.status === 401) {
-        console.error('Unauthorized access to create user profile')
         return { data: null, error: { message: 'Unauthorized access', status: 401 } }
       }
 
       if (!response.ok) {
-        console.error('Error creating user profile:', response.status, response.statusText)
         return { data: null, error: { message: `HTTP ${response.status}: ${response.statusText}`, status: response.status } }
       }
 
       const data = await response.json()
       return { data: data[0], error: null }
     } catch (err) {
-      console.error('Error in createProfile:', err)
       return { data: null, error: err }
     }
   },
@@ -471,12 +392,10 @@ export const userProfile = {
       const { token, error: tokenError } = await getAccessToken()
 
       if (tokenError) {
-        console.error('Error getting access token:', tokenError)
         return { data: null, error: tokenError }
       }
 
       if (!token) {
-        console.error('No access token available')
         return { data: null, error: { message: 'No active session found', status: 401 } }
       }
 
@@ -484,18 +403,14 @@ export const userProfile = {
       const { data: existingProfile, error: getError } = await userProfile.getProfile(userId)
 
       if (getError) {
-        console.error('Error checking if profile exists:', getError)
         return { data: null, error: getError }
       }
 
       // If profile doesn't exist, create it first with the updates
       if (!existingProfile) {
-        console.log('Profile does not exist, creating new profile for user:', userId)
-
         // Get current user info for profile creation
         const { user: currentUser, error: userError } = await auth.getCurrentUser()
         if (userError) {
-          console.error('Error getting current user for profile creation:', userError)
           return { data: null, error: userError }
         }
 
@@ -509,7 +424,6 @@ export const userProfile = {
         )
 
         if (createError) {
-          console.error('Error creating profile:', createError)
           return { data: null, error: createError }
         }
 
@@ -531,18 +445,14 @@ export const userProfile = {
 
         if (!response.ok) {
           const errorText = await response.text()
-          console.error('Error updating user profile:', response.status, errorText)
           return { data: null, error: { message: `HTTP ${response.status}: ${errorText}`, status: response.status } }
         }
 
         const data = await response.json()
         return { data: data[0] || null, error: null }
       } catch (fetchError) {
-        console.error('Network error updating profile:', fetchError)
-        
         // Fallback to Supabase client if direct fetch fails
         try {
-          console.log('Falling back to Supabase client method...')
           const { data: updatedProfile, error: updateError } = await supabase
             .from('user_profiles')
             .update(updates)
@@ -551,18 +461,15 @@ export const userProfile = {
             .single()
 
           if (updateError) {
-            console.error('Error updating user profile with Supabase client:', updateError)
             return { data: null, error: updateError }
           }
 
           return { data: updatedProfile, error: null }
         } catch (supabaseError) {
-          console.error('Both direct fetch and Supabase client failed:', supabaseError)
           return { data: null, error: supabaseError }
         }
       }
     } catch (err) {
-      console.error('Error in updateProfile:', err)
       return { data: null, error: err }
     }
   }
@@ -577,12 +484,10 @@ export const usageTracking = {
       const { token, error: tokenError } = await getAccessToken()
 
       if (tokenError) {
-        console.error('Error getting access token:', tokenError)
         return { error: tokenError }
       }
 
       if (!token) {
-        console.error('No access token available')
         return { error: { message: 'No active session found', status: 401 } }
       }
 
@@ -599,12 +504,10 @@ export const usageTracking = {
       })
 
       if (usageResponse.status === 401) {
-        console.error('Unauthorized access to usage data')
         return { error: { message: 'Unauthorized access', status: 401 } }
       }
 
       if (!usageResponse.ok) {
-        console.error('Error fetching usage data:', usageResponse.status, usageResponse.statusText)
         return { error: { message: `HTTP ${usageResponse.status}: ${usageResponse.statusText}`, status: usageResponse.status } }
       }
 
@@ -628,7 +531,6 @@ export const usageTracking = {
         error: null
       }
     } catch (err) {
-      console.error('Error in getUsageStats:', err)
       return { error: err }
     }
   },

@@ -39,7 +39,6 @@ export function getConsent() {
 
         return consent;
     } catch (error) {
-        console.error('Error reading cookie consent:', error);
         return null;
     }
 }
@@ -69,7 +68,6 @@ export function saveConsent(preferences) {
 
         return consent;
     } catch (error) {
-        console.error('Error saving cookie consent:', error);
         return null;
     }
 }
@@ -115,7 +113,6 @@ export function clearConsent() {
         localStorage.removeItem(CONSENT_STORAGE_KEY);
         removeGoogleAnalytics();
     } catch (error) {
-        console.error('Error clearing cookie consent:', error);
     }
 }
 
@@ -125,7 +122,6 @@ export function clearConsent() {
 export function loadGoogleAnalytics() {
     // Check if already loaded
     if (window.gtag) {
-        console.log('Google Analytics already loaded');
         return;
     }
 
@@ -151,9 +147,7 @@ export function loadGoogleAnalytics() {
             cookie_flags: 'SameSite=None;Secure'
         });
 
-        console.log('Google Analytics loaded with user consent');
     } catch (error) {
-        console.error('Error loading Google Analytics:', error);
     }
 }
 
@@ -183,9 +177,7 @@ export function removeGoogleAnalytics() {
             delete window.dataLayer;
         }
 
-        console.log('Google Analytics removed');
     } catch (error) {
-        console.error('Error removing Google Analytics:', error);
     }
 }
 

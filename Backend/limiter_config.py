@@ -107,7 +107,6 @@ def get_limiter(app=None):
                 default_limits=[dynamic_daily_limit]
             )
         except Exception as e:
-            print(f"Warning: Redis connection failed, falling back to in-memory storage: {e}")
             # Fallback to in-memory storage
             return Limiter(
                 app=app,

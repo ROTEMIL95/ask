@@ -31,7 +31,6 @@ def process_ocr_image(image_data):
         }
     
     try:
-        print(f"🔍 OCR Debug: Starting OCR processing with Google Cloud Vision API")
         
         from google.cloud import vision
         import re
@@ -65,7 +64,6 @@ def process_ocr_image(image_data):
         texts = response.text_annotations
         
         if response.error.message:
-            print(f"❌ OCR Debug: Google Cloud Vision API error: {response.error.message}")
             return {
                 "success": False,
                 "error": f"OCR processing failed: {response.error.message}"
@@ -74,8 +72,6 @@ def process_ocr_image(image_data):
         if texts:
             # The first text annotation contains all detected text
             all_text = texts[0].description
-            print(f"✅ OCR Debug: Text extracted successfully, length: {len(all_text)}")
-            print(f"🔍 OCR Debug: First 200 characters: {all_text[:200]}...")
             
             # Filter text to focus on API documentation
             lines = all_text.split('\n')
@@ -84,7 +80,6 @@ def process_ocr_image(image_data):
             total_lines = len(lines)
             kept_lines = 0
             
-            print(f"🔍 OCR Debug: Processing {total_lines} lines for API content...")
             
             for line_num, line in enumerate(lines):
                 line = line.strip()
@@ -118,7 +113,6 @@ def process_ocr_image(image_data):
                 if is_api_related:
                     filtered_lines.append(line)
                     kept_lines += 1
-                    print(f"  ✅ KEPT: '{line[:100]}...'")
                     
                     # Add to highlights if it contains API keywords
                     for keyword in api_keywords:
@@ -128,17 +122,10 @@ def process_ocr_image(image_data):
                                 highlighted_lines.append(highlighted_line)
                             break
                 else:
-                    print(f"  ❌ FILTERED: '{line[:100]}...'")
             
             # Combine filtered lines
             filtered_text = '\n'.join(filtered_lines)
             
-            print(f"✅ OCR Debug: Text filtering successful")
-            print(f"🔍 OCR Debug: Total lines processed: {total_lines}")
-            print(f"🔍 OCR Debug: Lines kept: {kept_lines}")
-            print(f"🔍 OCR Debug: Filtering ratio: {kept_lines}/{total_lines} = {kept_lines/total_lines*100:.1f}%")
-            print(f"🔍 OCR Debug: Filtered text length: {len(filtered_text)} characters")
-            print(f"🔍 OCR Debug: Found {len(highlighted_lines)} highlighted lines with API keywords")
             
             if filtered_text.strip():
                 return {
@@ -157,14 +144,12 @@ def process_ocr_image(image_data):
                     "error": "No API-related content could be extracted from the image. Please try with a clearer image or upload a PDF file instead."
                 }
         else:
-            print(f"❌ OCR Debug: No text found in image")
             return {
                 "success": False,
                 "error": "No text could be extracted from the image. Please try with a clearer image or upload a PDF file instead."
             }
             
     except Exception as e:
-        print(f"❌ OCR Debug: Exception occurred: {str(e)}")
         return {
             "success": False,
             "error": f"OCR processing failed: {str(e)}. Please check your Google Cloud Vision API setup."
@@ -199,7 +184,6 @@ def ocr_post():
         if result.get('success'):
             # Automatically send the filtered API documentation to Claude for expert analysis
             try:
-                print(f"🤖 Sending OCR-extracted API docs to Claude for expert analysis...")
                 
                 # Import the Anthropic client
                 from anthropic import Anthropic
@@ -208,7 +192,6 @@ def ocr_post():
                 # Get API key and create client
                 anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
                 if not anthropic_api_key:
-                    print(f"❌ Anthropic API key not configured")
                     return jsonify({
                         'success': False,
                         'error': 'Anthropic API not configured for automatic analysis'
@@ -262,9 +245,6 @@ Rules:
 Generate expert analysis and working code examples based on this documentation."""
                 
                 # Send to Claude
-                print(f"📤 Sending to Claude model: {model_name}")
-                print(f"📤 System prompt length: {len(expert_system_prompt)}")
-                print(f"📤 User message length: {len(user_message)}")
                 
                 claude_response = client.messages.create(
                     model=model_name,
@@ -280,13 +260,11 @@ Generate expert analysis and working code examples based on this documentation."
                     if part.type == "text":
                         claude_text += part.text
                 
-                print(f"✅ Claude response received: {len(claude_text)} characters")
                 
                 # Try to parse Claude's JSON response
                 try:
                     import json
                     claude_data = json.loads(claude_text)
-                    print(f"✅ Successfully parsed Claude's JSON response")
                     
                     # Return Claude's expert analysis
                     return jsonify({
@@ -302,7 +280,6 @@ Generate expert analysis and working code examples based on this documentation."
                     })
                     
                 except json.JSONDecodeError:
-                    print(f"⚠️ Claude response is not valid JSON, returning raw response")
                     return jsonify({
                         'success': True,
                         'message': 'OCR processing completed and sent to Claude for expert analysis',
@@ -316,7 +293,6 @@ Generate expert analysis and working code examples based on this documentation."
                     })
                 
             except Exception as claude_error:
-                print(f"❌ Error sending to Claude: {claude_error}")
                 # Fallback: return OCR result without Claude analysis
                 return jsonify({
                     'success': True,

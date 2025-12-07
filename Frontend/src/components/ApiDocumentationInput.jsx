@@ -34,7 +34,6 @@ export default function ApiDocumentationInput({
                 setCopiedApiDoc(true);
                 setTimeout(() => setCopiedApiDoc(false), 2000);
             } catch (err) {
-                console.error('Failed to copy API doc: ', err);
             }
         }
     }, [apiDoc]);

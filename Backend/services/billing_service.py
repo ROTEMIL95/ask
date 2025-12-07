@@ -42,7 +42,6 @@ def create_invoice(
     Returns:
         Dict with invoice details including document_number and document_url (PDF)
     """
-    logger.info(f"📄 Creating invoice for {user_email} - Amount: {amount} {currency_code}")
 
     url = "https://billing5.tranzila.com/api/documents_db/create_document"
 
@@ -116,65 +115,14 @@ def create_invoice(
     # Generate Tranzila API headers
     headers = generate_tranzila_headers(TRANZILA_PUBLIC_API_KEY, TRANZILA_SECRET_API_KEY)
 
-    logger.info("=" * 80)
-    logger.info("📄 INVOICE CREATION - FULL PAYLOAD DEBUG")
-    logger.info("=" * 80)
-    logger.info(f"URL: {url}")
-    logger.info(f"Terminal: {TRANZILA_SUPPLIER}")
-    logger.info(f"Customer: {user_name} ({user_email})")
-    logger.info("-" * 80)
-    logger.info("PAYLOAD STRUCTURE:")
-    logger.info(f"  document_type: {payload['document_type']}")
-    logger.info(f"  document_date: {payload['document_date']}")
-    logger.info(f"  document_currency_code: {payload['document_currency_code']}")
-    logger.info(f"  vat_percent: {payload['vat_percent']}")
-    logger.info(f"  action: {payload['action']}")
-    logger.info(f"  client_name: {payload['client_name']}")
-    logger.info(f"  client_email: {payload['client_email']}")
-    logger.info(f"  client_country_code: {payload['client_country_code']}")
-    logger.info(f"  client_company: {payload['client_company']}")
-    logger.info(f"  client_id: {payload['client_id']}")
-    logger.info(f"  client_address_line_1: {payload['client_address_line_1']}")
-    logger.info(f"  client_address_line_2: {payload['client_address_line_2']}")
-    logger.info(f"  client_city: {payload['client_city']}")
-    logger.info(f"  client_zip: {payload['client_zip']}")
-    logger.info(f"  client_receipt_paid_for: {payload['client_receipt_paid_for']}")
-    logger.info("-" * 80)
-    logger.info("ITEMS:")
     for idx, item in enumerate(payload['items']):
-        logger.info(f"  Item {idx + 1}:")
-        logger.info(f"    name: {item['name']}")
-        logger.info(f"    unit_price: {item['unit_price']} (type: {type(item['unit_price']).__name__})")
-        logger.info(f"    units_number: {item['units_number']} (type: {type(item['units_number']).__name__})")
-        logger.info(f"    units_type: {item['units_type']} (type: {type(item['units_type']).__name__})")
-        logger.info(f"    type: {item['type']}")
-        logger.info(f"    price_type: {item['price_type']}")
-        logger.info(f"    currency_code: {item['currency_code']}")
-        logger.info(f"    to_doc_currency_exchange_rate: {item['to_doc_currency_exchange_rate']}")
-    logger.info("-" * 80)
-    logger.info("PAYMENTS:")
     for idx, payment in enumerate(payload['payments']):
-        logger.info(f"  Payment {idx + 1}:")
-        logger.info(f"    payment_method: {payment['payment_method']}")
-        logger.info(f"    payment_date: {payment['payment_date']}")
-        logger.info(f"    amount: {payment['amount']} (type: {type(payment['amount']).__name__})")
-        logger.info(f"    currency_code: {payment['currency_code']}")
-        logger.info(f"    to_doc_currency_exchange_rate: {payment['to_doc_currency_exchange_rate']} (type: {type(payment['to_doc_currency_exchange_rate']).__name__})")
-        logger.info(f"    cc_credit_term: {payment['cc_credit_term']} (type: {type(payment['cc_credit_term']).__name__})")
-        logger.info(f"    cc_installments_number: {payment['cc_installments_number']} (type: {type(payment['cc_installments_number']).__name__})")
-        logger.info(f"    cc_brand: {payment['cc_brand']} (type: {type(payment['cc_brand']).__name__})")
         if 'cc_last_4_digits' in payment:
-            logger.info(f"    cc_last_4_digits: {payment['cc_last_4_digits']}")
         if 'txnindex' in payment:
-            logger.info(f"    txnindex: {payment['txnindex']} (type: {type(payment['txnindex']).__name__})")
-    logger.info("=" * 80)
-    logger.info("📡 Sending invoice creation request to Tranzila Billing")
-    logger.info("=" * 80)
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=30)
 
-        logger.info(f"📡 Invoice API Response Status: {response.status_code}")
 
         # Check if request was successful
         if response.status_code != 200:
@@ -184,7 +132,6 @@ def create_invoice(
 
         # Parse response
         data = response.json()
-        logger.info(f"📄 Invoice API Response: {data}")
 
         # Check for errors in response
         # Tranzila returns 'status_code' (not 'error_code')
@@ -221,13 +168,6 @@ def create_invoice(
             logger.warning("⚠️ No document number returned from Tranzila")
             logger.warning(f"⚠️ Full response: {data}")
 
-        logger.info(f"✅ Invoice created successfully!")
-        logger.info(f"   Document ID: {document_id}")
-        logger.info(f"   Document Number: {document_number}")
-        logger.info(f"   Amount: {total_amount} {currency}")
-        logger.info(f"   Created At: {created_at}")
-        logger.info(f"   Retrieval Key: {retrieval_key[:20]}..." if retrieval_key else "   Retrieval Key: N/A")
-        logger.info(f"   Document URL (proxy): {document_url or 'N/A'}")
 
         return {
             "success": True,
@@ -267,7 +207,6 @@ def download_invoice_pdf(document_id: int) -> Optional[bytes]:
     Returns:
         PDF binary content or None if download fails
     """
-    logger.info(f"📥 Downloading invoice PDF with document_id: {document_id}")
 
     # Build Tranzila get_document URL (POST request, not GET!)
     url = "https://billing5.tranzila.com/api/documents_db/get_document"
@@ -283,8 +222,6 @@ def download_invoice_pdf(document_id: int) -> Optional[bytes]:
 
     try:
         # Make authenticated POST request to Tranzila (not GET!)
-        logger.info(f"📡 Requesting PDF from Tranzila (POST): {url}")
-        logger.info(f"   Payload: {payload}")
         response = requests.post(url, json=payload, headers=headers, timeout=30)
 
         # Check response status
@@ -302,7 +239,6 @@ def download_invoice_pdf(document_id: int) -> Optional[bytes]:
 
         # Return PDF binary content
         pdf_size = len(response.content)
-        logger.info(f"✅ PDF downloaded successfully ({pdf_size} bytes)")
         return response.content
 
     except requests.exceptions.Timeout:
@@ -328,7 +264,6 @@ def get_invoice_pdf_url(document_number: str) -> Optional[str]:
     Returns:
         PDF URL or None if not available
     """
-    logger.info(f"📄 Fetching PDF URL for invoice {document_number}")
 
     # This is a placeholder - implement if Tranzila provides a separate endpoint
     # for fetching invoice PDFs by document number

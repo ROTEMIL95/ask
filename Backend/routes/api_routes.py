@@ -21,7 +21,6 @@ if sys.platform == "win32":
 # --- LLM client ---
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 if not ANTHROPIC_API_KEY:
-    print("⚠️ ANTHROPIC_API_KEY missing – /ask will return 500 until set.")
 
 # Initialize Anthropic client using the template
 client = Anthropic(
@@ -528,9 +527,7 @@ def analyze_api():
         return jsonify(analysis), 200
 
     except Exception as e:
-        print(f"Error in /analyze-api endpoint: {e}")
         import traceback
-        print(f"Full traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Failed to analyze API documentation: {str(e)}'}), 500
 
 @api_bp.route("/health", methods=["GET"])
@@ -605,14 +602,12 @@ def ask():
         else:
             hint = (hint or "").strip()
 
-        print(f"🔍 Debug: Question: {question[:100]}... | Doc length: {len(doc)} | Hint: {hint}")
 
         if not question:
             return jsonify({"error": "Missing 'question'"}), 400
 
         # --- NEW: direct parse for OpenAPI specs ---
         if doc and _is_openapi_spec(doc):
-            print("✅ Detected OpenAPI/Swagger JSON")
             return jsonify(_parse_openapi_spec(doc)), 200
 
         # quota checks (same as before)
@@ -637,8 +632,6 @@ def ask():
         # This avoids issues with dates like Jan 31 -> Feb 31 (invalid)
         next_month = (now + timedelta(days=30)).strftime("%Y-%m-%d")
 
-        print(f"DEBUG: Current date/time: {current_datetime}")
-        print(f"DEBUG: Tomorrow: {tomorrow}, Next week: {next_week}")
 
         # System prompt for consistent behavior with VALIDATION RULES
         system_prompt = (
@@ -724,9 +717,6 @@ def ask():
         
         # Call Anthropic Claude API using the template structure
         model_name = os.getenv("LLM_MODEL", "claude-sonnet-4-5-20250929")
-        print(f"DEBUG: Calling Anthropic API with model: {model_name}")
-        print(f"DEBUG: System prompt length: {len(system_prompt)} chars")
-        print(f"DEBUG: User question length: {len(question)} chars")
         
         # Get API configuration and user's question from request
         api_config = None
@@ -740,7 +730,6 @@ def ask():
 
         # First analyze the API documentation
         api_analysis = analyze_api_doc(doc)
-        print(f"🔍 API Analysis Results:", api_analysis)
 
         # Clean and escape the user's question for use in code examples
         cleaned_question = question.replace('"', '\\"').replace('\n', ' ').strip()
@@ -759,7 +748,6 @@ def ask():
 
         # Generate dynamic system prompt with API analysis results and date context
         dynamic_prompt = generate_system_prompt(api_config, cleaned_question, api_analysis, date_context)
-        print(f"📝 Generated System Prompt length: {len(dynamic_prompt)} chars")
 
         # Use the system_prompt (with date context) instead of dynamic_prompt to keep it concise
         # Use enhanced prompt in the request
@@ -783,13 +771,9 @@ def ask():
         #     max_completion_tokens=2000,  
         # )
         
-        print(f"DEBUG: Anthropic API call successful")
-        print(f"DEBUG: Response model: {message.model}")
         # Use safe printing for debug output
         try:
-            print(f"DEBUG: Message object: {message}")
         except UnicodeEncodeError:
-            print("DEBUG: Message object: [Unicode encoding error - response received successfully]")
         
         # Extract answer from Anthropic response using template structure
         answer = ""
@@ -798,23 +782,16 @@ def ask():
             if isinstance(message.content, list) and len(message.content) > 0:
                 # Get the text from the first content block
                 answer = message.content[0].text
-                print(f"DEBUG: Extracted answer from content block")
             else:
-                print("DEBUG: No content blocks in response!")
         else:
-            print("DEBUG: No content in response!")
             
         if answer is None:
-            print("DEBUG: Answer is None!")
             answer = ""
         elif answer == "":
-            print("DEBUG: Answer is empty string!")
             
         # Check stop reason (Anthropic's equivalent to finish_reason)
         stop_reason = getattr(message, 'stop_reason', 'unknown')
-        print(f"DEBUG: Stop reason: {stop_reason}")
             
-        print(f"DEBUG: Answer length: {len(answer)} chars")
         
         # Keep OpenAI response handling commented for easy revert
         # if not response.choices or len(response.choices) == 0:
@@ -826,9 +803,7 @@ def ask():
         #     print(f"DEBUG: Finish reason: {finish_reason}")
         if len(answer) > 0:
             try:
-                print(f"DEBUG: First 100 chars of answer: {answer[:100]}...")
             except UnicodeEncodeError:
-                print("DEBUG: Answer contains Unicode characters that cannot be printed")
         
         # Extract code snippets for validation
         snippets = {}
@@ -846,9 +821,7 @@ def ask():
 
         # Log validation results
         if not code_validation['valid']:
-            print(f"⚠️ Code validation errors: {code_validation['errors']}")
         if code_validation['warnings']:
-            print(f"⚠️ Code validation warnings: {code_validation['warnings']}")
 
         # Extract usage information for Anthropic using template structure
         usage_info = {}
@@ -880,9 +853,7 @@ def ask():
         #     }
         
     except Exception as e:
-        print(f"Error in /ask endpoint: {e}")
         # Log more details for debugging
         import traceback
-        print(f"Full traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Failed to process request: {str(e)}'}), 500
 

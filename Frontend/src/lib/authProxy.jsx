@@ -7,7 +7,6 @@ const authProxy = {
     // Get session from localStorage (Supabase stores it there)
     const sessionKey = `sb-${import.meta.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0]}-auth-token`
     const sessionStr = localStorage.getItem(sessionKey)
-    console.log("🚀 ~ sessionStr:", sessionStr)
     return sessionStr ? JSON.parse(sessionStr) : null
   },
 
@@ -15,23 +14,18 @@ const authProxy = {
   // Use this method to avoid issues with page refresh, tab switching, etc.
   getSessionAsync: async () => {
     try {
-      console.log("🔍 [authProxy] Getting session asynchronously from Supabase...")
       const { data: { session }, error } = await supabase.auth.getSession()
 
       if (error) {
-        console.error("❌ [authProxy] Error getting session:", error)
         return null
       }
 
       if (!session) {
-        console.log("⚠️ [authProxy] No active session found")
         return null
       }
 
-      console.log("✅ [authProxy] Session retrieved successfully")
       return session
     } catch (err) {
-      console.error("❌ [authProxy] Exception in getSessionAsync:", err)
       return null
     }
   },
@@ -47,18 +41,14 @@ const authProxy = {
   // Use this method to avoid issues with page refresh, tab switching, etc.
   getUserAsync: async () => {
     try {
-      console.log("🔍 [authProxy] Getting user asynchronously from Supabase...")
       const session = await authProxy.getSessionAsync()
 
       if (!session) {
-        console.log("⚠️ [authProxy] No session, cannot get user")
         return null
       }
 
-      console.log("✅ [authProxy] User retrieved successfully:", session.user?.email)
       return session.user
     } catch (err) {
-      console.error("❌ [authProxy] Exception in getUserAsync:", err)
       return null
     }
   },
@@ -67,13 +57,11 @@ const authProxy = {
   // Useful after profile updates, payments, etc.
   refreshSession: async () => {
     try {
-      console.log("🔄 [authProxy] Refreshing session...")
 
       // First try to get the current session
       const { data: { session: currentSession }, error: getError } = await supabase.auth.getSession()
 
       if (getError || !currentSession) {
-        console.warn("⚠️ [authProxy] No active session to refresh")
         return { session: null, error: getError || new Error("No active session") }
       }
 
@@ -83,26 +71,20 @@ const authProxy = {
       })
 
       if (error) {
-        console.error("❌ [authProxy] Error refreshing session:", error)
         // If refresh fails, return the current session instead of null
-        console.log("⚠️ [authProxy] Falling back to current session")
         return { session: currentSession, error }
       }
 
-      console.log("✅ [authProxy] Session refreshed successfully")
       return { session, error: null }
     } catch (err) {
-      console.error("❌ [authProxy] Exception in refreshSession:", err)
 
       // Try to return current session as fallback
       try {
         const { data: { session: fallbackSession } } = await supabase.auth.getSession()
         if (fallbackSession) {
-          console.log("⚠️ [authProxy] Using current session as fallback")
           return { session: fallbackSession, error: err }
         }
       } catch (fallbackErr) {
-        console.error("❌ [authProxy] Fallback also failed:", fallbackErr)
       }
 
       return { session: null, error: err }

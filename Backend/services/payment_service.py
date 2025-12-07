@@ -14,35 +14,21 @@ TRANZILA_PUBLIC_API_KEY = os.getenv("TRANZILA_PUBLIC_API_KEY")
 TRANZILA_SECRET_API_KEY = os.getenv("TRANZILA_SECRET_API_KEY")
 
 def create_recurring_payment(token, expire_month, expire_year, full_name, user_email=None, user_id=None):
-    logger.info("🔄 Starting recurring payment creation")
-    logger.info(f"📝 Token: {token[:10]}..." if token else "No token")
-    logger.info(f"📅 Expiry: {expire_month}/{expire_year}")
-    logger.info(f"👤 Full name: {full_name}")
-    logger.info(f"📧 Email: {user_email}")
-    logger.info(f"🆔 User ID: {user_id}")
     
     url = "https://api.tranzila.com/v2/sto/create"
 
     payload = format_payload_recurring(token, expire_month, expire_year, full_name, user_email, user_id)
     headers = generate_tranzila_headers(TRANZILA_PUBLIC_API_KEY, TRANZILA_SECRET_API_KEY)
     
-    logger.info(f"🔍 Recurring Payment URL: {url}")
-    logger.info(f"🔍 Recurring Payment Payload: {payload}")
-    logger.info(f"🔍 Recurring Payment Headers: {headers}")
 
     try:
-        logger.info("📡 Making request to Tranzila API...")
         response = requests.post(url, json=payload, headers=headers)
-        logger.info(f"📡 Recurring Payment Response Status: {response.status_code}")
         
         response.raise_for_status()
         
-        logger.info("📄 Parsing response JSON...")
         data = response.json()
-        logger.info(f"✅ Recurring Payment Response: {data}")
         
         if data.get('sto_id'):
-            logger.info(f"✨ Successfully created recurring payment with STO ID: {data.get('sto_id')}")
         
         return data
     except requests.exceptions.HTTPError as e:
@@ -75,19 +61,8 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
     Raises:
         ValueError: If expire_year is outside valid range (2020-2030)
     """
-    logger.info("=" * 80)
-    logger.info("🔍 Starting format_payload_recurring based on STOV2 docs")
-    logger.info("=" * 80)
 
     # Debug: Input parameters
-    logger.info("📥 INPUT PARAMETERS:")
-    logger.info(f"   token (first 15 chars): {token[:15] if token else 'None'}...")
-    logger.info(f"   expire_month: {expire_month} (type: {type(expire_month).__name__})")
-    logger.info(f"   expire_year: {expire_year} (type: {type(expire_year).__name__})")
-    logger.info(f"   full_name: {full_name}")
-    logger.info(f"   user_email: {user_email}")
-    logger.info(f"   user_id: {user_id}")
-    logger.info("-" * 80)
 
     try:
         today = date.today()
@@ -98,11 +73,6 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         charge_day_of_month = min(today.day, 28)
 
         # Debug: Date calculations
-        logger.info("📅 DATE CALCULATIONS:")
-        logger.info(f"   today: {today.strftime('%Y-%m-%d')} (day of month: {today.day})")
-        logger.info(f"   first_charge_date: {next_month_same_day.strftime('%Y-%m-%d')}")
-        logger.info(f"   charge_dom: {charge_day_of_month} (capped at 28)")
-        logger.info("-" * 80)
     except Exception as e:
         logger.error(f"❌ Error in date calculation: {str(e)}")
         raise
@@ -118,23 +88,14 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
     }
 
     # Debug: Client object
-    logger.info("👤 CLIENT OBJECT:")
-    logger.info(f"   name: {client_obj.get('name')}")
-    logger.info(f"   email: {client_obj.get('email')}")
-    logger.info(f"   (no id/phone/address - not provided)")
-    logger.info("-" * 80)
     
     # 2. בניית אובייקט ה-Card [STOV2: lines 185-219]
     # המרת שנה ל-4 ספרות ו-validation
-    logger.info("💳 CARD PROCESSING:")
-    logger.info(f"   expire_year (raw input): {expire_year}")
 
     year = int(expire_year)
-    logger.info(f"   expire_year (after int()): {year}")
 
     if year < 100:
         year = year + 2000
-        logger.info(f"   expire_year (after +2000): {year}")
 
     # בדיקה שהשנה בטווח סביר (2020-2099)
     # הערה: STOV2 line 201-202 מציין 2030 כדוגמה, לא כהגבלה קשיחה
@@ -143,7 +104,6 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
         logger.error(f"❌ Invalid expire_year: {year}. Must be between 2020-2099")
         raise ValueError(f"Expiry year must be between 2020-2099, got {year}")
 
-    logger.info(f"   ✅ expire_year validation passed: {year}")
 
     card_obj = {
         "token": token,
@@ -152,11 +112,6 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
     }
 
     # Debug: Card object
-    logger.info("💳 CARD OBJECT:")
-    logger.info(f"   token (first 15 chars): {token[:15]}...")
-    logger.info(f"   expire_month: {card_obj['expire_month']}")
-    logger.info(f"   expire_year: {card_obj['expire_year']}")
-    logger.info("-" * 80)
 
     # 3. בניית ה-Payload הראשי [STOV2: lines 1-62]
     payload = {
@@ -192,24 +147,6 @@ def format_payload_recurring(token, expire_month, expire_year, full_name, user_e
     }
 
     # Debug: Final payload overview
-    logger.info("📦 FINAL PAYLOAD FOR STO CREATION:")
-    logger.info(f"   terminal_name: {payload['terminal_name']}")
-    logger.info(f"   sto_payments_number: {payload['sto_payments_number']}")
-    logger.info(f"   first_charge_date: {payload['first_charge_date']}")
-    logger.info(f"   charge_frequency: {payload['charge_frequency']}")
-    logger.info(f"   charge_dom: {payload['charge_dom']}")
-    logger.info(f"   currency_code: {payload['currency_code']}")
-    logger.info(f"   client: {payload['client']}")
-    logger.info(f"   items: {payload['items']}")  # Changed from 'item' to 'items'
-    logger.info(f"   card.token (first 15 chars): {payload['card']['token'][:15]}...")
-    logger.info(f"   card.expire_month: {payload['card']['expire_month']}")
-    logger.info(f"   card.expire_year: {payload['card']['expire_year']}")
-    logger.info(f"   response_language: {payload['response_language']}")
-    logger.info(f"   created_by_user: {payload['created_by_user']}")
-    logger.info("=" * 80)
-    logger.info("🚀 Payload ready to send to Tranzila STOV2 API")
-    logger.info("⚠️  NOTE: Using 'items' (plural) instead of 'item' per Tranzila API error")
-    logger.info("=" * 80)
 
     return payload
     

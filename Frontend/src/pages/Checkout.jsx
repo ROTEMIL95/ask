@@ -62,11 +62,9 @@ export default function Checkout() {
   useEffect(() => {
     // Don't initialize if already initialized
     if (hostedFieldsRef.current) {
-      console.log('⚠️ Hosted fields already initialized, skipping');
       return;
     }
 
-    console.log('🔧 Initializing Tranzila Hosted Fields...');
 
     // Small delay to ensure DOM is ready
     const timer = setTimeout(() => {
@@ -97,28 +95,23 @@ export default function Checkout() {
         });
 
         hostedFieldsRef.current = hf;
-        console.log('✅ Hosted fields instance stored in ref');
 
         // Setup event listeners
         setupEventListeners(hf, {
           onReady: () => {
-            console.log('✅ Hosted fields ready');
             setFieldsReady(true);
           },
           onValidityChange: (event) => {
-            console.log(`🔍 Field ${event.field} validity: ${event.isValid}`);
             setFieldValidity(prev => ({
               ...prev,
               [event.field]: event.isValid
             }));
           },
           onCardTypeChange: (event) => {
-            console.log(`💳 Card type detected: ${event.cardType}`);
           }
         });
 
       } catch (error) {
-        console.error('❌ Failed to initialize hosted fields:', error);
         setErrMsg('Failed to load payment form. Please refresh the page.');
       }
     }, 100); // Small delay for DOM to be ready
@@ -134,39 +127,28 @@ export default function Checkout() {
   }
 
   async function onHandlePay(e) {
-    console.log('🎯 onHandlePay called!');
     e.preventDefault();
-    console.log('🎯 preventDefault done');
 
     // Validate required fields
     if (!formData.fullName || !formData.email) {
-      console.warn('⚠️ Validation failed: missing name or email');
       setErrMsg('Please enter your name and email');
       setStatus("error");
       return;
     }
 
     // Debug: Check ref state
-    console.log('🔍 hostedFieldsRef.current:', hostedFieldsRef.current);
-    console.log('🔍 fieldsReady:', fieldsReady);
 
     if (!hostedFieldsRef.current) {
-      console.error('❌ Hosted fields not initialized');
-      console.error('   This usually means the fields did not load properly.');
-      console.error('   Try refreshing the page.');
       setErrMsg('Payment form not initialized. Please refresh the page.');
       setStatus("error");
       return;
     }
 
-    console.log('✅ Hosted fields ref exists!');
 
-    console.log('✅ Validation passed, setting loading state');
     setStatus("loading");
     setErrMsg("");
 
     // Step 1: Create handshake token (fraud prevention)
-    console.log('🤝 Step 1: Creating handshake token...');
     let handshakeToken;
 
     try {
@@ -178,17 +160,13 @@ export default function Checkout() {
       const session = sessionStr ? JSON.parse(sessionStr) : null;
       const token = session?.access_token;
 
-      console.log('🔑 Session found:', !!session);
-      console.log('🔑 Token found:', !!token);
 
       if (!token) {
-        console.error('❌ No authentication token found');
         setErrMsg('Please log in to continue with payment');
         setStatus("error");
         return;
       }
 
-      console.log('🤝 Creating handshake with sum:', sum, 'type:', typeof sum);
 
       const handshakeResponse = await fetch(`${API_URL}/payment/create-handshake`, {
         method: 'POST',
@@ -201,27 +179,18 @@ export default function Checkout() {
         })
       });
 
-      console.log('🤝 Handshake request body:', JSON.stringify({ sum: sum }));
 
       const handshakeData = await handshakeResponse.json();
 
       if (!handshakeResponse.ok || !handshakeData.thtk) {
-        console.error('❌ Handshake failed:', handshakeData);
         setErrMsg(handshakeData.message || 'Failed to initialize payment');
         setStatus("error");
         return;
       }
 
       handshakeToken = handshakeData.thtk;
-      console.log('✅ Handshake token received!');
-      console.log('   thtk:', handshakeToken);
-      console.log('   thtk length:', handshakeToken?.length);
-      console.log('   thtk type:', typeof handshakeToken);
-      console.log('   Valid for:', handshakeData.valid_for);
-      console.log('   Full handshake response:', handshakeData);
 
     } catch (error) {
-      console.error('❌ Handshake error:', error);
       setErrMsg('Failed to initialize payment. Please try again.');
       setStatus("error");
       return;
@@ -241,34 +210,18 @@ export default function Checkout() {
       tokenize: true          // ✨ Request card token for recurring billing (STO)
     };
 
-    console.log('💳 Step 2: Initiating payment with params:');
-    console.log('   terminal_name:', paymentParams.terminal_name);
-    console.log('   amount:', paymentParams.amount);
-    console.log('   currency_code:', paymentParams.currency_code);
-    console.log('   tran_mode:', paymentParams.tran_mode);
-    console.log('   thtk:', paymentParams.thtk);
-    console.log('   new_process:', paymentParams.new_process);
-    console.log('   Full params:', paymentParams);
-    console.log('🎯 About to call chargePayment...');
 
     // Step 3: Charge using hosted fields
     chargePayment(hostedFieldsRef.current, paymentParams, (err, response) => {
-      console.log('🎯 CALLBACK RECEIVED!');
-      console.log('  📦 Error:', err);
-      console.log('  📦 Response:', response);
-      console.log('  📦 Response type:', typeof response);
-      console.log('  📦 Response keys:', response ? Object.keys(response) : 'null');
 
       // Log errors array if exists
       if (response?.errors) {
-        console.log('  📦 Response.errors:', response.errors);
       }
 
       setStatus(false);
 
       // Check for error parameter
       if (err || !response) {
-        console.error('❌ Payment failed - error or no response');
         setErrMsg(getErrorMessage(err) || 'No response from payment gateway');
         setStatus("error");
         return;
@@ -276,7 +229,6 @@ export default function Checkout() {
 
       // Check for errors array (Tranzila Hosted Fields format)
       if (response.errors && response.errors.length > 0) {
-        console.error('❌ Payment failed - errors in response:', response.errors);
         const errorMessage = response.errors.map(e => e.error_message || e.message || JSON.stringify(e)).join(', ');
         setErrMsg(errorMessage || 'Payment failed. Please check your card details.');
         setStatus("error");
@@ -285,7 +237,6 @@ export default function Checkout() {
 
       // Check if transaction_response is null (means no transaction occurred)
       if (!response.transaction_response) {
-        console.error('❌ Payment failed - no transaction response');
         setErrMsg('Payment failed. No transaction was created. Please check your card details.');
         setStatus("error");
         return;
@@ -293,7 +244,6 @@ export default function Checkout() {
 
       // Check for error in response object (legacy format)
       if (response.err || response.error) {
-        console.error('❌ Payment error in response:', response.err || response.error);
         setErrMsg(response.err || response.error || 'Payment failed');
         setStatus("error");
         return;
@@ -301,19 +251,16 @@ export default function Checkout() {
 
       // Check Tranzila response code (000 = success)
       if (response.transaction_response?.Response && response.transaction_response.Response !== '000') {
-        console.error('❌ Payment failed with Tranzila code:', response.transaction_response.Response);
         setErrMsg(`Payment failed. Error code: ${response.transaction_response.Response}`);
         setStatus("error");
         return;
       }
 
-      console.log('✅ Payment successful!', response);
 
       // Extract transaction details from transaction_response
       const txn = response.transaction_response || {};
 
       // Step 4: Upgrade user to Pro in database BEFORE redirecting
-      console.log('💾 Step 4: Upgrading user to Pro and creating STO...');
 
       (async () => {
         try {
@@ -326,19 +273,14 @@ export default function Checkout() {
           const token = session?.access_token;
 
           if (!token) {
-            console.error('⚠️ No token found, cannot upgrade user');
           } else {
-            console.log('🔑 Token found, calling upgrade endpoint...');
 
             // Get expiry from Tranzila response (returns separate month/year fields)
             const expireMonth = txn.expiry_month || null;
             const expireYear = txn.expiry_year || null;
 
             if (expireMonth && expireYear) {
-              console.log(`📅 Expiry from Tranzila: ${expireMonth}/${expireYear}`);
             } else {
-              console.warn('⚠️ No expiry date in response, STO creation may fail');
-              console.warn(`   expiry_month: ${txn.expiry_month}, expiry_year: ${txn.expiry_year}`);
             }
 
             const upgradeResponse = await fetch(`${API_URL}/payment/upgrade-after-hosted-payment`, {
@@ -364,36 +306,21 @@ export default function Checkout() {
             try {
               upgradeData = await upgradeResponse.json();
             } catch (jsonError) {
-              console.error('❌ Failed to parse upgrade response as JSON');
-              console.error('   Status:', upgradeResponse.status);
-              console.error('   Status Text:', upgradeResponse.statusText);
               upgradeData = { message: `Server error: ${upgradeResponse.status} ${upgradeResponse.statusText}` };
             }
 
             if (!upgradeResponse.ok) {
-              console.error('⚠️ Failed to upgrade user, but payment succeeded');
-              console.error('   Status Code:', upgradeResponse.status);
-              console.error('   Response Status:', upgradeResponse.statusText);
-              console.error('   Response Data:', upgradeData);
-              console.error('   Error Message:', upgradeData.message || 'No error message');
-              console.error('   Full Object:', JSON.stringify(upgradeData, null, 2));
             } else {
-              console.log('✅ User upgraded to Pro successfully!');
-              console.log('   Response:', upgradeData);
               if (upgradeData.sto_id) {
-                console.log(`✅ Monthly recurring billing enabled! STO ID: ${upgradeData.sto_id}`);
               } else {
-                console.warn('⚠️ STO was not created - recurring billing may not be enabled');
               }
             }
           }
         } catch (error) {
-          console.error('❌ Error upgrading user:', error);
         } finally {
           // Redirect to success page regardless of upgrade status
           // (payment was successful, user can contact support if upgrade failed)
           const successUrl = `/payment/success`;
-          console.log('🎉 Redirecting to:', successUrl);
           navigate(successUrl);
         }
       })();
@@ -445,7 +372,6 @@ export default function Checkout() {
           </div>
 
           <form onSubmit={(e) => {
-            console.log('📝 Form submitted');
             onHandlePay(e);
             return false;
           }}>

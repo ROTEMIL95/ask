@@ -73,7 +73,6 @@ def create_handshake():
 
     Token is valid for 20 minutes.
     """
-    logger.info("🤝 /payment/create-handshake called")
 
     if request.method == "OPTIONS":
         return "", 200
@@ -108,27 +107,19 @@ def create_handshake():
             "TranzilaPW": TRANZILA_TERMINAL_PASSWORD
         }
 
-        logger.info(f"🤝 Calling Tranzila handshake API")
-        logger.info(f"   URL: {url}")
-        logger.info(f"   Params: supplier={TRANZILA_SUPPLIER}, sum={sum_amount}")
 
         response = requests.get(url, params=handshake_params, timeout=10)
-        logger.info(f"🤝 Handshake response status: {response.status_code}")
-        logger.info(f"🤝 Handshake response text: {response.text}")
-        logger.info(f"🤝 Handshake response headers: {dict(response.headers)}")
 
         response.raise_for_status()
 
         # Parse response - could be JSON or query string format
         try:
             data = response.json()
-            logger.info(f"🤝 Parsed handshake response (JSON): {data}")
         except:
             # Parse as query string if not JSON
             from urllib.parse import parse_qs
             parsed = parse_qs(response.text)
             data = {k: v[0] if len(v) == 1 else v for k, v in parsed.items()}
-            logger.info(f"🤝 Parsed handshake response (query string): {data}")
 
         # Check for errors in response
         if 'error' in data or 'Error' in data:
@@ -145,9 +136,6 @@ def create_handshake():
             logger.error(f"❌ Response keys: {list(data.keys())}")
             return jsonify({"status": "error", "message": "Failed to create handshake token"}), 500
 
-        logger.info(f"✅ Handshake token created successfully!")
-        logger.info(f"   thtk: {thtk}")
-        logger.info(f"   All response data: {data}")
 
         return jsonify({
             "status": "success",
@@ -178,7 +166,6 @@ def upgrade_after_hosted_payment():
 
     The STO ensures automatic monthly charges on the same day each month.
     """
-    logger.info("🎉 /payment/upgrade-after-hosted-payment called")
 
     if request.method == "OPTIONS":
         return "", 200
@@ -209,18 +196,11 @@ def upgrade_after_hosted_payment():
     expire_year = params.get("expire_year")  # For STO creation
     full_name = params.get("full_name") or user_data.get('full_name')  # For STO creation
 
-    logger.info(f"💳 Upgrading user {user_id} ({user_email}) to Pro")
-    logger.info(f"   Transaction ID: {transaction_id}")
-    logger.info(f"   Amount: {amount} {currency_code}")
-    logger.info(f"   Card: ****{card_last_4}")
-    logger.info(f"   Card token: {card_token[:10]}..." if card_token else "   No card token")
-    logger.info(f"   Expiry: {expire_month}/{expire_year}" if expire_month and expire_year else "   No expiry")
 
     # 3) Create STO (Standing Order) for monthly recurring billing (non-critical - don't fail if this errors)
     sto_id = None
     if card_token and expire_month and expire_year and full_name:
         try:
-            logger.info(f"🔄 Creating STO for monthly recurring billing...")
             recurring_result = create_recurring_payment(
                 token=card_token,
                 expire_month=expire_month,
@@ -231,13 +211,11 @@ def upgrade_after_hosted_payment():
             )
             sto_id = (recurring_result or {}).get("sto_id")
             if sto_id:
-                logger.info(f"✅ STO created successfully! STO ID: {sto_id}")
             else:
                 logger.warning(f"⚠️ STO creation returned no STO ID")
         except Exception as sto_error:
             logger.warning(f"⚠️ Failed to create STO (non-critical): {str(sto_error)}")
     else:
-        logger.info(f"ℹ️ Skipping STO creation - missing required data (token, expiry, or name)")
 
     # 4) Update user_profiles in Supabase
     try:
@@ -274,20 +252,16 @@ def upgrade_after_hosted_payment():
             logger.warning(f"⚠️ Failed to save API history (non-critical): {str(history_error)}")
 
         if updated:
-            logger.info(f"✅ User {user_id} upgraded to Pro successfully")
             if sto_id:
-                logger.info(f"✅ Recurring billing enabled with STO ID: {sto_id}")
 
             # 6) Create invoice (non-critical - don't fail if this errors)
             invoice_url = None
             try:
-                logger.info(f"📄 Creating invoice for user {user_id}")
 
                 # Convert numeric currency code to ISO code for Billing API
                 # Tranzila Hosted Fields returns "2" for USD, but Billing API needs "USD"
                 currency_code_raw = currency_code or "2"
                 currency_code_iso = CURRENCY_CODE_MAP.get(str(currency_code_raw), "USD")
-                logger.info(f"   Currency conversion: {currency_code_raw} -> {currency_code_iso}")
 
                 invoice = billing_service.create_invoice(
                     user_email=user_email,
@@ -299,15 +273,12 @@ def upgrade_after_hosted_payment():
                     plan_name="TalkAPI Pro Monthly Subscription"
                 )
                 invoice_url = invoice.get('document_url')
-                logger.info(f"✅ Invoice created: {invoice.get('document_number')}")
                 if invoice_url:
-                    logger.info(f"   PDF URL: {invoice_url}")
             except Exception as invoice_error:
                 logger.warning(f"⚠️ Failed to create invoice (non-critical): {str(invoice_error)}")
 
             # 7) Send payment confirmation email (non-critical - don't fail if this errors)
             try:
-                logger.info(f"📧 Sending payment confirmation email to {user_email}")
                 email_sent = email_service.send_payment_success_email(
                     user_email=user_email,
                     user_name=user_data.get('full_name') or full_name or user_email,
@@ -319,7 +290,6 @@ def upgrade_after_hosted_payment():
                     monthly_limit=2000
                 )
                 if email_sent:
-                    logger.info(f"✅ Payment confirmation email sent successfully")
                 else:
                     logger.warning(f"⚠️ Failed to send payment confirmation email")
             except Exception as email_error:
@@ -359,7 +329,6 @@ def make_initial_payment():
       4) Update the user's subscription to Pro (500/2000) in Supabase.
       5) Log to API history.
     """
-    logger.info("💳 /payment/pay called")
 
     # Handle CORS preflight
     if request.method == "OPTIONS":
@@ -381,7 +350,6 @@ def make_initial_payment():
 
     # 2) Validate client payload
     params = request.get_json(silent=True) or {}
-    logger.info(f"[Payment] Received params: {params}")
 
     for field in ["card_number", "expire_month", "expire_year"]:
         if not params.get(field):
@@ -394,13 +362,8 @@ def make_initial_payment():
         payload = format_payload_initial(params)
         headers = generate_tranzila_headers(TRANZILA_PUBLIC_API_KEY, TRANZILA_SECRET_API_KEY)
 
-        logger.info(f"[Charge] URL: {url}")
-        logger.info(f"[Charge] Payload: {payload}")
-        logger.info(f"[Charge] Headers keys: {list(headers.keys())}")
 
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
-        logger.info(f"[Charge] Response status: {resp.status_code}")
-        logger.info(f"[Charge] Response text: {resp.text[:500]}")
 
         resp.raise_for_status()
         data = resp.json()
@@ -416,7 +379,6 @@ def make_initial_payment():
                 "error_code": trx.get("processor_response_code")
             }), 400
 
-        logger.info(f"✅ [Charge] Payment successful! Transaction: {trx}")
 
     except ValueError as e:
         logger.error(f"[Charge] Validation error: {str(e)}")
@@ -500,7 +462,6 @@ def cancel_payment():
 
     Note: OPTIONS requests are handled automatically by flask_cors in app.py
     """
-    logger.info("🚫 /payment/cancel called")
 
     # 1) Authorization
     auth_header = request.headers.get("Authorization")
@@ -569,16 +530,13 @@ def cancel_payment():
 
         # Send cancellation confirmation email (non-critical)
         try:
-            logger.info(f"📧 Sending cancellation confirmation email to {user_email}")
             # Get user name from token (try full_name from user_metadata, fallback to email)
             user_name = user_data.get('full_name') or user_data.get('user_metadata', {}).get('full_name') or user_email.split('@')[0]
-            logger.info(f"   Sending to: {user_email}, Name: {user_name}")
 
             email_service.send_subscription_cancelled_email(
                 user_email=user_email,
                 user_name=user_name
             )
-            logger.info(f"✅ Cancellation email sent successfully")
         except Exception as email_error:
             logger.warning(f"⚠️ Failed to send cancellation email (non-critical): {str(email_error)}")
             logger.exception(f"   Full error details:")
@@ -614,8 +572,6 @@ def download_invoice(document_id):
     Returns:
         PDF file or error message
     """
-    logger.info(f"📥 /payment/invoice/<document_id> called")
-    logger.info(f"   Document ID: {document_id}")
 
     # Handle CORS preflight
     if request.method == "OPTIONS":
@@ -642,7 +598,6 @@ def download_invoice(document_id):
 
         # Return PDF to user
         from flask import Response
-        logger.info(f"✅ Returning PDF ({len(pdf_content)} bytes)")
 
         return Response(
             pdf_content,
@@ -674,11 +629,6 @@ def payment_callback():
 
     try:
         # Log ALL parameters received from Tranzila
-        logger.info(f"🔔 Payment callback received!")
-        logger.info(f"🔔 Method: {request.method}")
-        logger.info(f"🔔 All request.values: {dict(request.values)}")
-        logger.info(f"🔔 Form data: {dict(request.form)}")
-        logger.info(f"🔔 Query params: {dict(request.args)}")
 
         transaction_id = request.values.get("transaction_id") or request.values.get("index")
         status_code = request.values.get("Response")
@@ -687,7 +637,6 @@ def payment_callback():
         amount = request.values.get("sum")
         order_id = request.values.get("order_id")
 
-        logger.info(f"🔔 Parsed - trx={transaction_id} status={status_code} user={user_id} plan={plan} order={order_id}")
 
         if status_code == "000":
             # Mark as Pro with updated limits
