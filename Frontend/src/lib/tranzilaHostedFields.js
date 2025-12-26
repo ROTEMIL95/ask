@@ -83,14 +83,13 @@ export const createHostedFields = (options = {}) => {
     sandbox: options.sandbox || false
   };
 
-  console.log('🔧 Creating Tranzila Hosted Fields with config:', config);
 
   try {
     const instance = window.TzlaHostedFields.create(config);
-    console.log('✅ Tranzila Hosted Fields instance created');
+
     return instance;
   } catch (error) {
-    console.error('❌ Failed to create Hosted Fields:', error);
+
     throw error;
   }
 };
@@ -107,10 +106,9 @@ export const createHostedFields = (options = {}) => {
  * @param {Function} callback - Callback function (err, response)
  */
 export const chargePayment = (hostedFields, params, callback) => {
-  console.log('🔵 chargePayment function called');
 
   if (!hostedFields) {
-    console.error('❌ Hosted Fields instance not initialized in chargePayment');
+
     callback(new Error('Hosted Fields instance not initialized'), null);
     return;
   }
@@ -129,26 +127,21 @@ export const chargePayment = (hostedFields, params, callback) => {
     ...params.extra // Any additional parameters
   };
 
-  console.log('💳 Charging payment with params:', paymentParams);
-  console.log('🔵 Calling hostedFields.charge...');
 
   try {
     hostedFields.charge(paymentParams, (err, response) => {
-      console.log('🔵 Tranzila SDK callback triggered');
-      console.log('  🔍 err:', err);
-      console.log('  🔍 response:', response);
 
       if (err) {
-        console.error('❌ Payment failed with error:', err);
+
         callback(err, null);
       } else {
-        console.log('✅ Payment successful, calling parent callback:', response);
+
         callback(null, response);
       }
     });
-    console.log('🔵 hostedFields.charge called successfully (waiting for callback)');
+
   } catch (error) {
-    console.error('❌ Exception in hostedFields.charge:', error);
+
     callback(error, null);
   }
 };
@@ -165,27 +158,27 @@ export const chargePayment = (hostedFields, params, callback) => {
  */
 export const setupEventListeners = (hostedFields, handlers = {}) => {
   if (!hostedFields) {
-    console.error('Cannot setup event listeners: hostedFields is null');
+
     return;
   }
 
   if (handlers.onReady) {
     hostedFields.onEvent('ready', () => {
-      console.log('✅ Hosted fields ready');
+
       handlers.onReady();
     });
   }
 
   if (handlers.onValidityChange) {
     hostedFields.onEvent('validityChange', (event) => {
-      console.log(`🔍 Field ${event.field} validity: ${event.isValid}`);
+
       handlers.onValidityChange(event);
     });
   }
 
   if (handlers.onCardTypeChange) {
     hostedFields.onEvent('cardTypeChange', (event) => {
-      console.log(`💳 Card type detected: ${event.cardType}`);
+
       handlers.onCardTypeChange(event);
     });
   }

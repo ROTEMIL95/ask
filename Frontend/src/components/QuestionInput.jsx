@@ -26,7 +26,7 @@ export default function QuestionInput({
                 setCopiedQuestion(true);
                 setTimeout(() => setCopiedQuestion(false), 2000);
             } catch (err) {
-                console.error('Failed to copy question: ', err);
+
             }
         }
     }, [question]);

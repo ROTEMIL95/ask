@@ -406,20 +406,19 @@ export class ErrorHandler {
      */
     static logError(apiError, sendToBackend = false) {
         console.group(`${apiError.getIcon()} ${apiError.category} Error`);
-        console.error('Message:', apiError.message);
-        console.error('User Message:', apiError.userMessage);
+
         if (apiError.statusCode) {
-            console.error('Status:', apiError.statusCode);
+
         }
         if (apiError.requestId) {
-            console.error('Request ID:', apiError.requestId);
+
         }
-        console.error('Timestamp:', apiError.timestamp);
+
         if (Object.keys(apiError.details).length > 0) {
-            console.error('Details:', apiError.details);
+
         }
         if (apiError.originalError) {
-            console.error('Original Error:', apiError.originalError);
+
         }
         console.groupEnd();
 

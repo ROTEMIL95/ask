@@ -77,7 +77,7 @@ const CodeSnippets = ({
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
             } catch (err) {
-                console.error('Failed to copy code:', err);
+
             }
         }
     }, [selectedLanguage, snippets]);
@@ -95,8 +95,7 @@ const CodeSnippets = ({
     // Parse JavaScript code
     const parseJavaScriptCode = useCallback((code) => {
         try {
-            console.log('🔍 Parsing JavaScript code:', code);
-            
+
             let url = null;
             let method = 'GET';
             let headers = {};
@@ -124,7 +123,7 @@ const CodeSnippets = ({
                         .replace(/(\w+):/g, '"$1":');
                     headers = JSON.parse(headersStr);
                 } catch (e) {
-                    console.warn('Failed to parse headers:', e);
+
                 }
             }
 
@@ -138,13 +137,13 @@ const CodeSnippets = ({
                         .replace(/(\w+):/g, '"$1":');
                     body = JSON.parse(bodyStr);
                 } catch (e) {
-                    console.warn('Failed to parse body:', e);
+
                 }
             }
 
             return { url, method, headers, body, originalCode: code };
         } catch (e) {
-            console.error('Error parsing JavaScript code:', e);
+
             return null;
         }
     }, []);
@@ -152,8 +151,7 @@ const CodeSnippets = ({
     // Parse Python code
     const parsePythonCode = useCallback((code) => {
         try {
-            console.log('🔍 Parsing Python code:', code);
-            
+
             let url = null;
             let method = 'GET';
             let headers = {};
@@ -181,7 +179,7 @@ const CodeSnippets = ({
                         .replace(/(\w+):/g, '"$1":');
                     headers = JSON.parse(headersStr);
                 } catch (e) {
-                    console.warn('Failed to parse headers:', e);
+
                 }
             }
 
@@ -195,13 +193,13 @@ const CodeSnippets = ({
                         .replace(/(\w+):/g, '"$1":');
                     body = JSON.parse(bodyStr);
                 } catch (e) {
-                    console.warn('Failed to parse body:', e);
+
                 }
             }
 
             return { url, method, headers, body, originalCode: code };
         } catch (e) {
-            console.error('Error parsing Python code:', e);
+
             return null;
         }
     }, []);
@@ -209,8 +207,7 @@ const CodeSnippets = ({
     // Parse cURL code
     const parseCurlCode = useCallback((code) => {
         try {
-            console.log('🔍 Parsing cURL code:', code);
-            
+
             let url = null;
             let method = 'GET';
             let headers = {};
@@ -245,13 +242,13 @@ const CodeSnippets = ({
                 try {
                     body = JSON.parse(bodyMatch[1]);
                 } catch (e) {
-                    console.warn('Failed to parse body:', e);
+
                 }
             }
 
             return { url, method, headers, body, originalCode: code };
         } catch (e) {
-            console.error('Error parsing cURL code:', e);
+
             return null;
         }
     }, []);
@@ -287,7 +284,7 @@ const CodeSnippets = ({
                 onRunCode(parsedCode);
             }
         } catch (error) {
-            console.error('Failed to run code:', error);
+
             // You might want to show this error to the user
         }
     }, [selectedLanguage, snippets, onRunCode, LANGUAGES]);

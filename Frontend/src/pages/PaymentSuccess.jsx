@@ -13,7 +13,6 @@ export default function PaymentSuccess() {
     // Refresh user profile to get updated plan status with retry logic
     const fetchUpdatedProfile = async () => {
       setIsRefreshing(true);
-      console.log("🔄 Refreshing user profile after payment success...");
 
       // Wait a bit for backend to update database
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -23,18 +22,18 @@ export default function PaymentSuccess() {
       const maxAttempts = 5;
 
       while (attempts < maxAttempts) {
-        console.log(`📡 Attempt ${attempts + 1}/${maxAttempts} to refresh profile...`);
+
         await refreshProfile();
 
         // Check if profile was updated to Pro
         if (profile?.plan_type === 'pro' || profile?.daily_limit === 100) {
-          console.log("✅ Profile updated successfully to Pro!");
+
           break;
         }
 
         attempts++;
         if (attempts < maxAttempts) {
-          console.log("⏳ Profile not updated yet, retrying in 1.5 seconds...");
+
           await new Promise(resolve => setTimeout(resolve, 1500));
         }
       }
@@ -42,7 +41,7 @@ export default function PaymentSuccess() {
       setIsRefreshing(false);
 
       if (profile?.plan_type !== 'pro') {
-        console.warn("⚠️ Profile may not have updated after payment. Please refresh the page if needed.");
+
       }
     };
 

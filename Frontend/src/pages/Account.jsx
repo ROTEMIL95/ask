@@ -64,68 +64,63 @@ export default function AccountPage() {
     const { profile, planType, fullName, loading: profileLoading, refreshProfile } = useUserProfile();
 
     useEffect(() => {
-        console.log('[Account] useEffect triggered - starting loadAccountData');
+
         const loadAccountData = async () => {
             try {
-                console.log('[Account] Step 1: Getting current user from authProxy (ASYNC)...');
 
                 // Use async method for reliable session retrieval
                 // This fixes issues with page refresh, tab switching, and post-purchase scenarios
                 const currentUser = await authProxy.getUserAsync();
 
                 if (!currentUser) {
-                    console.error('[Account] No user found in authProxy - session expired or not logged in');
 
                     // Add a small retry before redirecting (in case session is still loading)
-                    console.log('[Account] Retrying once after 500ms...');
+
                     await new Promise(resolve => setTimeout(resolve, 500));
 
                     const retryUser = await authProxy.getUserAsync();
                     if (!retryUser) {
-                        console.error('[Account] Retry failed - redirecting to login');
+
                         window.location.href = createPageUrl('Login');
                         return;
                     }
 
-                    console.log('[Account] Retry succeeded - user found:', retryUser?.email);
+
                     setUser(retryUser);
                 } else {
-                    console.log('[Account] Step 2: User found:', currentUser?.email);
+
                     setUser(currentUser);
                 }
 
-                console.log('[Account] Step 2.5: Refreshing profile from database...');
-                const profileRefreshed = await refreshProfile();
-                console.log('[Account] Step 2.5: Profile refreshed:', profileRefreshed);
 
-                console.log('[Account] Step 3: Loading usage...');
+                const profileRefreshed = await refreshProfile();
+
                 await loadUsage();
-                console.log('[Account] Step 3: Usage loaded successfully');
 
                 // Load recent API call history and favorites with error handling
-                console.log('[Account] Step 4: Loading history...');
+
                 setHistoryLoading(true);
                 try {
                     // For now, we'll skip history loading since we need to implement it with Supabase
                     // TODO: Implement history loading with Supabase
                     setRecentHistory([]);
                     setFavorites([]);
-                    console.log('[Account] Step 4: History set to empty (not implemented)');
+
                 } catch (historyError) {
-                    console.error('[Account] Failed to load history:', historyError);
+
                     // Don't block the page if history fails to load
                     setRecentHistory([]);
                     setFavorites([]); // Ensure favorites are also reset on error
                 } finally {
                     setHistoryLoading(false);
-                    console.log('[Account] Step 4: History loading completed');
+
                 }
             } catch (e) {
-                console.error('[Account] Error loading account data:', e);
+
                 // Redirect to login if not authenticated
                 window.location.href = createPageUrl('Login');
             } finally {
-                console.log('[Account] Step 5: Setting loading to FALSE');
+
                 setLoading(false);
             }
         };
@@ -167,14 +162,14 @@ export default function AccountPage() {
 
         setCancelLoading(true);
         try {
-            console.log('[Account] Cancelling subscription...');
+
             const result = await cancelSubscription();
 
             if (result.status === 'success') {
                 alert('Your subscription has been cancelled successfully. You have been reverted to the free plan.');
 
                 // Refresh the user profile data
-                console.log('[Account] Refreshing profile after cancellation...');
+
                 await refreshProfile(); // Trigger profile refresh
                 await loadUsage(); // Also refresh usage data
 
@@ -184,7 +179,7 @@ export default function AccountPage() {
                 alert(result.message || 'Failed to cancel subscription. Please try again or contact support.');
             }
         } catch (error) {
-            console.error('Error cancelling subscription:', error);
+
             alert(error.message || 'Failed to cancel subscription. Please contact support.');
         } finally {
             setCancelLoading(false);

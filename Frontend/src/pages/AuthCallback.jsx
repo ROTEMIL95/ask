@@ -15,11 +15,9 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        console.log('AuthCallback: Processing auth callback...');
 
         // Get the hash fragment from URL (contains auth tokens)
         const hashFragment = window.location.hash.substring(1);
-        console.log('Hash fragment:', hashFragment);
 
         if (!hashFragment) {
           setError('No authentication data received');
@@ -34,9 +32,6 @@ const AuthCallback = () => {
         const tokenType = params.get('token_type');
         const type = params.get('type');
 
-        console.log('Auth callback type:', type);
-        console.log('Access token present:', !!accessToken);
-        console.log('Refresh token present:', !!refreshToken);
 
         if (!accessToken || !refreshToken) {
           setError('Invalid authentication tokens received');
@@ -51,30 +46,28 @@ const AuthCallback = () => {
         });
 
         if (sessionError) {
-          console.error('Session error:', sessionError);
+
           setError('Failed to authenticate');
           setLoading(false);
           return;
         }
 
-        console.log('Session set successfully:', data);
 
         // Store session in authProxy (for consistency with email/password login)
         if (data?.session) {
           authProxy.setSession(data.session);
-          console.log('Session stored in authProxy');
+
         }
 
         // Get or create user profile
         if (data?.user) {
-          console.log('User authenticated:', data.user.email);
 
           try {
             const { data: profile, error: profileError } = await userProfile.getProfile(data.user.id);
 
             if (!profile && !profileError) {
               // Profile doesn't exist, create it
-              console.log('Creating user profile...');
+
               const { error: createError } = await userProfile.createProfile(
                 data.user.id,
                 data.user.email,
@@ -83,17 +76,17 @@ const AuthCallback = () => {
               );
 
               if (createError) {
-                console.error('Error creating user profile:', createError);
+
               } else {
-                console.log('User profile created successfully');
+
               }
             } else if (profileError) {
-              console.error('Error getting user profile:', profileError);
+
             } else {
-              console.log('User profile already exists');
+
             }
           } catch (profileErr) {
-            console.error('Error handling user profile:', profileErr);
+
           }
         }
 
@@ -109,7 +102,7 @@ const AuthCallback = () => {
           navigate('/', { replace: true });
         }, 2000);
       } catch (err) {
-        console.error('Auth callback error:', err);
+
         setError('An error occurred during authentication');
       }
 

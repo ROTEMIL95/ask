@@ -38,7 +38,7 @@ const Pricing = () => {
     // User is logged in, get user ID and proceed with payment
     const user = authProxy.getUser();
     if (!user?.id) {
-      console.error('User ID not found, redirecting to login');
+
       navigate('/login?returnTo=/checkout&plan=' + plan);
       return;
     }

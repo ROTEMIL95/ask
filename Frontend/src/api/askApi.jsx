@@ -35,7 +35,7 @@ export const analyzeApiDoc = async (doc) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error(`Error analyzing API documentation:`, error);
+
         throw new Error(`Failed to analyze API documentation: ${error.message}`);
     }
 };
@@ -60,7 +60,7 @@ export const getApiKey = async (service) => {
         const data = await response.json();
         return data.api_key;
     } catch (error) {
-        console.error(`Error getting ${service} API key:`, error);
+
         throw new Error(`Failed to get ${service} API key: ${error.message}`);
     }
 };
@@ -68,21 +68,16 @@ export const getApiKey = async (service) => {
 // OCR function to process uploaded images (kept for separate OCR functionality)
 export const processImageOCR = async (imageFile) => {
     try {
-        console.log('🔍 OCR Debug: Starting image OCR processing');
-        console.log('🔍 OCR Debug: File name:', imageFile.name);
-        console.log('🔍 OCR Debug: File size:', imageFile.size, 'bytes');
-        
+
         const formData = new FormData();
         formData.append('image', imageFile);
         
-        console.log('🔍 OCR Debug: Backend URL:', getBackendUrl());
 
         const response = await fetch(`${getBackendUrl()}/ocr`, {
             method: 'POST',
             body: formData,
         });
 
-        console.log('🔍 OCR Debug: Response status:', response.status);
 
         if (!response.ok) {
             let errorMessage = 'OCR processing failed';
@@ -95,15 +90,14 @@ export const processImageOCR = async (imageFile) => {
                     const errorData = await response.json();
                     errorMessage = errorData.error || errorMessage;
                 } catch (parseError) {
-                    console.error('❌ OCR Debug: Failed to parse JSON error response:', parseError);
+
                     errorMessage = `OCR error (${response.status}): Invalid response format`;
                 }
             } else {
                 // Handle HTML/text error responses
                 try {
                     const errorText = await response.text();
-                    console.error('❌ OCR Debug: Error response:', errorText.substring(0, 200));
-                    
+
                     if (response.status === 500) {
                         errorMessage = 'OCR service is temporarily unavailable. Please try again in a few minutes.';
                     } else if (response.status === 404) {
@@ -112,7 +106,7 @@ export const processImageOCR = async (imageFile) => {
                         errorMessage = `OCR error (${response.status}): ${errorText.substring(0, 100)}`;
                     }
                 } catch (textError) {
-                    console.error('❌ OCR Debug: Failed to read error response:', textError);
+
                     errorMessage = `OCR error (${response.status}): Unable to read error details`;
                 }
             }
@@ -121,12 +115,10 @@ export const processImageOCR = async (imageFile) => {
         }
 
         const data = await response.json();
-        console.log('✅ OCR Debug: OCR successful');
-        console.log('🔍 OCR Debug: Extracted text length:', data.text ? data.text.length : 0);
-        
+
         return data;
     } catch (error) {
-        console.error('❌ OCR Debug: Error processing OCR:', error);
+
         throw error;
     }
 };
@@ -134,23 +126,18 @@ export const processImageOCR = async (imageFile) => {
 // File processing function - uses file-to-text endpoint for all files
 export const processFileToText = async (file) => {
     try {
-        console.log('🔍 File Debug: Starting file processing');
-        console.log('🔍 File Debug: File name:', file.name);
-        console.log('🔍 File Debug: File size:', file.size, 'bytes');
-        
+
         // Use file-to-text endpoint for all file types
         const endpoint = '/file-to-text';
         const formData = new FormData();
         formData.append('file', file);
         
-        console.log('🔍 File Debug: Using endpoint:', endpoint);
-        
+
         const response = await fetch(`${getBackendUrl()}${endpoint}`, {
             method: 'POST',
             body: formData,
         });
 
-        console.log('🔍 File Debug: Response status:', response.status);
 
         if (!response.ok) {
             let errorMessage = 'File processing failed';
@@ -163,15 +150,14 @@ export const processFileToText = async (file) => {
                     const errorData = await response.json();
                     errorMessage = errorData.error || errorMessage;
                 } catch (parseError) {
-                    console.error('❌ File Debug: Failed to parse JSON error response:', parseError);
+
                     errorMessage = `File processing error (${response.status}): Invalid response format`;
                 }
             } else {
                 // Handle HTML/text error responses
                 try {
                     const errorText = await response.text();
-                    console.error('❌ File Debug: Error response:', errorText.substring(0, 200));
-                    
+
                     if (response.status === 500) {
                         errorMessage = 'File processing service is temporarily unavailable. Please try again in a few minutes.';
                     } else if (response.status === 404) {
@@ -180,7 +166,7 @@ export const processFileToText = async (file) => {
                         errorMessage = `File processing error (${response.status}): ${errorText.substring(0, 100)}`;
                     }
                 } catch (textError) {
-                    console.error('❌ File Debug: Failed to read error response:', textError);
+
                     errorMessage = `File processing error (${response.status}): Unable to read error details`;
                 }
             }
@@ -189,12 +175,10 @@ export const processFileToText = async (file) => {
         }
 
         const data = await response.json();
-        console.log('✅ File Debug: File processing successful');
-        console.log('🔍 File Debug: Extracted text length:', data.text ? data.text.length : 0);
-        
+
         return data;
     } catch (error) {
-        console.error('❌ File Debug: Error processing file:', error);
+
         throw error;
     }
 };
@@ -242,25 +226,6 @@ export const useAskApi = () => {
                 provider_hint: apiConfig
             };
 
-            // Debug logging to see what's being sent (without sensitive data)
-            console.log('🔍 Debug: API Configuration:', {
-                apiName: apiConfig.apiName,
-                baseUrl: apiConfig.baseUrl,
-                hasApiKey: apiConfig.hasApiKey,
-                docsUrl: apiConfig.docsUrl,
-                authType: apiConfig.authType,
-                methods: apiConfig.methods,
-                version: apiConfig.version
-            });
-            
-            // Log request structure (without sensitive data)
-            console.log('📝 Debug: Request Structure:', {
-                endpoint: '/ask',
-                method: 'POST',
-                questionLength: question.length,
-                hasApiConfig: !!apiConfig,
-                timestamp: new Date().toISOString()
-            });
 
             const response = await fetch(`${getBackendUrl()}/ask`, {
                 method: 'POST',
@@ -283,7 +248,7 @@ export const useAskApi = () => {
             
             // Validate response format
             if (!data.answer) {
-                console.warn('Response missing answer field:', data);
+
                 throw new Error('Invalid response format: missing answer field');
             }
 
@@ -292,7 +257,7 @@ export const useAskApi = () => {
             
             // If no code blocks found, try to extract from text
             if (codeBlocks.length === 0) {
-                console.warn('No code blocks found in response, attempting to extract from text');
+
                 // Create a basic response structure
                 data.snippets = {
                     javascript: "// Example code will be generated once API configuration is complete",
@@ -356,7 +321,7 @@ export const submitFeedback = async (feedbackData) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error submitting feedback:', error);
+
         throw error;
     }
 };
@@ -391,7 +356,7 @@ export const sendContactEmail = async (formData) => {
             data: data,
         };
     } catch (error) {
-        console.error('Error sending contact email:', error);
+
         return {
             success: false,
             error: error.message || 'Failed to send email',

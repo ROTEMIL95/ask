@@ -43,26 +43,25 @@ export default function Layout({ children }) {
     const handleLogout = async () => {
         // Prevent multiple simultaneous logout attempts
         if (isLoggingOut) {
-            console.log('⏳ Logout already in progress...');
+
             return;
         }
 
         try {
             setIsLoggingOut(true);
-            console.log('🚪 Starting logout...');
 
             const result = await signOut();
 
             if (result.success) {
-                console.log('✅ Successfully signed out');
+
                 navigate(createPageUrl("Home"));
             } else {
-                console.error('❌ Error signing out:', result.error);
+
                 // Even if there's an error, navigate to home
                 navigate(createPageUrl("Home"));
             }
         } catch (e) {
-            console.error('❌ Error during logout:', e);
+
             // Even on error, navigate to home to reset the UI
             navigate(createPageUrl("Home"));
         } finally {

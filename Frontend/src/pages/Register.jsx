@@ -35,8 +35,7 @@ export default function Register() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        console.log('Input changed:', { name, value: name === 'password' ? '***' + value.slice(-3) : value });
-        
+
         setFormData(prev => ({
             ...prev,
             [name]: value
@@ -83,36 +82,28 @@ export default function Register() {
     };
 
     const validateForm = () => {
-        console.log('Validating form data:', {
-            email: formData.email,
-            emailLength: formData.email?.length || 0,
-            password: formData.password ? 'Yes (length: ' + formData.password.length + ')' : 'No',
-            passwordStrength: passwordStrength.score,
-            acceptedTerms: acceptedTerms,
-            acceptedCookies: acceptedCookies
-        });
-        
+
         if (!formData.name || !formData.email || !formData.password) {
-            console.log('Validation failed: Missing name, email or password');
+
             setError('Please fill in all required fields.');
             return false;
         }
         if (passwordStrength.score < 3) {
-            console.log('Validation failed: Password too weak (score: ' + passwordStrength.score + ')');
+
             setError('Password is too weak. Please choose a stronger password.');
             return false;
         }
         if (!acceptedTerms) {
-            console.log('Validation failed: Terms and conditions not accepted');
+
             setError('Please accept the Terms and Conditions to continue.');
             return false;
         }
         if (!acceptedCookies) {
-            console.log('Validation failed: Cookie settings not accepted');
+
             setError('Please accept the Cookie Settings to continue.');
             return false;
         }
-        console.log('Form validation passed');
+
         return true;
     };
 
@@ -125,15 +116,10 @@ export default function Register() {
         }
 
         // Debug: Log the form data being sent
-        console.log('Form data being sent to signUp:', {
-            email: formData.email,
-            password: formData.password ? '***' + formData.password.slice(-3) : 'empty'
-        });
 
         const result = await signUp(formData.email, formData.password, formData.name);
 
         // Debug: Log the result
-        console.log('SignUp result:', result);
 
         if (result.success) {
             // Navigate to home page after successful registration

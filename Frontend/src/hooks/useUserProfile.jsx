@@ -45,23 +45,23 @@ export const useUserProfile = () => {
       setLoading(true)
       setError(null)
 
-      console.log('[useUserProfile] Fetching profile for user:', userId)
+
       const { data, error } = await userProfile.getProfile(userId)
 
       if (error) {
-        console.error('Error fetching profile:', error)
+
         setError(sanitizeErrorMessage(error.message))
         return null
       }
 
-      console.log('[useUserProfile] Profile fetched successfully:', data?.plan_type)
+
       return data
     } catch (err) {
-      console.error('Error in fetchProfile:', err)
+
       setError(sanitizeErrorMessage(err.message))
       return null
     } finally {
-      console.log('[useUserProfile] Setting loading to false')
+
       setLoading(false)
     }
   }
@@ -75,7 +75,7 @@ export const useUserProfile = () => {
       const { data, error } = await userProfile.createProfile(userId, email, username, fullName)
       
       if (error) {
-        console.error('Error creating profile:', error)
+
         setError(sanitizeErrorMessage(error.message))
         return false
       }
@@ -83,7 +83,7 @@ export const useUserProfile = () => {
       setProfile(data)
       return true
     } catch (err) {
-      console.error('Error in createProfile:', err)
+
       setError(sanitizeErrorMessage(err.message))
       return false
     } finally {
@@ -105,7 +105,7 @@ export const useUserProfile = () => {
       const { data, error } = await userProfile.updateProfile(user.id, updates)
       
       if (error) {
-        console.error('Error updating profile:', error)
+
         setError(sanitizeErrorMessage(error.message))
         return false
       }
@@ -115,7 +115,7 @@ export const useUserProfile = () => {
       setProfile(updatedProfile)
       return true
     } catch (err) {
-      console.error('Error in updateProfile:', err)
+
       setError(sanitizeErrorMessage(err.message))
       return false
     } finally {
@@ -131,14 +131,14 @@ export const useUserProfile = () => {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
         if (sessionError) {
-          console.error('Error getting session:', sessionError)
+
           setError(sanitizeErrorMessage(sessionError.message))
           setLoading(false)
           return
         }
         
         if (!session) {
-          console.log('No active session found')
+
           setUser(null)
           setProfile(null)
           setLoading(false)
@@ -155,11 +155,11 @@ export const useUserProfile = () => {
           if (errorMessage.includes('no session') || 
               errorMessage.includes('user from sub claim in jwt does not exist') ||
               errorMessage.includes('invalid jwt')) {
-            console.log('No active user session - this is normal for new users')
+
             setUser(null)
             setProfile(null)
           } else {
-            console.error('Error getting current user:', userError)
+
             setError(sanitizeErrorMessage(userError.message))
           }
           setLoading(false)
@@ -195,7 +195,7 @@ export const useUserProfile = () => {
           setProfile(existingProfile)
         }
       } catch (err) {
-        console.error('Error initializing user:', err)
+
         setError(sanitizeErrorMessage(err.message))
       } finally {
         setLoading(false)
@@ -270,7 +270,7 @@ export const useUserProfile = () => {
       setProfile(updatedProfile)
       return true
     } catch (err) {
-      console.error('Error refreshing profile:', err)
+
       return false
     }
   }

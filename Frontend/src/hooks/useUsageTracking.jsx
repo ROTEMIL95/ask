@@ -37,7 +37,7 @@ export function useUsageTracking() {
             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
             
             if (sessionError || !session) {
-                console.log('No active session found, skipping backend persistence');
+
                 return;
             }
             
@@ -58,7 +58,7 @@ export function useUsageTracking() {
                     );
                     
                     if (createError) {
-                        console.error('Failed to create user profile for usage tracking:', createError);
+
                         return;
                     }
                 }
@@ -71,13 +71,13 @@ export function useUsageTracking() {
                     last_api_call_month: currentMonth
                 });
                 if (error) {
-                    console.error('Failed to persist API usage:', error);
+
                 } else {
                     lastPersistedCountRef.current = countToPersist; // Update the last successfully persisted count
                 }
             }
         } catch (e) {
-            console.error('Failed to persist API usage:', e);
+
             // In a real application, you might want to implement retry logic or more robust error handling
         }
     }, [user, usage.monthlyCount]); // Depend on 'user' and monthlyCount to ensure it uses the latest data
@@ -88,7 +88,7 @@ export function useUsageTracking() {
             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
             
             if (sessionError) {
-                console.error('Error getting session:', sessionError);
+
                 // Fall back to anonymous usage
                 const today = new Date().toISOString().split('T')[0];
                 const anonUsage = JSON.parse(sessionStorage.getItem('anonUsage') || '{}');
@@ -105,7 +105,7 @@ export function useUsageTracking() {
             
             // If no active session, use anonymous usage
             if (!session) {
-                console.log('No active session found, using anonymous usage');
+
                 const today = new Date().toISOString().split('T')[0];
                 const anonUsage = JSON.parse(sessionStorage.getItem('anonUsage') || '{}');
                 
@@ -122,7 +122,7 @@ export function useUsageTracking() {
             // Now get the current user
             const { user: currentUser, error } = await auth.getCurrentUser();
             if (error) {
-                console.error('Error getting current user:', error);
+
                 // Fall back to anonymous usage
                 const today = new Date().toISOString().split('T')[0];
                 const anonUsage = JSON.parse(sessionStorage.getItem('anonUsage') || '{}');
@@ -146,7 +146,7 @@ export function useUsageTracking() {
             
             // If profile doesn't exist, create it
             if (!profile && !profileError) {
-                console.log('Creating user profile for:', currentUser.id);
+
                 const { data: newProfile, error: createError } = await userProfile.createProfile(
                     currentUser.id,
                     currentUser.email,
@@ -155,14 +155,14 @@ export function useUsageTracking() {
                 );
                 
                 if (createError) {
-                    console.error('Error creating user profile:', createError);
+
                     // Continue with default values
                     userProfileData = null;
                 } else {
                     userProfileData = newProfile;
                 }
             } else if (profileError) {
-                console.error('Error getting user profile:', profileError);
+
                 // Continue with default values
                 userProfileData = null;
             }
@@ -185,7 +185,7 @@ export function useUsageTracking() {
                     last_api_call_date: today
                 });
                 if (updateError) {
-                    console.error('Failed to reset daily usage count:', updateError);
+
                 }
             }
             
@@ -198,7 +198,7 @@ export function useUsageTracking() {
                     last_api_call_month: currentMonth
                 });
                 if (updateError) {
-                    console.error('Failed to reset monthly usage count:', updateError);
+
                 }
             }
             
@@ -212,7 +212,7 @@ export function useUsageTracking() {
             lastPersistedCountRef.current = dailyCallCount; // Initialize last persisted count from the backend data
             apiCallsToPersistRef.current = dailyCallCount; // Initialize count to be persisted
         } catch (e) {
-            console.error('Error loading usage:', e);
+
             // For anonymous users, use session storage
             const today = new Date().toISOString().split('T')[0];
             const anonUsage = JSON.parse(sessionStorage.getItem('anonUsage') || '{}');
@@ -313,7 +313,7 @@ export function useUsageTracking() {
                     date: today 
                 }));
             } catch (e) {
-                console.error('Failed to store anonymous API usage:', e);
+
             }
         }
         

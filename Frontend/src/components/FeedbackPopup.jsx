@@ -62,7 +62,7 @@ export function FeedbackPopup({ open, onClose, onFeedbackSubmitted }) {
                 setEmail('');
             }, 2000);
         } catch (error) {
-            console.error('Error submitting feedback:', error);
+
             alert('Failed to submit feedback. Please try again.');
         } finally {
             setIsSubmitting(false);

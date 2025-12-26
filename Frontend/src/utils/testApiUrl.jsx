@@ -137,11 +137,7 @@ export const useTestApiUrl = (defaultOptions = {}) => {
                 };
             }
             
-            console.log('🔍 Making API request:', {
-                url: finalUrl,
-                options: finalOptions
-            });
-            
+
             const response = await fetch(finalUrl, finalOptions);
             
             // Check if response is ok (status in 200-299 range)
@@ -166,7 +162,7 @@ export const useTestApiUrl = (defaultOptions = {}) => {
                 headers: Object.fromEntries(response.headers.entries())
             };
         } catch (error) {
-            console.error('❌ API request failed:', error);
+
             return { 
                 accessible: false, 
                 error: error.message,
@@ -208,11 +204,7 @@ export const testApiUrl = async (url, options = {}) => {
             };
         }
         
-        console.log('🔍 Making API request:', {
-            url: finalUrl,
-            options: finalOptions
-        });
-        
+
         const response = await fetch(finalUrl, finalOptions);
         
         // Check if response is ok (status in 200-299 range)
@@ -237,7 +229,7 @@ export const testApiUrl = async (url, options = {}) => {
             headers: Object.fromEntries(response.headers.entries())
         };
     } catch (error) {
-        console.error('❌ API request failed:', error);
+
         return { 
             accessible: false, 
             error: error.message,

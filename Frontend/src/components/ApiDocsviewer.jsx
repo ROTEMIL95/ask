@@ -86,7 +86,6 @@ export default function ApiDocsViewer() {
         throw new Error("This does not look like a valid OpenAPI/Swagger document.");
       }
 
-
 setSpec(data);
 window.__apiSpec = data;
 
@@ -124,7 +123,6 @@ const paths = data.paths || {};
   const path = String(p || "").replace(/^\/+/, "");
   return `${base}/${path}`;
 };
-
 
   /** Choose a preferred content type for requestBody */
   const pickContentType = (contentObj) => {

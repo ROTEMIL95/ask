@@ -14,13 +14,13 @@ export function UserProvider({ children }) {
             try {
                 const { user: loggedInUser, error } = await auth.getCurrentUser();
                 if (error) {
-                    console.error('Error getting current user:', error);
+
                     setUser(null);
                 } else {
                     setUser(loggedInUser);
                 }
             } catch (e) {
-                console.error('Error fetching user:', e);
+
                 setUser(null);
             } finally {
                 setLoading(false);

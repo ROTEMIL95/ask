@@ -21,7 +21,7 @@ export default function ResetPassword() {
         const checkSession = async () => {
             const { data: { session }, error } = await supabase.auth.getSession();
             if (error || !session) {
-                console.error('No valid reset session:', error);
+
                 setError('Invalid or expired reset link. Please request a new one.');
             }
         };
@@ -51,20 +51,19 @@ export default function ResetPassword() {
         setLoading(true);
 
         try {
-            console.log('🔐 Updating password...');
 
             const { data, error } = await supabase.auth.updateUser({
                 password: newPassword
             });
 
             if (error) {
-                console.error('❌ Password update error:', error);
+
                 setError(error.message || 'Failed to update password. Please try again.');
                 setLoading(false);
                 return;
             }
 
-            console.log('✅ Password updated successfully');
+
             setSuccess(true);
 
             // Redirect to login after 3 seconds
@@ -72,7 +71,7 @@ export default function ResetPassword() {
                 navigate(createPageUrl('Login'));
             }, 3000);
         } catch (err) {
-            console.error('❌ Error updating password:', err);
+
             setError('An error occurred. Please try again.');
             setLoading(false);
         }
